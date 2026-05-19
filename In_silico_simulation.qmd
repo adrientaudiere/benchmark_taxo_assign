@@ -1,0 +1,64 @@
+---
+title: "In silico simulations"
+author: "Adrien Taudière"
+format: html
+---
+
+```{r}
+library("conflicted")
+library("MiscMetabar")
+library("targets")
+library("tarchetypes")
+library("here")
+library("tibble")
+library("tidyr")
+library("autometric")
+
+conflicted::conflicts_prefer(dplyr::filter)
+```
+
+```{r}
+here::i_am("analysis/benchmark.qmd")
+devtools::load_all("~/Nextcloud/IdEst/Projets/MiscMetabar/R/")
+source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/compare_taxo.R")
+source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/taxtab_modification.R")
+```
+
+# Fastq files
+
+## Ecolottery
+
+```{r}
+# devtools::install_github("frmunoz/ecolottery/pkg")
+library("ecolottery")
+```
+
+```{r}
+pool <- cbind(1:10000, rep(1:500, 20), rep(NA, 10000))
+coalesc(500, 0.1, 50)
+```
+
+https://krisrs1128.github.io/microbiome-simulation/index.html
+
+## miaSim
+
+[miaSim](https://github.com/microbiome/miaSim) : https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.14129
+
+```{r}
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+# BiocManager::install("microbiome")
+
+
+library(miaSim)
+hubbell_pq <- simulateHubbell(n_species = 100,
+                               M = 200,
+                   carrying_capacity = 1000,
+                               k_events = 50,
+                   migration_p = 0.02,
+                   t_end = 1000) |>
+  mia::makePhyloseqFromTreeSE() 
+
+hubbell_pq@otu_table[, nsamples(hubbell_pq)] 
+# TODO faire une boucle pour créer plusieurs communautés au dernier pas de temps
+```

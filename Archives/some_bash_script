@@ -1,0 +1,131 @@
+
+#———————————————————————————————————————————————————————————————————————————————
+# Some code about fasta database format
+#———————————————————————————————————————————————————————————————————————————————
+
+# from dada2 to sintax
+#———————————————————————————————————————————————————————————————————————————————
+# for (file in normalizePath(list.files("data/data_raw/refseq/dada2_format/", pattern="Unite", full.names = TRUE))) {
+#   cmd <- paste0("sed 's/;/,/g' ",
+#                 file,
+#                 " | sed 's/__/:/g' ",
+#                 " | sed 's/|k:/;tax=k:/g' ",
+#                 " > ",
+#                 paste0("/home/adrien/Nextcloud/IdEst/Projets/arround_MiscMetabar/benchmar_assign_taxo/data/data_raw/refseq/sintax_format/", basename(file)))
+#   print(cmd)
+#   system(cmd)
+# }
+#
+# cd data/data_raw/refseq/dada2_format/
+# for f in EUK*; do
+#   sed 's/;/,/g' $f | sed 's/__/:/g'  | sed 's/|k:/;tax=k:/g'  > ../sintax_format/$f
+# done
+
+cd data / data_raw / refseq / dada2_format /
+  sed 's/;/,/g' EUK_ITS_99_V1.9.fasta |
+  sed 's/__/:/g'  |
+  sed 's/|k:/;tax=k:/g'  > .. / sintax_format / EUK_ITS_99_V1_9.fasta
+
+
+# from "general fasta" (with two lines per sequences) to sintax
+#———————————————————————————————————————————————————————————————————————————————
+for (file in normalizePath(list.files(
+  "data/data_raw/refseq/",
+  pattern = "EUK",
+  full.names = TRUE
+))) {
+  cmd <- paste0(
+    "sed 's/>/>;tax=/g' ",
+    file,
+    " > ",
+    paste0(
+      "/home/adrien/Nextcloud/IdEst/Projets/arround_MiscMetabar/benchmar_assign_taxo/data/data_raw/refseq/sintax_format/",
+      basename(file)
+    )
+  )
+  print(cmd)
+  system(cmd)
+}
+
+
+# Select only Fungi in a database
+#———————————————————————————————————————————————————————————————————————————————
+## When there is two lines per sequences
+for f in EUK *
+  do
+grep 'Fungi'-A 1$f > "${f%.*}_Fungi.${f##*.}"
+done
+
+## When there is various number of lines per sequences
+for f in EUK *
+  do
+sed ':a;N;/>/!s/\n//;ta;P;D'$f |
+  grep 'Fungi'-A 1 |
+  sed - E 's/--//g' | sed - E '/^$/d' > "${f%.*}_Fungi.${f##*.}"
+done
+
+sed ':a;N;/>/!s/\n//;ta;P;D' EUK_SSU_99_v1_9_3.fasta |
+  grep 'Fungi'-A 1 |
+  sed - E 's/--//g' | sed - E '/^$/d' > EUK_SSU_99_v1_9_3_Fungi.fasta
+
+
+
+# Select only non-Fungi in a database
+#———————————————————————————————————————————————————————————————————————————————
+grep - vFf - Unite.fasta < < (grep - A1 'Fungi' Unite.fasta) > Unite_wo_fungi.fasta
+
+# Create mini dataset for test purpose
+
+cd data / data_raw / refseq / sintax_format /
+  cd data / data_raw / refseq / dada2_format /
+  for f in *
+  do
+head - n 10000$f > mini_$f
+done
+
+
+
+# Suppress all text within parenthesis (appear in EUKARYOME v1.9.3)
+#———————————————————————————————————————————————————————————————————————————————
+cd ~  / Nextcloud / IdEst / Projets / arround_MiscMetabar / benchmar_assign_taxo /
+  data / data_raw / refseq /
+  sed "s/([^)]*)//g" SINTAX_EUK_SSU_v1.9.3.fasta > sintax_format / EUK_SSU_v1_9_3.fasta
+sed "s/([^)]*)//g" SINTAX_EUK_ITS_v1.9.3.fasta > sintax_format / EUK_ITS_v1_9_3.fasta
+
+
+# Create database at 99%
+#———————————————————————————————————————————————————————————————————————————————
+cd ~  / Nextcloud / IdEst / Projets / arround_MiscMetabar / benchmar_assign_taxo /
+  data / data_raw / refseq / sintax_format
+vsearch--cluster_fast EUK_SSU_v1_9_3.fasta--id 0.99--centroids EUK_SSU_99_v1_9_3.fasta
+
+# To Test (may be not so useful, only useful for EUK_SSU and EUK_ITS)
+#TODO (pour l'instant je ne l'ai fait que pour EUK_SSU_v1_9_3, ça gagne pas tant que ça en taille de db)
+cd data / data_raw / refseq / dada2_format /
+  for f in *
+  do
+vsearch--cluster_fast$f--id 0.99--centroids${
+  f%. *
+}_Fungi.${
+  f##*.}
+  done
+
+
+
+
+
+
+
+
+
+
+
+
+
+  docker pull quay.io / biocontainers / insilicoseq:2.0.0--pyh7cba7a3_0
+
+
+  sudo docker run - v / home / adrien / insilicoseq / : / mnt / -it--rm quay.io /
+    biocontainers / insilicoseq:2.0.0--pyh7cba7a3_0 iss generate--genomes /
+    mnt / mini_Unite.fasta--sequence_type amplicon--n_reads 10000--abundance zero_inflated_lognormal--model MiSeq--output /
+    mnt / reads

@@ -1,0 +1,700 @@
+---
+title: "Benchmark analysis"
+author: "Adrien Taudière"
+---
+
+
+```{r}
+library("conflicted")
+library("MiscMetabar")
+library("targets")
+library("tarchetypes")
+library("here")
+library("tibble")
+library("tidyr")
+library("autometric")
+
+conflicted::conflicts_prefer(dplyr::filter)
+```
+
+
+```{r}
+here::i_am("analysis/benchmark.qmd")
+devtools::load_all("~/Nextcloud/IdEst/Projets/MiscMetabar/R/")
+source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/compare_taxo.R")
+source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/taxtab_modification.R")
+source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/compare_taxo_plot.R")
+```
+
+# Import value from store_assign_taxo
+
+```{r}
+taxo_mock <- tar_read(taxo_mock, store = "store_assign_taxo") |>
+  rename(Gen_sp= Species)
+```
+
+
+```{r}
+last_target <- grep("_all_taxo", values_map$full_name, value = T)
+d_all_taxo <- tar_read_raw(last_target, store = "store_assign_taxo")
+#d_all_taxo <- simplify_taxo(tar_read(lca__EUK_ITS_v1_9_3___0.7, store = "store_assign_taxo"))
+
+d_all_taxo <- d_all_taxo |>
+  taxtab_replace_pattern_by_NA(
+    patterns = ".*_sp$",
+    progress_bar = TRUE,
+    taxonomic_ranks =
+      colnames(d_all_taxo@tax_table)[grep("^Species_", colnames(d_all_taxo@tax_table))]
+  ) |>
+  taxtab_replace_pattern_by_NA(
+    patterns = c(
+      ".*_incertae_sedis",
+      ".*_Incertae_sedis",
+      "unclassified.*",
+      "^$"
+    ),
+    progress_bar = TRUE
+  ) |>
+  simplify_taxo()
+```
+
+```{r}
+taxtab_d_all <- d_all_taxo@tax_table |> 
+  as.data.frame() 
+
+cl_names <- gsub("Kingdom|Phylum|Phyla|Class|Order|Family|Genus|Species", NA, unique(gsub("Kingdom_|Phyla_|Phylum_|Class_|Order_|Family_|Genus_|Species_", "",
+            colnames(d_all_taxo@tax_table)))) |>
+  na.omit()  |>
+  as.vector()
+
+cl_names <- grep("Taxa_name_", cl_names, invert = TRUE,value=TRUE)
+
+for(cl in cl_names) {
+  if(paste0("Species_", cl)%in%colnames(taxtab_d_all)) {
+      sp <- as.vector(taxtab_d_all[,paste0("Species_", cl)])
+  } else {
+    sp <- NA
+  }
+  if(paste0("Genus_", cl)%in%colnames(taxtab_d_all)) {
+      gen <- as.vector(taxtab_d_all[,paste0("Genus_", cl)])
+  } else {
+    gen <- NA
+  }
+  
+  if(sum(grepl("_", sp)) == sum(!is.na(sp))) {
+    taxtab_d_all[paste0("Gen_sp_", cl)] <- sp
+  } else  {
+    taxtab_d_all[paste0("Gen_sp_", cl)] <- paste(gen, sp, sep = "_")
+  }
+   taxtab_d_all[grepl("NA", as.vector(taxtab_d_all[paste0("Gen_sp_", cl)][,1])), paste0("Gen_sp_", cl)] <- NA
+}
+
+d_all_taxo@tax_table <- tax_table(as.matrix(taxtab_d_all))
+```
+
+## Create column using consensus with clear majority 
+
+```{r}
+d_all_taxo <-  d_all_taxo |>
+  resolve_taxo_conflict(
+    pattern_tax_ranks = c("Kingdom","Phylum", "Class", "Order", "Family", "Genus", "Gen_sp"),
+    method = "rel_majority",
+    new_names = paste0(c("Kingdom","Phylum", "Class", "Order", "Family", "Genus", "Gen_sp"), "_", "rel_majority_consensus"),
+    replace_collapsed_rank_by_NA = TRUE
+  )  |>
+  resolve_taxo_conflict(
+    pattern_tax_ranks = c("Kingdom","Phylum", "Class", "Order", "Family", "Genus", "Gen_sp"),
+    method = "preference",
+        new_names = paste0(c("Kingdom","Phylum", "Class", "Order", "Family", "Genus", "Gen_sp"), "_", "preference_consensus"),
+    preference_pattern = "sintax__EUK_ITS_v1_9_3___0.5",  # replace by sintax__mini_EUK_ITS_v1_9_3___0.5 if mini db are used 
+    replace_collapsed_rank_by_NA = TRUE
+  )  |>
+  resolve_taxo_conflict(
+    pattern_tax_ranks = c("Kingdom","Phylum", "Class", "Order", "Family", "Genus", "Gen_sp"),
+    method = "unanimity",
+    new_names = paste0(c("Kingdom","Phylum", "Class", "Order", "Family", "Genus", "Gen_sp"), "_", "unanimity_consensus"),
+    replace_collapsed_rank_by_NA = TRUE
+  ) 
+```
+
+
+```{r}
+d_all_taxo <- rename_ranks_pq(d_all_taxo,
+                grep("_all_taxo", colnames(d_all_taxo@tax_table), value = TRUE),
+                gsub("_all_taxo", "", grep("_all_taxo", colnames(d_all_taxo@tax_table), value = TRUE)))
+
+```
+
+
+# Compute performance metrics
+
+## Proportion of NA
+
+```{r}
+df_na <- data.frame("method_db"=names(colSums(is.na(d_all_taxo@tax_table)/ntaxa(d_all_taxo))),
+           "prop_na" = as.vector(colSums(is.na(d_all_taxo@tax_table))/ntaxa(d_all_taxo))) |>
+  mutate(tax_level = gsub("_.*", "", method_db)) |>
+  mutate(tax_level = substr(tax_level, 1, 1)) |>
+  filter(tax_level%in%c("K", "P", "C", "O", "F", "G", "S")) |>
+  mutate(bootstrap = gsub(".*__", "", method_db)) |>
+  mutate(db = sub(".*__", "", gsub("___.*", "", method_db))) |>
+  mutate(algo = method_db) |>
+  mutate(algo = ifelse(grepl("dada2", algo), "dada2", algo)) |>
+  mutate(algo = ifelse(grepl("sintax", algo), "sintax", algo)) |>
+  mutate(algo = ifelse(grepl("lca", algo), "lca", algo)) |>
+  mutate(algo = ifelse(grepl("blastn", algo), "blastn", algo)) |>
+  mutate(algo = ifelse(grepl("idtaxa", algo), "idtaxa", algo)) |>
+  mutate(algo = ifelse(grepl("rel_majority_consensus", algo), "rel_majority_consensus", algo)) |>
+  mutate(algo = ifelse(grepl("preference_consensus", algo), "preference_consensus", algo)) |>
+  mutate(algo = ifelse(grepl("unanimity_consensus", algo), "unanimity_consensus", algo)) |>
+  mutate(db = ifelse(grepl("unanimity_consensus", algo), NA, db)) |>
+  mutate(db = ifelse(grepl("preference_consensus", algo), NA, db)) |>
+  mutate(db = ifelse(grepl("rel_majority_consensus", algo), NA, db)) |>
+  mutate(bootstrap = ifelse(grepl("unanimity_consensus", algo), NA, bootstrap)) |>
+  mutate(bootstrap = ifelse(grepl("rel_majority_consensus", algo), NA, bootstrap)) |>
+  mutate(bootstrap = ifelse(grepl("preference", algo), NA, bootstrap)) 
+
+df_na |>
+  dplyr::filter(algo%in%c("unanimity_consensus", "preference_consensus","rel_majority_consensus")) |> # "idtaxa"
+  ggplot() +
+  geom_bar(aes(x=prop_na, y=db, fill=db),stat = "identity", position = position_dodge()) +
+  geom_vline(xintercept = sum(grepl("external|fake",taxa_names(d_all_taxo)))/ntaxa(d_all_taxo)) +
+facet_grid(algo~factor(tax_level, levels=c("K", "P", "C", "O", "F", "G", "S"))) +
+  xlim(c(0,1)) + no_legend()
+
+df_na  |>
+  dplyr::filter(algo%in%c("dada2", "sintax", "lca", "blastn")) |> # "idtaxa"
+  ggplot() +
+  geom_bar(aes(x=prop_na, y=db, fill=db),stat = "identity", position = position_dodge()) +
+  geom_vline(xintercept = sum(grepl("external|fake",taxa_names(d_all_taxo)))/ntaxa(d_all_taxo)) +
+facet_grid(algo~factor(tax_level, levels=c("K", "P", "C", "O", "F", "G", "S"))) +
+  xlim(c(0,1)) + no_legend()
+```
+
+
+
+## Create a dataframe of taxonomic level of interest
+
+```{r}
+ranks_df_list <- list()
+
+fullnames_vec <- values_map |>
+  mutate(full_name = gsub("_all_taxo", "", full_name)) |>
+  pull(full_name)
+  
+
+for (db_name in c("unanimity_consensus", "preference_consensus", "rel_majority_consensus", fullnames_vec)){
+  print(db_name)
+  ranks_df_list[[db_name]] <-   c(
+    paste0(c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Gen_sp"),
+           paste0("_", db_name))
+  )
+}
+
+ranks_df <- do.call(data.frame, ranks_df_list)
+
+if(sum(!as.vector(unlist(ranks_df)) %in% colnames(d_all_taxo@tax_table)) != 0) {
+  as.vector(unlist(ranks_df))[!as.vector(unlist(ranks_df)) %in% colnames(d_all_taxo@tax_table)]
+  stop("there is a big pb!")
+}
+```
+
+
+```{r}
+res_comp_tax <- tc_metrics_mock(d_all_taxo,
+                                ranks_df = ranks_df,
+                                true_values_df = taxo_mock)
+
+res_comp_tax <- res_comp_tax |>
+  mutate(bootstrap = gsub(".*__", "", method_db)) |>
+  mutate(algo = gsub("__.*", "", method_db)) |>
+  mutate(db = gsub(".*__", "", gsub("___.*", "", method_db)))
+```
+
+
+```{r}
+plot_tc_metrics_mock <- function(tc_metrics_mock,
+                                 metric=NULL,
+                                 modality_x=NULL,
+                                 modality_line=NULL,
+                                modality_column=NULL,
+                                modality_fill=NULL,
+                                taxonomic_ranks=NULL,
+                                legend= TRUE){
+
+  if(is.null(taxonomic_ranks)){
+    taxonomic_ranks <- unique(tc_metrics_mock$tax_level)
+  } else {
+    tc_metrics_mock <- tc_metrics_mock |>
+      dplyr::filter(tax_level %in% taxonomic_ranks)
+  }
+
+  if(is.null(modality_fill)){
+    modality_fill <- "method_db"
+  }
+
+  if(is.null(modality_x)){
+    modality_x <- "tax_level"
+  }
+
+  tc_metrics_mock$tax_level <- factor(tc_metrics_mock$tax_level, taxonomic_ranks)
+
+  if(!is.null(metric)){
+    tc_metrics_mock <- dplyr::filter(tc_metrics_mock, metrics == metric)
+  } else {
+if(modality_fill != "metrics" &&
+   modality_column != "metrics" &&
+   modality_line != "metrics" &&
+   modality_x != "metrics"
+) {
+  stop("You must either choose one metric (parameter metric) or choose the
+       value 'metrics' in one of parameters modality_x, modality_line,
+       modality_column or modality_fill")
+}
+  }
+
+  if(is.null(modality_column) && is.null(modality_line)) {
+    p <- tc_metrics_mock |>
+      ggplot(aes(fill=.data[[modality_fill]], y=values, x=.data[[modality_x]])) +
+      geom_bar(stat = "identity", position=position_dodge())
+  } else if(is.null(modality_column) && !is.null(modality_line)) {
+    p <- tc_metrics_mock |>
+      ggplot(aes(fill=.data[[modality_fill]], y=values, x=.data[[modality_x]])) +
+      geom_bar(stat = "identity", position=position_dodge()) +
+      facet_grid(.data[[modality_line]]~., scales="free_y")
+  } else if(!is.null(modality_column) && is.null(modality_line)) {
+    p <- tc_metrics_mock |>
+      ggplot(aes(fill=.data[[modality_fill]], y=values, x=.data[[modality_x]])) +
+      geom_bar(stat = "identity", position=position_dodge()) +
+      facet_grid(.~.data[[modality_column]], scales="free_x")
+  } else if(!is.null(modality_column) && !is.null(modality_line)) {
+    p <- tc_metrics_mock |>
+      ggplot(aes(fill=.data[[modality_fill]], y=values, x=.data[[modality_x]])) +
+      geom_bar(stat = "identity", position=position_dodge()) +
+      facet_grid(vars(.data[[modality_line]]), vars(.data[[modality_column]]), scales="free")
+  }
+
+    if(!legend) {
+      p <- p + no_legend()
+    }
+
+    return(p)
+}
+```
+
+
+```{r}
+plot_tc_metrics_mock(res_comp_tax, metric="ACC", modality_x ="tax_level") + no_legend()
+```
+
+
+```{r}
+plot_tc_metrics_mock(res_comp_tax, modality_x ="algo", modality_line="metrics", modality_column = "tax_level", modality_fill = "db")  
+```
+
+```{r}
+plot_tc_metrics_mock(res_comp_tax, metric="FP", modality_x ="db", modality_line="algo", modality_column = "tax_level", modality_fill = "bootstrap") + coord_flip()  + geom_hline(yintercept = 1)  + geom_hline(yintercept = 0, linewidth=0.2)
+```
+
+```{r}
+plot_tc_metrics_mock(res_comp_tax, metric="MCC", modality_x ="db", modality_line="algo", modality_column = "tax_level", modality_fill = "bootstrap") + coord_flip()  + geom_hline(yintercept = 1)  + geom_hline(yintercept = 0, linewidth=0.2)
+```
+
+```{r}
+plot_tc_metrics_mock(res_comp_tax, metric="F1_score", modality_x ="db", modality_line="algo", modality_column = "tax_level", modality_fill = "bootstrap") + coord_flip() + geom_hline(yintercept = 1)
+```
+
+```{r}
+plot_tc_metrics_mock(res_comp_tax, metric="ACC", modality_x ="db", modality_line="algo", modality_column = "tax_level", modality_fill = "bootstrap") + coord_flip() + geom_hline(yintercept = 1)
+```
+
+
+```{r}
+res_comp_tax |>
+  dplyr::filter(metrics%in%c("ACC", "F1_score", "MCC")) |>
+    dplyr::filter(bootstrap == 0.5 | grepl("consensus", algo) | algo=="blastn")  |>
+  dplyr::filter(tax_level %in% c("Class", "Order", "Family","Genus", "Gen_sp")) |>
+plot_tc_metrics_mock(modality_x ="tax_level", modality_line="metrics", modality_column = "algo", modality_fill = "db")
+
+res_comp_tax |>
+  dplyr::filter(metrics%in%c("ACC", "F1_score", "MCC", "FP", "FN")) |>
+  dplyr::filter(tax_level %in% c("Class", "Order", "Family","Genus", "Gen_sp")) |>
+    dplyr::filter(db=="Unite") |>
+plot_tc_metrics_mock(modality_x ="bootstrap", modality_line="metrics", modality_column = "tax_level", modality_fill = "algo") +
+  ggtitle("Unite")
+
+
+res_comp_tax |>
+  dplyr::filter(metrics%in%c("ACC", "F1_score", "MCC", "FP", "FN")) |>
+  dplyr::filter(tax_level %in% c("Class", "Order", "Family","Genus", "Gen_sp")) |>
+    dplyr::filter(db=="Unite_Fungi") |>
+plot_tc_metrics_mock(modality_x ="bootstrap", modality_line="metrics", modality_column = "tax_level", modality_fill = "algo") +
+  ggtitle("Unite fungi")
+
+res_comp_tax |>
+  dplyr::filter(metrics%in%c("ACC", "F1_score", "MCC", "FP", "FN")) |>
+  dplyr::filter(tax_level %in% c("Class", "Order", "Family","Genus", "Gen_sp")) |>
+    dplyr::filter(db=="EUK_ITS_v1_9_3") |>
+plot_tc_metrics_mock(modality_x ="bootstrap", modality_line="metrics", modality_column = "tax_level", modality_fill = "algo") +
+  ggtitle("EUK_ITS_v1_9_3")
+```
+
+```{r}
+res_comp_tax |>
+  dplyr::filter(metrics %in% c("TPR", "TNR")) |>
+  mutate(db_unite = ifelse(grepl("Unite",method_db), "Unite", "Euk")) |>
+  dplyr::filter(bootstrap == 0.5) |>
+    dplyr::filter(!tax_level %in% c("Kingdom", "Phylum", "Class", "Gen_sp")) |>
+    pivot_wider(names_from = metrics, values_from = values) |>
+  ggplot(aes(x = TPR, y = TNR, pch=algo, color=db)) +
+  geom_point(size=3, alpha=0.8)  +
+  xlim(c(0.4,1)) + ylim(c(0.4,1)) +
+  facet_wrap(db_unite~tax_level)
+```
+
+```{r}
+p <- res_comp_tax |>
+  dplyr::filter(metrics %in% c("TPR", "TNR")) |>
+  group_by(method_db)  |>
+  pivot_wider(names_from = metrics, values_from = values) |>
+  summarise(
+    TPR_mean = mean(TPR),
+    TNR_mean = mean(TNR),
+    TPR_sd = var(TPR),
+    TNR_sd = var(TNR)
+  ) |>
+  mutate(bootstrap = gsub(".*__", "", method_db)) |>
+  mutate(algo = gsub("__.*", "", method_db)) |>
+  mutate(db = gsub(".*__", "", gsub("___.*", "", method_db))) |>
+  mutate(db_unite = ifelse(grepl("Unite",method_db), "Unite", "Euk")) |>
+  ggplot(aes(x = TPR_mean, y = TNR_mean, color=algo)) +
+  geom_point() 
+
+p +
+  geom_segment(aes(x= TPR_mean, y = TNR_mean - TNR_sd, yend = TNR_mean + TNR_sd), alpha=0.5) +
+  geom_segment(aes(y= TNR_mean, x = TPR_mean - TPR_sd, xend = TPR_mean + TPR_sd), alpha=0.5) +  ggrepel::geom_label_repel(data=subset(p$data, grepl("consensus", method_db) | TNR_mean > 0.85 | TPR_mean > 0.85), aes(label = method_db), size=2, max.overlaps = 10, force = 3) +
+  xlim(c(0.5, 1)) + ylim(c(0.5, 1)) + facet_wrap(db_unite~.)
+  
+```
+
+
+```{r}
+tc_bar(d_all_taxo,
+       rank_1 = "Family_sintax__mini_EUK_ITS_v1_9_3___0.5",
+       rank_2 = "Family_sintax__mini_Unite___0.5",
+       color_rank = "Genus_sintax__mini_EUK_ITS_v1_9_3___0.5")
+```
+
+```{r}
+tc_circle(
+   d_all_taxo,
+  "Family_sintax__mini_Unite___0.5",
+ "Family_sintax__mini_EUK_ITS_v1_9_3___0.5")
+```
+
+
+# Compute distance to true community
+
+
+## En chantier
+
+```{r}
+# TODO
+
+distinct_species_taxo_mock <- distinct(taxo_mock, Gen_sp)
+
+mat_com_interm <- d_all_taxo |>
+  psmelt() |>
+  select(OTU, Sample, Abundance, contains("Gen_sp")) |>
+  dplyr::filter(Abundance>0) |>
+  full_join(tibble("Sample"=rep("TRUE_sample", nrow(distinct_species_taxo_mock)),
+                  "Abundance"=rep(1, nrow(distinct_species_taxo_mock)),
+                   "Gen_sp_true" = distinct_species_taxo_mock$Species))
+
+
+mat_com <- mat_com_interm |>
+  pivot_longer(contains("Gen_sp")) |>
+  filter(!is.na(value)) |>
+  pivot_wider(names_from = name, values_from = Abundance) |>
+  mutate(across(contains("Gen_sp"), ~tidyr::replace_na(., 0))) |>
+  group_by(Sample, value) |>
+  summarise(across(contains("Gen_sp"), ~sum(.))) |>
+  ungroup()
+
+
+# mat_com |>
+#   mutate(true_value = ifelse(value %in% taxo_mock$Species, 1, 0))
+# 
+# mat_com <- left_join(mat_com, taxo_mock$Species)
+# 
+# all_sp_names <- unique(c(mat_com$value, taxo_mock$Species))
+# 
+# 
+# mat_com_list <- list()
+
+mat_com_true <- mat_com |>
+    filter(Sample=="TRUE_sample") |>
+  select(value, Gen_sp_true)
+
+mat_comA <- mat_com |> 
+  filter(Sample=="samp_ITSEnz_DikA") |>
+  group_by(value) |>
+  select(contains("Gen_sp")) |>
+#  select(contains("Unite_Fungi")) |>
+#  select(contains("___0.5")) |>
+  mutate(val=across(contains("Gen_sp"), ~ ifelse(.==0, 0, 1)))
+  
+mat_comB <- mat_com |> 
+  filter(Sample=="samp_ITSEnz_DikB") |>
+  group_by(value) |>
+  select(contains("Gen_sp")) |>
+#  select(contains("Unite_Fungi")) |>
+#  select(contains("___0.5")) |>
+  mutate(val=across(contains("Gen_sp"), ~ ifelse(.==0, 0, 1)))
+
+mat_comC <- mat_com |> 
+  filter(Sample=="samp_ITSEnz_DikC") |>
+  group_by(value) |>
+  select(contains("Gen_sp")) |>
+#  select(contains("Unite_Fungi")) |>
+#  select(contains("___0.5")) |>
+  mutate(val=across(contains("Gen_sp"), ~ ifelse(.==0, 0, 1)))
+```
+
+
+## Distance between community
+
+```{r}
+compar <- full_join(mat_comA[,1:2], mat_com_true) |>
+  mutate(across(everything(), ~tidyr::replace_na(., 0))) |>
+  column_to_rownames("value")
+
+vegan::vegdist(t(compar), binary=TRUE)
+vegan::vegdist(t(compar), binary=FALSE)
+```
+
+
+```{r}
+data_upset_df_comA <- full_join(mat_comA, mat_com_true, by=join_by(value==value)) |>
+  column_to_rownames("value") |>
+  select(contains("Gen_sp")) |>
+  mutate(across(everything(), ~ ifelse(.==0, FALSE, TRUE))) |>
+  as_tibble() |>
+  mutate(across(everything(), ~ tidyr::replace_na(.x, FALSE))) 
+
+data_upset_df_comB <- full_join(mat_comB, mat_com_true, by=join_by(value==value)) |>
+  column_to_rownames("value") |>
+  select(contains("Gen_sp")) |>
+  mutate(across(everything(), ~ ifelse(.==0, FALSE, TRUE))) |>
+  as_tibble() |>
+  mutate(across(everything(), ~ tidyr::replace_na(.x, FALSE))) 
+
+data_upset_df_comC <- full_join(mat_comC, mat_com_true, by=join_by(value==value)) |>
+  column_to_rownames("value") |>
+  select(contains("Gen_sp")) |>
+  mutate(across(everything(), ~ ifelse(.==0, FALSE, TRUE))) |>
+  as_tibble() |>
+  mutate(across(everything(), ~ tidyr::replace_na(.x, FALSE))) 
+```
+
+
+
+```{r}
+ComplexUpset::upset(data_upset_df_comA, intersect = colnames(data_upset_df_comA), min_size = 2)
+ComplexUpset::upset(data_upset_df_comB, intersect = colnames(data_upset_df_comB), min_size = 2)
+ComplexUpset::upset(data_upset_df_comC, intersect = colnames(data_upset_df_comC), min_size = 2)
+```
+
+
+
+###  root mean square error (RMSE)
+
+
+
+
+
+
+
+
+
+# Compute time and cpu usage performance
+
+```{r}
+log_data_raw <- autometric::log_read("data/data_final/autometric_log_assign_taxo.txt",
+                                 units_time = "hours",
+                                 units_memory = "gigabytes")
+
+conflicted::conflicts_prefer(dplyr::filter)
+
+log_data <- log_data_raw |>
+  as_tibble() |>
+  filter(!grepl("conclude:", phase)) |>
+  filter(!grepl("prepare:", phase)) |>
+  filter(!grepl("__DEFAULT__", phase)) |>
+  mutate(bootstrap = gsub(".*__", "", phase)) |>
+  mutate(algo = gsub("__.*", "", phase)) |>
+  mutate(db = gsub(".*__", "", gsub("___.*", "", phase)))  |>
+filter(!grepl("d_asv", algo)) |>
+  group_by(algo, db, bootstrap) |>
+  summarise(
+    phase= first(phase),
+    time = n(),
+    cpu = mean(cpu),
+    core = mean(core),
+    resident = mean(resident),
+    virtual = mean(virtual)
+  )
+```
+
+
+```{r}
+log_data |> group_by(db) |> summarize(time=mean(time), cpu=mean(cpu)) |> arrange(desc(time))
+log_data |> group_by(algo) |> summarize(time=mean(time), cpu=mean(cpu)) |> arrange(desc(time))
+log_data |> group_by(bootstrap) |> summarize(time=mean(time), cpu=mean(cpu)) |> arrange(desc(time))
+```
+
+
+```{r}
+log_data |>
+  filter(bootstrap==0.5) |>
+  ggplot(aes(x = time/3600, y = reorder(phase, dplyr::desc(time)), fill = cpu)) +
+  geom_bar(stat = "identity") +
+  scale_color_viridis_b("Memory (Gb)", end = 0.9, direction = -1) +
+  xlab("Time (in hours)") +
+  ylab("") + 
+  facet_grid(db~., scales="free")
+
+
+log_data |>
+  ggplot(aes(x = time, y = db)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~algo)
+
+p_time <- log_data |>
+  as_tibble() |>
+  filter(!grepl("conclude:", phase)) |>
+  filter(!grepl("prepare:", phase)) |>
+  filter(!grepl("__DEFAULT__", phase)) |>
+  filter(!grepl("d_asv", phase)) |>
+  mutate(bootstrap = gsub(".*___", "", phase)) |>
+  mutate(algo = gsub("__.*", "", phase)) |>
+  mutate(db = gsub(".*__", "", gsub("___.*", "", phase)))  |>
+  mutate(db_is_fungi = grepl("_Fungi", phase)) |>
+  mutate(db_is_cut = grepl("_cut", phase)) |>
+  mutate(db_base = stringr::str_remove(db, "_.*" )) |>
+  group_by(phase, db, algo, db_is_fungi, db_is_cut, db_base, bootstrap) |>
+  summarise(time=sum(time, na.rm = T)) |>
+  ggplot(aes(x = time, y = db, fill=paste0(db_is_fungi, db_is_cut))) +
+  geom_bar(stat="identity") +
+  facet_grid(~algo) +
+  #  geom_vline(xintercept = 16) +
+  scale_fill_manual(values=c("grey", "#2585A2", "#FFA600", "#929551"))
+
+library("patchwork")
+se <- function(x) sqrt(var(x, na.rm=TRUE)/length(x))
+p_time +
+  (
+    p_time$data |>
+      group_by(algo) |>
+      summarise(mean_value = mean(time, na.rm = T),
+                sd_value = se(time) ) |>
+      ggplot(aes(y = mean_value, x = 1)) +
+      coord_flip() +
+      geom_bar(stat = "identity") +
+      geom_segment(aes(y=mean_value+sd_value, yend=mean_value-sd_value)) +
+      facet_grid( ~ algo) +
+      theme_void()
+  ) +
+  plot_layout(heights = c(9, 1))
+
+p_time$data |>
+  group_by(db_is_fungi, db_is_cut, db_base) |>
+  summarise(mean_value = mean(time, na.rm = T),
+            sd_value = se(time) ) |>
+  ggplot(aes(y = mean_value, x = db_base, fill = db_base)) +
+  geom_bar(stat = "identity") +
+  #geom_segment(aes(y=mean_value+sd_value, yend=mean_value-sd_value)) +
+  facet_grid(db_is_fungi ~ db_is_cut)
+
+p_time$data |>
+  filter(!db_is_cut) |>
+  filter(!db_is_fungi) |>
+  filter(algo != "idtaxa") |>
+  group_by(db_base, bootstrap, algo) |>
+  summarise(mean_value = mean(time, na.rm = T),
+            sd_value = se(time) ) |>
+  ggplot(aes(y = mean_value, x = bootstrap, fill = bootstrap)) +
+  geom_bar(stat = "identity") +
+  #geom_segment(aes(y=mean_value+sd_value, yend=mean_value-sd_value)) +
+  facet_grid(db_base ~ algo)
+```
+
+
+
+
+
+```{r}
+p_cpu <- log_data |>
+  as_tibble() |>
+  filter(!grepl("conclude:", phase)) |>
+  filter(!grepl("prepare:", phase)) |>
+  filter(!grepl("__DEFAULT__", phase)) |>
+  filter(!grepl("d_asv", phase)) |>
+  mutate(bootstrap = gsub(".*__", "", phase)) |>
+  mutate(algo = gsub("__.*", "", phase)) |>
+  mutate(db = gsub(".*__", "", gsub("___.*", "", phase)))  |>
+  mutate(db_is_fungi = grepl("_Fungi", phase)) |>
+  mutate(db_is_cut = grepl("_cut", phase)) |>
+  mutate(db_base = stringr::str_remove(stringr::str_remove(phase, ".*__"), "_.*" )) |>
+  group_by(phase, db, algo, db_is_fungi, db_is_cut, db_base) |>
+  summarise(cpu=mean(cpu, na.rm = T)) |>
+  ggplot(aes(x = cpu, y = db, fill=paste0(db_is_fungi, db_is_cut))) +
+  geom_bar(stat="identity") +
+  facet_grid(~algo, scales="free_x") +
+#  geom_vline(xintercept = 16) +
+  scale_fill_manual(values=c("grey", "#2585A2", "#FFA600", "#929551"))
+
+library("patchwork")
+se <- function(x) sqrt(var(x, na.rm=TRUE)/length(x))
+p_cpu +
+  (
+    p_cpu$data |>
+      group_by(algo) |>
+      summarise(mean_value = mean(cpu, na.rm = T),
+                sd_value = se(cpu) ) |>
+      ggplot(aes(y = mean_value, x = 1)) +
+      coord_flip() +
+      geom_bar(stat = "identity") +
+      geom_segment(aes(y=mean_value+sd_value, yend=mean_value-sd_value)) +
+      facet_grid( ~ algo, scales="free_x") +
+      theme_void()
+  ) +
+  plot_layout(heights = c(9, 1))
+
+
+p_cpu$data |>
+  group_by(db_is_fungi, db_is_cut, db_base,algo) |>
+  summarise(mean_value = mean(cpu, na.rm = T),
+            sd_value = se(cpu) ) |>
+  ggplot(aes(y = log1p(mean_value), x = db_base, fill = algo, color=db_base)) +
+  geom_bar(stat = "identity",position = "dodge", size=1) +
+  #geom_segment(aes(y=mean_value+sd_value, yend=mean_value-sd_value)) +
+  facet_grid(db_is_fungi ~ db_is_cut) +
+  scale_color_manual(values=c("bisque4", "cyan4"))
+
+```
+
+
+
+
+
+https://adriancorrendo.github.io/metrica/articles/classification_case.html
+
+```{r}
+?metrica::confusion_matrix
+
+```
+
+
+
+

@@ -1,0 +1,36 @@
+# R session state
+.Rhistory
+.RData
+.Rapp.history
+.Ruserdata
+.Renviron
+.Rproj.user/
+
+# IDE / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# renv (no longer used in this project; library was 539 MB)
+renv/
+renv.lock
+
+# targets stores: per-store .gitignore files already keep meta/meta and drop
+# objects/. Do not blanket-ignore store_*/ here or those rules get bypassed.
+
+# Data — ~10 GB on disk. Only metadata CSVs are tracked
+# (data/data_raw/metadata/* stays in by default).
+data/data_raw/refseq/
+data/data_raw/rawseq/
+data/data_raw/rawseq_endophyte/
+data/data_raw/mock_hleap2021/
+data/data_raw/fake_ref/
+data/data_intermediate/
+data/data_final/
+
+# Editor / temp
+*.swp
+*~
+*.bak
+*.tmp
