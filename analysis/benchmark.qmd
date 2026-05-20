@@ -20,25 +20,34 @@ conflicted::conflicts_prefer(dplyr::filter)
 
 ```{r}
 here::i_am("analysis/benchmark.qmd")
-devtools::load_all("~/Nextcloud/IdEst/Projets/MiscMetabar/R/")
-source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/compare_taxo.R")
-source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/taxtab_modification.R")
-source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/compare_taxo_plot.R")
+devtools::load_all("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/MiscMetabar/")
+devtools::load_all("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/dbpq/")
+devtools::load_all("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/greenAlgoR/")
+source("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/comparpq/R/compare_taxo.R")
+source("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/comparpq/R/taxtab_modification.R")
+source("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/comparpq/R/compare_taxo_plot.R")
 ```
 
 # Import value from store_assign_taxo
 
 ```{r}
-taxo_mock <- tar_read(taxo_mock, store = "store_assign_taxo") |>
-  rename(Gen_sp= Species)
+here::i_am("analysis/benchmark.qmd")
+source(here("config.R"))
+source(here("R/values_map_for_qmd.R"))
 ```
 
+Load the targets store and phyloseq object. The `store = "store_assign_taxo"` argument
+resolves to the on-disk store alongside the pipeline script.
+
+```{r, results = "hide"}
+# Ensure we are in the project root so the store path resolves correctly.
+setwd(here::here())
+d_all_taxo <- tar_read(d_all_taxo, store = "store_assign_taxo")
+taxo_mock  <- tar_read(taxo_mock,  store = "store_assign_taxo") |>
+  rename(Gen_sp = Species)
+```
 
 ```{r}
-last_target <- grep("_all_taxo", values_map$full_name, value = T)
-d_all_taxo <- tar_read_raw(last_target, store = "store_assign_taxo")
-#d_all_taxo <- simplify_taxo(tar_read(lca__EUK_ITS_v1_9_3___0.7, store = "store_assign_taxo"))
-
 d_all_taxo <- d_all_taxo |>
   taxtab_replace_pattern_by_NA(
     patterns = ".*_sp$",
@@ -114,15 +123,42 @@ d_all_taxo <-  d_all_taxo |>
     method = "unanimity",
     new_names = paste0(c("Kingdom","Phylum", "Class", "Order", "Family", "Genus", "Gen_sp"), "_", "unanimity_consensus"),
     replace_collapsed_rank_by_NA = TRUE
-  ) 
+  )
 ```
 
-
 ```{r}
-d_all_taxo <- rename_ranks_pq(d_all_taxo,
-                grep("_all_taxo", colnames(d_all_taxo@tax_table), value = TRUE),
-                gsub("_all_taxo", "", grep("_all_taxo", colnames(d_all_taxo@tax_table), value = TRUE)))
+# Q3.1: add consensus + abs_majority (strict=FALSE) and strict=TRUE variants of
+# all 5 methods. Q3.3: rel_majority with nb_agree_threshold = 2 and 3.
+.ranks_base    <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Gen_sp")
+.pref_pattern  <- "sintax__EUK_ITS_v1_9_3___0.5"
 
+extra_consensus_configs <- list(
+  list(method = "consensus",    strict = FALSE, nb = 1L, suffix = "consensus_consensus"),
+  list(method = "abs_majority", strict = FALSE, nb = 1L, suffix = "abs_majority_consensus"),
+  list(method = "rel_majority", strict = TRUE,  nb = 1L, suffix = "rel_majority_strict_consensus"),
+  list(method = "preference",   strict = TRUE,  nb = 1L, suffix = "preference_strict_consensus"),
+  list(method = "unanimity",    strict = TRUE,  nb = 1L, suffix = "unanimity_strict_consensus"),
+  list(method = "consensus",    strict = TRUE,  nb = 1L, suffix = "consensus_strict_consensus"),
+  list(method = "abs_majority", strict = TRUE,  nb = 1L, suffix = "abs_majority_strict_consensus"),
+  list(method = "rel_majority", strict = FALSE, nb = 2L, suffix = "rel_majority_nb2_consensus"),
+  list(method = "rel_majority", strict = FALSE, nb = 3L, suffix = "rel_majority_nb3_consensus")
+)
+
+for (cfg in extra_consensus_configs) {
+  args <- list(
+    physeq              = d_all_taxo,
+    pattern_tax_ranks   = .ranks_base,
+    method              = cfg$method,
+    strict              = cfg$strict,
+    nb_agree_threshold  = cfg$nb,
+    new_names           = paste0(.ranks_base, "_", cfg$suffix),
+    replace_collapsed_rank_by_NA = TRUE
+  )
+  if (cfg$method == "preference") {
+    args$preference_pattern <- .pref_pattern
+  }
+  d_all_taxo <- do.call(resolve_taxo_conflict, args)
+}
 ```
 
 
@@ -179,12 +215,25 @@ facet_grid(algo~factor(tax_level, levels=c("K", "P", "C", "O", "F", "G", "S"))) 
 ranks_df_list <- list()
 
 fullnames_vec <- values_map |>
-  mutate(full_name = gsub("_all_taxo", "", full_name)) |>
   pull(full_name)
   
 
-for (db_name in c("unanimity_consensus", "preference_consensus", "rel_majority_consensus", fullnames_vec)){
-  print(db_name)
+all_consensus_suffixes <- c(
+  "rel_majority_consensus",
+  "preference_consensus",
+  "unanimity_consensus",
+  "consensus_consensus",
+  "abs_majority_consensus",
+  "rel_majority_strict_consensus",
+  "preference_strict_consensus",
+  "unanimity_strict_consensus",
+  "consensus_strict_consensus",
+  "abs_majority_strict_consensus",
+  "rel_majority_nb2_consensus",
+  "rel_majority_nb3_consensus"
+)
+
+for (db_name in c(all_consensus_suffixes, fullnames_vec)){
   ranks_df_list[[db_name]] <-   c(
     paste0(c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Gen_sp"),
            paste0("_", db_name))
@@ -209,6 +258,40 @@ res_comp_tax <- res_comp_tax |>
   mutate(bootstrap = gsub(".*__", "", method_db)) |>
   mutate(algo = gsub("__.*", "", method_db)) |>
   mutate(db = gsub(".*__", "", gsub("___.*", "", method_db)))
+```
+
+```{r}
+# M1.1: enrich res_comp_tax with vote_algorithm, bootstrap_num, and
+# TAR/TDR aliases (TAR = PPV = TP/(TP+FP); TDR = TPR = TP/(TP+FN)).
+res_comp_tax <- res_comp_tax |>
+  mutate(
+    vote_algorithm = ifelse(
+      algo == "blastn",
+      stringr::str_extract(method_db, "(?<=\\.\\.\\.)[a-z_]+(?=\\.\\.\\.)"),
+      NA_character_
+    ),
+    bootstrap_num = suppressWarnings(
+      as.numeric(stringr::str_extract(bootstrap, "^[0-9.]+"))
+    )
+  )
+
+res_comp_tax <- dplyr::bind_rows(
+  res_comp_tax,
+  res_comp_tax |> dplyr::filter(metrics == "PPV") |> dplyr::mutate(metrics = "TAR"),
+  res_comp_tax |> dplyr::filter(metrics == "TPR") |> dplyr::mutate(metrics = "TDR")
+)
+
+# Consensus-row metadata: is_consensus, strict flag, nb_agree_threshold value.
+res_comp_tax <- res_comp_tax |>
+  dplyr::mutate(
+    is_consensus   = !algo %in% c("dada2", "sintax", "lca", "blastn"),
+    consensus_strict = is_consensus & grepl("_strict_", method_db),
+    nb_agree       = dplyr::case_when(
+      grepl("_nb2_", method_db) ~ 2L,
+      grepl("_nb3_", method_db) ~ 3L,
+      TRUE ~ 1L
+    )
+  )
 ```
 
 
@@ -390,6 +473,604 @@ tc_circle(
    d_all_taxo,
   "Family_sintax__mini_Unite___0.5",
  "Family_sintax__mini_EUK_ITS_v1_9_3___0.5")
+```
+
+
+# Publication figures
+
+```{r}
+dir.create(here("figures"), showWarnings = FALSE)
+tax_order <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Gen_sp")
+```
+
+## Q1.2 — Per-rank × method (ACC, F1, MCC)
+
+Comparing the four methods at bootstrap 0.5; blastn shown with `rel_majority` vote
+(the default; see Q1.4 for the vote-algorithm sweep).
+
+```{r}
+fig_q1_data <- res_comp_tax |>
+  dplyr::filter(metrics %in% c("ACC", "F1_score", "MCC")) |>
+  dplyr::filter(algo %in% c("dada2", "sintax", "lca", "blastn")) |>
+  dplyr::filter(!startsWith(db, "mini_")) |>
+  dplyr::filter(
+    (algo %in% c("dada2", "sintax", "lca") & bootstrap_num == 0.5) |
+    (algo == "blastn" & vote_algorithm == "rel_majority")
+  ) |>
+  dplyr::mutate(tax_level = factor(tax_level, levels = tax_order))
+
+fig_q1_methods <- fig_q1_data |>
+  ggplot(aes(x = algo, y = values, fill = db)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_grid(metrics ~ tax_level) +
+  labs(x = "Method", y = "Value", fill = "Database") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave(here("figures/fig_q1_methods.pdf"), fig_q1_methods, width = 16, height = 7)
+ggsave(here("figures/fig_q1_methods.png"), fig_q1_methods, width = 16, height = 7, dpi = 300)
+fig_q1_methods
+```
+
+## Q1.3 — Bootstrap sweep (dada2 & sintax)
+
+F1 and MCC across `min_bootstrap ∈ {0.4, 0.5, 0.6}` per rank.
+
+```{r}
+fig_q1_bootstrap_data <- res_comp_tax |>
+  dplyr::filter(metrics %in% c("F1_score", "MCC")) |>
+  dplyr::filter(algo %in% c("dada2", "sintax")) |>
+  dplyr::filter(!startsWith(db, "mini_")) |>
+  dplyr::mutate(tax_level = factor(tax_level, levels = tax_order))
+
+fig_q1_bootstrap <- fig_q1_bootstrap_data |>
+  ggplot(aes(x = factor(bootstrap_num), y = values, fill = db)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_grid(metrics + algo ~ tax_level) +
+  labs(x = "Min bootstrap", y = "Value", fill = "Database") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave(here("figures/fig_q1_bootstrap.pdf"), fig_q1_bootstrap, width = 16, height = 9)
+ggsave(here("figures/fig_q1_bootstrap.png"), fig_q1_bootstrap, width = 16, height = 9, dpi = 300)
+fig_q1_bootstrap
+```
+
+## Q1.4 — Blastn vote-algorithm sweep
+
+F1 and MCC across `c("rel_majority", "abs_majority", "unanimity")` per rank × DB.
+
+```{r}
+fig_q1_blastn_data <- res_comp_tax |>
+  dplyr::filter(metrics %in% c("F1_score", "MCC")) |>
+  dplyr::filter(algo == "blastn") |>
+  dplyr::filter(!startsWith(db, "mini_")) |>
+  dplyr::mutate(tax_level = factor(tax_level, levels = tax_order))
+
+fig_q1_blastn <- fig_q1_blastn_data |>
+  ggplot(aes(x = vote_algorithm, y = values, fill = db)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_grid(metrics ~ tax_level) +
+  labs(x = "Vote algorithm", y = "Value", fill = "Database") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave(here("figures/fig_q1_blastn_vote.pdf"), fig_q1_blastn, width = 16, height = 7)
+ggsave(here("figures/fig_q1_blastn_vote.png"), fig_q1_blastn, width = 16, height = 7, dpi = 300)
+fig_q1_blastn
+```
+
+## Q3.2 — Consensus vs single-method (F1, MCC)
+
+Conservatism gradient: preference < rel_majority < abs_majority < consensus < unanimity.
+Single-method bars show mean ± SE across databases.
+
+```{r}
+conservatism_order <- c(
+  "dada2", "sintax", "lca", "blastn",
+  "preference", "rel_majority", "abs_majority", "consensus", "unanimity"
+)
+
+fig_q3_data <- dplyr::bind_rows(
+  res_comp_tax |>
+    dplyr::filter(metrics %in% c("F1_score", "MCC")) |>
+    dplyr::filter(algo %in% c("dada2", "sintax", "lca", "blastn")) |>
+    dplyr::filter(!startsWith(db, "mini_")) |>
+    dplyr::filter(
+      (algo %in% c("dada2", "sintax", "lca") & bootstrap_num == 0.5) |
+      (algo == "blastn" & vote_algorithm == "rel_majority")
+    ) |>
+    dplyr::mutate(display_method = algo, type = "single"),
+  res_comp_tax |>
+    dplyr::filter(metrics %in% c("F1_score", "MCC")) |>
+    dplyr::filter(algo %in% paste0(c("preference", "rel_majority", "abs_majority", "consensus", "unanimity"), "_consensus")) |>
+    dplyr::filter(!is_consensus | !consensus_strict) |>
+    dplyr::filter(nb_agree == 1L) |>
+    dplyr::mutate(display_method = gsub("_consensus$", "", algo), type = "consensus")
+) |>
+  dplyr::mutate(
+    tax_level      = factor(tax_level, levels = tax_order),
+    display_method = factor(display_method, levels = conservatism_order)
+  )
+
+fig_q3_consensus_vs_single <- fig_q3_data |>
+  ggplot(aes(x = display_method, y = values, fill = type)) +
+  stat_summary(fun = mean, geom = "bar", position = position_dodge()) +
+  stat_summary(fun.data = mean_se, geom = "errorbar",
+               position = position_dodge(width = 0.9), width = 0.25) +
+  facet_grid(metrics ~ tax_level) +
+  labs(x = "Method", y = "Value (mean ± SE across DBs)", fill = "Type") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave(here("figures/fig_q3_consensus_vs_single.pdf"), fig_q3_consensus_vs_single, width = 16, height = 7)
+ggsave(here("figures/fig_q3_consensus_vs_single.png"), fig_q3_consensus_vs_single, width = 16, height = 7, dpi = 300)
+fig_q3_consensus_vs_single
+```
+
+## Q3.3 — rel_majority nb_agree_threshold sweep (1, 2, 3)
+
+Trade-off: higher threshold → fewer FP but more FN. Faceted by rank.
+
+```{r}
+fig_q3_nb_data <- res_comp_tax |>
+  dplyr::filter(metrics %in% c("F1_score", "MCC")) |>
+  dplyr::filter(algo %in% c(
+    "rel_majority_consensus",
+    "rel_majority_nb2_consensus",
+    "rel_majority_nb3_consensus"
+  )) |>
+  dplyr::mutate(tax_level = factor(tax_level, levels = tax_order))
+
+fig_q3_nb_threshold <- fig_q3_nb_data |>
+  ggplot(aes(x = factor(nb_agree), y = values)) +
+  geom_col() +
+  facet_grid(metrics ~ tax_level) +
+  labs(x = "nb_agree_threshold", y = "Value") +
+  theme_bw()
+
+ggsave(here("figures/fig_q3_nb_threshold.pdf"), fig_q3_nb_threshold, width = 16, height = 7)
+ggsave(here("figures/fig_q3_nb_threshold.png"), fig_q3_nb_threshold, width = 16, height = 7, dpi = 300)
+fig_q3_nb_threshold
+```
+
+## M2.1 — Accuracy vs cost (F1 × wall time)
+
+The manuscript's practical recommendation: which method gives the best accuracy per
+unit of compute? Default settings only (bootstrap 0.5, blastn = rel_majority).
+
+```{r}
+benchmark_costs <- tar_read(benchmark_costs, store = "store_assign_taxo")
+
+# F1 at every rank for default settings
+f1_all_ranks <- res_comp_tax |>
+  dplyr::filter(metrics == "F1_score") |>
+  dplyr::filter(algo %in% c("dada2", "sintax", "lca", "blastn")) |>
+  dplyr::filter(!startsWith(db, "mini_")) |>
+  dplyr::filter(
+    (algo %in% c("dada2", "sintax", "lca") & bootstrap_num == 0.5) |
+    (algo == "blastn" & vote_algorithm == "rel_majority")
+  ) |>
+  dplyr::mutate(tax_level = factor(tax_level, levels = tax_order))
+
+accuracy_vs_cost <- f1_all_ranks |>
+  dplyr::left_join(
+    benchmark_costs |> dplyr::select(phase, wall_time_s, peak_resident_mb, mean_cpu_pct),
+    by = c("method_db" = "phase")
+  )
+
+# Species-rank panel (primary figure)
+fig_m2_cost_species <- accuracy_vs_cost |>
+  dplyr::filter(tax_level == "Gen_sp", !is.na(wall_time_s)) |>
+  ggplot(aes(x = wall_time_s / 3600, y = values, color = algo)) +
+  geom_point(size = 3, alpha = 0.85) +
+  ggrepel::geom_label_repel(aes(label = db), size = 2.2, max.overlaps = 20,
+                             show.legend = FALSE) +
+  labs(x = "Wall time (hours)", y = "F1 score (Gen_sp rank)", color = "Method") +
+  theme_bw()
+
+ggsave(here("figures/fig_m2_cost_species.pdf"), fig_m2_cost_species, width = 8, height = 6)
+ggsave(here("figures/fig_m2_cost_species.png"), fig_m2_cost_species, width = 8, height = 6, dpi = 300)
+fig_m2_cost_species
+```
+
+```{r}
+# All-rank panel (supplementary material)
+fig_m2_cost_allranks <- accuracy_vs_cost |>
+  dplyr::filter(!is.na(wall_time_s)) |>
+  ggplot(aes(x = wall_time_s / 3600, y = values, color = algo, shape = db)) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  facet_wrap(~tax_level, nrow = 1) +
+  labs(x = "Wall time (hours)", y = "F1 score", color = "Method", shape = "Database") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+ggsave(here("figures/fig_m2_cost_allranks.pdf"), fig_m2_cost_allranks, width = 18, height = 5)
+ggsave(here("figures/fig_m2_cost_allranks.png"), fig_m2_cost_allranks, width = 18, height = 5, dpi = 300)
+fig_m2_cost_allranks
+```
+
+## M2.2 — CO₂eq per assignment target
+
+Carbon footprint (gCO2eq) estimated via `greenAlgoR::ga_footprint()` from
+`wall_time_s` in `benchmark_costs`. Hardware parameters default to the
+machine's detected RAM and WORLD carbon intensity; `n_cores` is taken from
+`n_threads` (set in `config.R`).
+
+```{r}
+benchmark_costs <- benchmark_costs |>
+  dplyr::rowwise() |>
+  dplyr::mutate(
+    co2eq_gCO2 = greenAlgoR::ga_footprint(
+      runtime_h      = wall_time_s / 3600,
+      n_cores        = n_threads,
+      add_ref_values = FALSE
+    )$carbon_footprint_total_gCO2
+  ) |>
+  dplyr::ungroup()
+```
+
+```{r}
+accuracy_vs_co2 <- f1_all_ranks |>
+  dplyr::left_join(
+    benchmark_costs |> dplyr::select(phase, co2eq_gCO2),
+    by = c("method_db" = "phase")
+  )
+
+fig_m2_co2_species <- accuracy_vs_co2 |>
+  dplyr::filter(tax_level == "Gen_sp", !is.na(co2eq_gCO2)) |>
+  ggplot(aes(x = co2eq_gCO2, y = values, color = algo)) +
+  geom_point(size = 3, alpha = 0.85) +
+  ggrepel::geom_label_repel(
+    aes(label = db), size = 2.2, max.overlaps = 20, show.legend = FALSE
+  ) +
+  labs(
+    x = expression(CO[2]*"eq (gCO2)"),
+    y = "F1 score (Gen_sp rank)",
+    color = "Method"
+  ) +
+  theme_bw()
+
+ggsave(here("figures/fig_m2_co2_species.pdf"), fig_m2_co2_species, width = 8, height = 6)
+ggsave(here("figures/fig_m2_co2_species.png"), fig_m2_co2_species, width = 8, height = 6, dpi = 300)
+fig_m2_co2_species
+```
+
+```{r}
+fig_m2_co2_allranks <- accuracy_vs_co2 |>
+  dplyr::filter(!is.na(co2eq_gCO2)) |>
+  ggplot(aes(x = co2eq_gCO2, y = values, color = algo, shape = db)) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  facet_wrap(~tax_level, nrow = 1) +
+  labs(
+    x = expression(CO[2]*"eq (gCO2)"),
+    y = "F1 score",
+    color = "Method",
+    shape = "Database"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+ggsave(here("figures/fig_m2_co2_allranks.pdf"), fig_m2_co2_allranks, width = 18, height = 5)
+ggsave(here("figures/fig_m2_co2_allranks.png"), fig_m2_co2_allranks, width = 18, height = 5, dpi = 300)
+fig_m2_co2_allranks
+```
+
+## Q2.1 — Per-DB accuracy
+
+Default settings (bootstrap 0.5 / rel_majority). Update `method_for_q2` after Q1.2
+reveals the best-performing method.
+
+```{r}
+# Metadata: which simplification step does each DB represent?
+db_meta <- tibble::tribble(
+  ~db,                          ~db_base,   ~simplification,
+  "Unite",                      "Unite",    "full",
+  "Unite_Fungi",                "Unite",    "Fungi",
+  "EUK_ITS_v1_9_3",             "EUK_ITS",  "full",
+  "EUK_ITS_v1_9_3_Fungi",       "EUK_ITS",  "Fungi",
+  "EUK_ITS_v1_9_3_Fungi_cut",   "EUK_ITS",  "Fungi+cut",
+  "EUK_SSU_v1_9_3",             "EUK_SSU",  "full",
+  "EUK_SSU_v1_9_3_Fungi",       "EUK_SSU",  "Fungi",
+  "EUK_SSU_v1_9_3_cut",         "EUK_SSU",  "cut",
+  "EUK_SSU_v1_9_3_Fungi_cut",   "EUK_SSU",  "Fungi+cut"
+)
+
+fig_q2_base <- res_comp_tax |>
+  dplyr::filter(metrics %in% c("F1_score", "MCC")) |>
+  dplyr::filter(algo %in% c("dada2", "sintax", "lca", "blastn")) |>
+  dplyr::filter(!startsWith(db, "mini_")) |>
+  dplyr::filter(
+    (algo %in% c("dada2", "sintax", "lca") & bootstrap_num == 0.5) |
+    (algo == "blastn" & vote_algorithm == "rel_majority")
+  ) |>
+  dplyr::left_join(db_meta, by = "db") |>
+  dplyr::mutate(
+    tax_level      = factor(tax_level,      levels = tax_order),
+    simplification = factor(simplification, levels = c("full", "Fungi", "cut", "Fungi+cut"))
+  )
+
+# All methods — faceted by algo so the user can pick the best one for Q1.2
+fig_q2_db <- fig_q2_base |>
+  ggplot(aes(x = db, y = values, fill = simplification)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_grid(metrics + algo ~ tax_level) +
+  labs(x = "Database", y = "Value", fill = "Simplification") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 55, hjust = 1))
+
+ggsave(here("figures/fig_q2_db.pdf"), fig_q2_db, width = 18, height = 14)
+ggsave(here("figures/fig_q2_db.png"), fig_q2_db, width = 18, height = 14, dpi = 300)
+fig_q2_db
+```
+
+## Q2.2 — Simplification effect (paired Δ F1/MCC)
+
+Three paired comparisons: (a) full→Fungi filter, (b) EUK_SSU full→Fungi,
+(c) EUK_SSU_Fungi → primer-trimmed.
+
+```{r}
+# Helper: signed delta (simplified − full)
+db_pair_delta <- function(data, db_full, db_simp, label) {
+  data |>
+    dplyr::filter(db %in% c(db_full, db_simp)) |>
+    dplyr::select(algo, tax_level, metrics, db, values) |>
+    tidyr::pivot_wider(names_from = db, values_from = values) |>
+    dplyr::mutate(
+      delta      = .data[[db_simp]] - .data[[db_full]],
+      comparison = label
+    ) |>
+    dplyr::select(algo, tax_level, metrics, comparison, delta)
+}
+
+tab_q2_simplif <- dplyr::bind_rows(
+  db_pair_delta(fig_q2_base, "Unite",                   "Unite_Fungi",               "(a) Unite → Fungi"),
+  db_pair_delta(fig_q2_base, "EUK_ITS_v1_9_3",          "EUK_ITS_v1_9_3_Fungi",     "(b) EUK_ITS → Fungi"),
+  db_pair_delta(fig_q2_base, "EUK_ITS_v1_9_3_Fungi",    "EUK_ITS_v1_9_3_Fungi_cut", "(c) EUK_ITS_Fungi → cut"),
+  db_pair_delta(fig_q2_base, "EUK_SSU_v1_9_3",          "EUK_SSU_v1_9_3_Fungi",     "(d) EUK_SSU → Fungi"),
+  db_pair_delta(fig_q2_base, "EUK_SSU_v1_9_3_Fungi",    "EUK_SSU_v1_9_3_Fungi_cut", "(e) EUK_SSU_Fungi → cut")
+) |>
+  dplyr::mutate(tax_level = factor(tax_level, levels = tax_order))
+
+# Summary table: mean Δ per (comparison, algo, rank, metric)
+tab_q2_simplif |>
+  dplyr::group_by(comparison, algo, metrics, tax_level) |>
+  dplyr::summarise(delta_mean = round(mean(delta, na.rm = TRUE), 3), .groups = "drop") |>
+  tidyr::pivot_wider(names_from = tax_level, values_from = delta_mean) |>
+  dplyr::arrange(comparison, metrics, algo) |>
+  knitr::kable(caption = "Δ F1/MCC (simplified − full). Positive = simplification helps.")
+```
+
+```{r}
+# Visual version of the simplification-effect table
+fig_q2_simplif <- tab_q2_simplif |>
+  ggplot(aes(x = algo, y = delta, fill = comparison)) +
+  geom_hline(yintercept = 0, linewidth = 0.4, linetype = "dashed") +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_grid(metrics ~ tax_level) +
+  labs(x = "Method", y = "Δ (simplified − full)", fill = "Comparison") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave(here("figures/fig_q2_simplification.pdf"), fig_q2_simplif, width = 18, height = 8)
+ggsave(here("figures/fig_q2_simplification.png"), fig_q2_simplif, width = 18, height = 8, dpi = 300)
+fig_q2_simplif
+```
+
+## Q2.5 — DB size vs compute cost and accuracy
+
+Does a smaller (filtered / trimmed) DB pay for itself in runtime without losing F1?
+
+```{r}
+db_size_tbl <- benchmark_costs |>
+  dplyr::filter(!startsWith(db, "mini_")) |>
+  dplyr::mutate(db_size_mb = file.size(db_path) / 1e6) |>
+  dplyr::group_by(db, db_size_mb) |>
+  dplyr::summarise(mean_wall_h = mean(wall_time_s, na.rm = TRUE) / 3600,
+                   .groups = "drop")
+
+f1_by_db <- res_comp_tax |>
+  dplyr::filter(metrics == "F1_score", tax_level == "Gen_sp") |>
+  dplyr::filter(algo %in% c("dada2", "sintax", "lca", "blastn")) |>
+  dplyr::filter(!startsWith(db, "mini_")) |>
+  dplyr::filter(
+    (algo %in% c("dada2", "sintax", "lca") & bootstrap_num == 0.5) |
+    (algo == "blastn" & vote_algorithm == "rel_majority")
+  ) |>
+  dplyr::group_by(db) |>
+  dplyr::summarise(mean_f1 = mean(values, na.rm = TRUE), .groups = "drop")
+
+q2_5_data <- dplyr::left_join(db_size_tbl, f1_by_db, by = "db") |>
+  dplyr::left_join(db_meta |> dplyr::select(db, db_base, simplification), by = "db")
+
+p_size_time <- q2_5_data |>
+  ggplot(aes(x = db_size_mb, y = mean_wall_h, color = db_base, label = simplification)) +
+  geom_point(size = 3) +
+  ggrepel::geom_label_repel(size = 2.5, show.legend = FALSE) +
+  labs(x = "DB size (MB)", y = "Mean wall time (h)", color = "DB family") +
+  theme_bw()
+
+p_size_f1 <- q2_5_data |>
+  ggplot(aes(x = db_size_mb, y = mean_f1, color = db_base, label = simplification)) +
+  geom_point(size = 3) +
+  ggrepel::geom_label_repel(size = 2.5, show.legend = FALSE) +
+  labs(x = "DB size (MB)", y = "Mean F1 (Gen_sp)", color = "DB family") +
+  theme_bw()
+
+fig_q2_5 <- p_size_time / p_size_f1 + patchwork::plot_layout(guides = "collect")
+ggsave(here("figures/fig_q2_5_size_cost.pdf"), fig_q2_5, width = 8, height = 10)
+ggsave(here("figures/fig_q2_5_size_cost.png"), fig_q2_5, width = 8, height = 10, dpi = 300)
+fig_q2_5
+```
+
+
+## Q3.5 — Method × DB heatmap justifying the preference strategy
+
+Which (method, DB) combination does the preference strategy prefer, and is it
+a good choice? The preferred cell (sintax × EUK_ITS_v1_9_3 at bootstrap 0.5)
+is highlighted in red; the preference-consensus F1 is annotated for reference.
+
+```{r}
+heat_data <- res_comp_tax |>
+  dplyr::filter(
+    metrics == "F1_score",
+    tax_level == "Gen_sp",
+    algo %in% c("dada2", "sintax", "lca", "blastn"),
+    !startsWith(db, "mini_"),
+    (algo %in% c("dada2", "sintax", "lca") & bootstrap_num == 0.5) |
+      (algo == "blastn" & vote_algorithm == "rel_majority")
+  ) |>
+  dplyr::mutate(
+    is_preferred = algo == "sintax" & db == "EUK_ITS_v1_9_3"
+  )
+
+pref_f1 <- res_comp_tax |>
+  dplyr::filter(
+    method_db == "preference_consensus",
+    metrics == "F1_score",
+    tax_level == "Gen_sp"
+  ) |>
+  dplyr::pull(values)
+
+fig_q3_heatmap <- heat_data |>
+  ggplot(aes(x = db, y = algo, fill = values)) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_tile(
+    data = dplyr::filter(heat_data, is_preferred),
+    fill = NA, color = "red", linewidth = 1.5
+  ) +
+  scale_fill_viridis_c(
+    "F1 (Gen_sp)", option = "plasma", direction = -1,
+    limits = c(0, 1), na.value = "grey90"
+  ) +
+  annotate(
+    "text", x = Inf, y = -Inf, hjust = 1.05, vjust = -0.5, size = 3,
+    label = paste0("preference consensus F1 = ", round(pref_f1, 3))
+  ) +
+  labs(x = "Reference database", y = "Method") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave(here("figures/fig_q3_heatmap.pdf"), fig_q3_heatmap, width = 12, height = 4)
+ggsave(here("figures/fig_q3_heatmap.png"), fig_q3_heatmap, width = 12, height = 4, dpi = 300)
+fig_q3_heatmap
+```
+
+
+## Q1.6 — Per-rank method comparison table and win matrix
+
+```{r}
+method_summary_tbl <- res_comp_tax |>
+  dplyr::filter(
+    metrics %in% c("F1_score", "ACC"),
+    algo %in% c("dada2", "sintax", "lca", "blastn"),
+    !startsWith(db, "mini_"),
+    (algo %in% c("dada2", "sintax", "lca") & bootstrap_num == 0.5) |
+      (algo == "blastn" & vote_algorithm == "rel_majority")
+  ) |>
+  dplyr::group_by(tax_level, algo, metrics) |>
+  dplyr::summarise(
+    mean_val = round(mean(values, na.rm = TRUE), 3),
+    sd_val   = round(sd(values, na.rm = TRUE), 3),
+    .groups  = "drop"
+  ) |>
+  dplyr::mutate(mean_sd = paste0(mean_val, " (±", sd_val, ")")) |>
+  tidyr::pivot_wider(
+    id_cols     = c(tax_level, algo),
+    names_from  = metrics,
+    values_from = mean_sd
+  ) |>
+  dplyr::mutate(tax_level = factor(tax_level, levels = tax_order)) |>
+  dplyr::arrange(tax_level, algo)
+
+knitr::kable(
+  method_summary_tbl,
+  col.names = c("Rank", "Method", "ACC", "F1"),
+  caption   = "Mean (±sd) F1 and ACC per method × rank (bootstrap = 0.5, averaged across DBs)"
+)
+```
+
+```{r}
+win_matrix_tbl <- res_comp_tax |>
+  dplyr::filter(
+    metrics == "F1_score",
+    algo %in% c("dada2", "sintax", "lca", "blastn"),
+    !startsWith(db, "mini_"),
+    (algo %in% c("dada2", "sintax", "lca") & bootstrap_num == 0.5) |
+      (algo == "blastn" & vote_algorithm == "rel_majority")
+  ) |>
+  dplyr::group_by(tax_level, db) |>
+  dplyr::slice_max(values, n = 1, with_ties = FALSE) |>
+  dplyr::ungroup() |>
+  dplyr::count(tax_level, algo, name = "n_wins") |>
+  tidyr::pivot_wider(
+    names_from  = algo,
+    values_from = n_wins,
+    values_fill = 0L
+  ) |>
+  dplyr::mutate(tax_level = factor(tax_level, levels = tax_order)) |>
+  dplyr::arrange(tax_level)
+
+knitr::kable(
+  win_matrix_tbl,
+  caption = "Win matrix: number of DBs where each method achieves highest F1 per rank (bootstrap = 0.5)"
+)
+```
+
+
+## Q1.7 — Statistical test: F1 ~ method + (1|db) per rank
+
+Linear mixed model with DB as random intercept, testing whether the method
+fixed effect explains significant variance in F1 (LRT vs. null model). Requires
+`lme4`.
+
+```{r}
+lmm_res_list <- lapply(
+  intersect(tax_order, unique(res_comp_tax$tax_level)),
+  function(rank) {
+    dat <- res_comp_tax |>
+      dplyr::filter(
+        metrics == "F1_score",
+        tax_level == rank,
+        algo %in% c("dada2", "sintax", "lca", "blastn"),
+        !startsWith(db, "mini_"),
+        (algo %in% c("dada2", "sintax", "lca") & bootstrap_num == 0.5) |
+          (algo == "blastn" & vote_algorithm == "rel_majority")
+      )
+    if (nrow(dat) < 8 || dplyr::n_distinct(dat$db) < 3) {
+      return(NULL)
+    }
+    tryCatch({
+      m_full <- lme4::lmer(values ~ algo + (1 | db), data = dat, REML = FALSE)
+      m_null <- lme4::lmer(values ~ 1 + (1 | db), data = dat, REML = FALSE)
+      lrt    <- anova(m_null, m_full)
+      tibble::tibble(
+        tax_level = rank,
+        LRT_chisq = round(lrt$Chisq[2], 3),
+        df        = as.integer(lrt[["Chi Df"]][2]),
+        p_value   = round(lrt[["Pr(>Chisq)"]][2], 4),
+        signif    = dplyr::case_when(
+          lrt[["Pr(>Chisq)"]][2] < 0.001 ~ "***",
+          lrt[["Pr(>Chisq)"]][2] < 0.01  ~ "**",
+          lrt[["Pr(>Chisq)"]][2] < 0.05  ~ "*",
+          TRUE ~ ""
+        )
+      )
+    }, error = function(e) {
+      tibble::tibble(tax_level = rank, LRT_chisq = NA_real_,
+                     df = NA_integer_, p_value = NA_real_, signif = "ERROR")
+    })
+  }
+)
+
+lmm_results <- dplyr::bind_rows(lmm_res_list) |>
+  dplyr::mutate(tax_level = factor(tax_level, levels = tax_order)) |>
+  dplyr::arrange(tax_level)
+
+knitr::kable(
+  lmm_results,
+  caption = "LRT: F1 ~ method + (1|db) vs. null (1|db) per rank. *** p<0.001, ** p<0.01, * p<0.05."
+)
 ```
 
 

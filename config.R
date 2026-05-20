@@ -27,6 +27,10 @@ cutadapt_conda_prelude <-
 
 # Number of crew workers for parallel assignments. Lower this if your machine
 # can't host n_workers * n_threads cores.
-n_workers <- 4
+n_workers <- 1
 
 targets_seed <- 22
+
+cv_fold_number <- 10L
+cv_fold_tested <- 2L    # smoke-test default; set to cv_fold_number for the publication run
+cv_max_seq     <- 100L  # NULL for the full DB; set low (e.g. 200) for fast smoke-tests

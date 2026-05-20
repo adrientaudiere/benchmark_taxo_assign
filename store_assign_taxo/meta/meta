@@ -3,12 +3,6 @@ taxtab_replace_pattern_by_NA|function|f9447c5e8071a866|||||||||||||||
 object|object|374f5aea8e80818f|||||||||||||||
 resolve_vector_ranks|function|88697efed2dfb47d|||||||||||||||
 resolve_taxo_conflict|function|29140442ce020210|||||||||||||||
-file_taxo_mock|stem|07628e1842678b78|7e89e98052122cd0|2c530c1562a7fbd1|126895375|/home/adrien/Nextcloud/IdEst/Projets/arround_MiscMetabar/benchmar_assign_taxo/data/data_raw/metadata/taxo_mock.csv|t20076.5814246077s|s44592b|44592|file|local|vector|||0.001||
-taxo_mock|stem|d455bd486c02b6cd|731e6c21ec15db8e|6cc18f7f693df7c8|-1342107790||t20116.3717664679s|s5782b|5782|rds|local|vector|||0.008||
-dada2__Unite___0.5|stem|53c00301ad22bf50|67c36c77147bb912|3c705868f483c3c5|-46189987||t20116.3794110308s|s36847b|36847|rds|local|vector|||660.098||
-dada2__EUK_ITS_v1_9_3___0.5|stem|766d3d1d6c57ff56|bd6b03a3e1688cfd|eae949254b133f59|-530191262||t20116.3917359038s|s38317b|38317|rds|local|vector|||1064.856||
-sintax__Unite___0.5|stem|4d032b142a12a010|7cd0c9040fe81622|5b991c4d3226b748|943890120||t20116.39190507s|s41922b|41922|rds|local|vector|||14.604||
-sintax__EUK_ITS_v1_9_3___0.5|stem|af6d9b0cc1858116|9e3df91edcf40f5a|e4a1fdbda9deac71|973306278||t20116.3930720585s|s44909b|44909|rds|local|vector|||100.816||
 lca__EUK_ITS_v1_9_3___0.5_all_taxo|stem|a838bd60f19315e0|887946167a3cbeb7|592722712138e7ac|-1766568309||t20116.401642642s|s49656b|49656|rds|local|vector|||677.515||
 lca__Unite___0.5|stem|9ea751f0f490d6a8|e4eda4bd49f58b87|755b32a3bc0bb986|1645278290||t20116.3937962963s|s47421b|47421|rds|local|vector|||62.956||
 blastn__mini_Unite___0.5|stem|18a50e13c700d745|5b830be431eb6ce8|548f1feaf8e56d22|1150513277||t20124.7067654496s|s47729b|47729|rds|local|vector|||6.664||
@@ -136,9 +130,6 @@ idtaxa__mini_EUK_SSU_v1_9_3___0.6...NA...NA|stem|7e3990c84c1b1ce7|ce6c6b29f34efc
 idtaxa__mini_EUK_SSU_v1_9_3_Fungi___0.6...NA...NA|stem|41a9259aba536b3d|1aed054a3ede3728|71a0cbd452fa1bf8|-692083328||t20125.6544346584s|s188185b|188185|rds|local|vector|||377.731||
 idtaxa__mini_EUK_SSU_v1_9_3_cut___0.6...NA...NA|stem|68e1f032e6a1615d|f1b598b2552f6cd3|0f53366943dbb6c8|-1802988125||t20125.6554175256s|s188237b|188237|rds|local|vector|||84.849||
 idtaxa__mini_EUK_SSU_v1_9_3_Fungi_cut___0.6...NA...NA|stem|d9d182d2cfda9944|60e456aed5711c89|45d181df9368b612|17321019||t20125.6588672828s|s189650b|189650|rds|local|vector|||297.987||
-d_asv|stem|8600df37c89f3509|7f29577ef049fbbe|2c530c1562a7fbd1|1423905353||t20126.5129025501s|s10268b|10268|rds|local|vector|||0.567||
-d_asv_for_assignation_fake|stem|c91b74a925c30e8b|ef34ab40c8238254|93482eaf04c822c6|1711608454||t20126.5129043556s|s10598b|10598|rds|local|vector|||0.142||
-d_asv_for_assignation|stem|6ac3311cc5f6ac43|50b5da989ee8252b|9e19fc8dec7491b5|-2001673172||t20126.5129052353s|s14964b|14964|rds|local|vector|||0.067||
 dada2__mini_Unite_Fungi___0.4|stem|c7473d50de1cdbc7|099912728ca6044a|34cc6ee62e0d421a|-406225314||t20126.512961161s|s15564b|15564|rds|local|vector|||2.427||
 dada2__mini_EUK_ITS_v1_9_3___0.4|stem|3e7c3023458c0008|133ef052f17eccee|4bf958841e1af23f|-1485702811||t20126.5130031053s|s15973b|15973|rds|local|vector|||3.617||
 dada2__mini_EUK_ITS_v1_9_3_Fungi___0.4|stem|21a07eed569f08f1|b6f9c42a03b2f684|71bbad676e04f485|1521668328||t20126.5130448644s|s16075b|16075|rds|local|vector|||3.601||
@@ -305,18 +296,6 @@ idtaxa__mini_EUK_SSU_v1_9_3_Fungi___0.6|stem|c792be4b1a7b4335|7fb1faa966f399a4|2
 idtaxa__mini_EUK_SSU_v1_9_3_cut___0.6|stem|b7d65d1b002c107b|d160d3e89faa7a26|1dc7bff06f9cfd25|790908927||t20126.5379473696s|s30168b|30168|rds|local|vector|||75.398||
 idtaxa__mini_EUK_SSU_v1_9_3_Fungi_cut___0.6_all_taxo|stem|49186f89b9e45cbc|2cb6ae3fdb2d5069|a431aead03108e07|236525747||t20126.541385413s|s30381b|30381|rds|local|vector|||297.032||
 dada2_2steps__mini_Unite___0.4|stem||f2d5e5cefbe6b0b8|68ef8be6a044d94b|1967272136||t20130.4386357662s||0|rds|local|vector|||0.175||Incorrect reference file format for assignTaxonomy.
-tc_metrics_mock_vec|function|64362ab7e6b5791b|||||||||||||||
-fw_primer_sequences|object|4a5ce245bfeaf5fb|||||||||||||||
-rev_primer_AM|object|113ebf21e0af019f|||||||||||||||
-fw_primer_AM|object|c922c922d8be5776|||||||||||||||
-rev_primer_sequences|object|faaddc17f0c4384a|||||||||||||||
-n_threads|object|195dadb6d6a0c78f|||||||||||||||
-add_external_seq_pq|function|e48f2f419553b612|||||||||||||||
-.Random.seed|object|907fb437d6329599|||||||||||||||
-values_map|object|0b87e0f7c5df996d|||||||||||||||
-methods|object|677c434bf6605280|||||||||||||||
-add_shuffle_seq_pq|function|c3c06e9dbebcbf98|||||||||||||||
-tc_metrics_mock|function|6828999628a35be8|||||||||||||||
 dada2__mini_Unite___0.4|stem|f54fa296142000ed|c8d528a56428fadd|68ef8be6a044d94b|1421814560||t20130.4489695486s|s15399b|15399|rds|local|vector|||3.007||
 sintax__mini_EUK_SSU_v1_9_3___0.4|stem|3b5a47a8254bafda|7ae8982c5d53b3ce|751df3a600169a58|-1411191477||t20126.5140277778s|s20636b|20636|rds|local|vector|||0.692||
 sintax__mini_EUK_SSU_v1_9_3_Fungi___0.4|stem|585ea5bd70ee0cd7|8c5be142b0c82dd1|02dcc860e7bbef89|-1904641374||t20126.5140393519s|s20725b|20725|rds|local|vector|||0.67||
@@ -342,25 +321,12 @@ lca__mini_Unite___0.4|stem|fc81d3d64567d994|329f2379ee913c8b|fcf46ef9b931a52a|-1
 lca__mini_Unite_Fungi___0.4|stem|cb04194964895781|46ae380509ea3d57|d42c3e65050965cd|290805033||t20126.514224537s|s22423b|22423|rds|local|vector|||1.251||
 lca__mini_EUK_SSU_v1_9_3_Fungi___0.4|stem|467dd9fa636c2d92|5f08e46ee4fea76b|c7be9ca5f827729d|1495431265||t20126.5145138889s|s22967b|22967|rds|local|vector|||7.99||
 lca__mini_EUK_SSU_v1_9_3_cut___0.4|stem|3b0f1ccfb0943030|61bdf33124a5956b|477f9100483cb83e|1858696891||t20126.5145601852s|s23118b|23118|rds|local|vector|||4.184||
-tc_metrics_mock_vec|function|64362ab7e6b5791b
-fw_primer_sequences|object|4a5ce245bfeaf5fb
-rev_primer_AM|object|113ebf21e0af019f
-fw_primer_AM|object|c922c922d8be5776
-rev_primer_sequences|object|faaddc17f0c4384a
-n_threads|object|195dadb6d6a0c78f
-add_external_seq_pq|function|e48f2f419553b612
 .Random.seed|object|c4f65fa7d12ae17b
-values_map|object|7d1aa2bf23275a10
-methods|object|af466401630772c7
-add_shuffle_seq_pq|function|c3c06e9dbebcbf98
-tc_metrics_mock|function|6828999628a35be8
 dada2__Unite___0.4|stem|f161eac2b96bc0a6|9414a6cbee088733|68ef8be6a044d94b|-814786617||t20130.5334460106s|s15566b|15566|rds|local|vector|||121.242||
 dada2__Unite_Fungi___0.4|stem|4195404921c15d2c|3b200a2f58db86ee|370f734865304a5f|-1077523073||t20130.5343860995s|s15813b|15813|rds|local|vector|||81.209||
 dada2__EUK_ITS_v1_9_3___0.4|stem|47d2239e2937f58c|dcf840f74ca0e1a2|1ce5a577558beaf8|-507631394||t20130.5393687651s|s16143b|16143|rds|local|vector|||430.497||
 dada2__EUK_ITS_v1_9_3_Fungi___0.4|stem|854a6835e330f459|81b494d237a8b7a7|39b61c77fb899643|564337149||t20130.5418814404s|s16483b|16483|rds|local|vector|||217.082||
 dada2__EUK_ITS_v1_9_3_cut___0.4|stem|061f679252d29b61|5f440f6ccc06c1a7|a818fdc756267422|112382543||t20130.5433912031s|s16767b|16767|rds|local|vector|||130.437|Some reference sequences were too short 20nts and were excluded.|
-dada2__EUK_ITS_v1_9_3_Fungi_cut___0.4|stem|7dd7a3d26e9fa623|555943a683c3edd3|14eebabfc1b82a1c|-441561185||t20130.5446135594s|s16985b|16985|rds|local|vector|||105.605|Some reference sequences were too short 20nts and were excluded.|
-dada2__EUK_SSU_v1_9_3___0.4|stem|c2230aef146610f3|f72a04dbc489790f|d0e730e46f669b2a|-919226459||t20130.5459837393s|s17149b|17149|rds|local|vector|||118.377||
 dada2__EUK_SSU_v1_9_3_Fungi___0.4|stem|31a60346bf014ef5|190e9a9612d231b1|339ffac5e5575174|-149262730||t20130.5463370713s|s18045b|18045|rds|local|vector|||30.521||
 dada2__EUK_SSU_v1_9_3_cut___0.4|stem|1f80aa551f98b941|24ac2d635f3ad159|481f6d0bea03174c|-556608657||t20130.5466883199s|s18261b|18261|rds|local|vector|||30.343|Some reference sequences were too short 20nts and were excluded.|
 dada2__EUK_SSU_v1_9_3_Fungi_cut___0.4|stem|338badf171a8b500|c02f27448bdc66a3|eeb865bde62983dd|-1523244563||t20130.5468870228s|s18511b|18511|rds|local|vector|||17.159|Some reference sequences were too short 20nts and were excluded.|
@@ -369,8 +335,6 @@ dada2__Unite_Fungi___0.5|stem|754b4bf4f34b9d61|fb070779ef17d7fe|d17fa6efb6da5724
 dada2__EUK_ITS_v1_9_3___0.5|stem|f4b5c2b3f1e8f799|767997cf61a6de2c|ef97e84b1760dbc7|-530191262||t20130.5541299114s|s19029b|19029|rds|local|vector|||425.972||
 dada2__EUK_ITS_v1_9_3_Fungi___0.5|stem|62f48d049de3a5ad|39510600b9eb8850|2f5ae71470f0ca7a|308950098||t20130.5566010128s|s19147b|19147|rds|local|vector|||213.495||
 dada2__EUK_ITS_v1_9_3_cut___0.5|stem|67bdbcf3eb93c6db|763416ee2231976e|42df988854293d35|-440389818||t20130.558063646s|s19240b|19240|rds|local|vector|||126.367|Some reference sequences were too short 20nts and were excluded.|
-dada2__EUK_ITS_v1_9_3_Fungi_cut___0.5|stem|69dd30b60e96d27e|20a270cfe526b56f|d62d6df280880e75|-596352567||t20130.559305956s|s19373b|19373|rds|local|vector|||107.33|Some reference sequences were too short 20nts and were excluded.|
-dada2__EUK_SSU_v1_9_3___0.5|stem|5cce493414cfed76|cc777ebf01169043|a967763207ed38f9|-585338536||t20130.5606921543s|s19463b|19463|rds|local|vector|||119.76||
 dada2__EUK_SSU_v1_9_3_Fungi___0.5|stem|345f1ade2f2e2a95|82b01a16b519f6e3|74d451fc76f1eb6d|1283019233||t20130.5610506714s|s19589b|19589|rds|local|vector|||30.967||
 dada2__EUK_SSU_v1_9_3_cut___0.5|stem|5fbef8682f5a9e3c|78c64522c268a9b6|1a9c879562c3a648|1849234667||t20130.561417244s|s19683b|19683|rds|local|vector|||31.666|Some reference sequences were too short 20nts and were excluded.|
 dada2__EUK_SSU_v1_9_3_Fungi_cut___0.5|stem|d3898ceb4de1e229|bb1abbbdf0871884|bb8119524f82904b|-1896020087||t20130.5616197433s|s19828b|19828|rds|local|vector|||17.49|Some reference sequences were too short 20nts and were excluded.|
@@ -379,40 +343,138 @@ dada2__Unite_Fungi___0.6|stem|928ce478f021ea0b|e002a55c7fc009b1|e2a647f714182b1a
 dada2__EUK_ITS_v1_9_3___0.6|stem|ff70550813dddc2e|31e9b52cf12c6d08|cb05b4dc24fcc976|-759516978||t20130.5688849926s|s20256b|20256|rds|local|vector|||426.669||
 dada2__EUK_ITS_v1_9_3_Fungi___0.6|stem|7e2b2e5474d75f21|75804e7bf9249aac|a37293e67aa6f547|-171426230||t20130.5714042883s|s20364b|20364|rds|local|vector|||217.663||
 dada2__EUK_ITS_v1_9_3_cut___0.6|stem|e9bdef20bfb74e3d|532a806670d6a851|39223af39db406a9|-1899340675||t20130.5729090973s|s20475b|20475|rds|local|vector|||130.008|Some reference sequences were too short 20nts and were excluded.|
-dada2__EUK_ITS_v1_9_3_Fungi_cut___0.6|stem|329e7f12bbb92ee4|b670c9534f357736|19f6d0e64a2eb94a|1248930264||t20130.5741417776s|s20616b|20616|rds|local|vector|||106.494|Some reference sequences were too short 20nts and were excluded.|
-dada2__EUK_SSU_v1_9_3___0.6|stem|200df17e0041403a|f5e56876b68c9887|9937f401e9686cbb|-1874410301||t20130.5755266333s|s20724b|20724|rds|local|vector|||119.643||
 dada2__EUK_SSU_v1_9_3_Fungi___0.6|stem|ce3f0cefac3a2802|f82b6710e985b53d|ae5131ef320e439d|2065620085||t20130.5758881597s|s20843b|20843|rds|local|vector|||31.226||
 dada2__EUK_SSU_v1_9_3_cut___0.6|stem|0239ce598514ac0e|ca3567baa81badd1|482ebd52870efdda|-847418783||t20130.5762524638s|s20926b|20926|rds|local|vector|||31.471|Some reference sequences were too short 20nts and were excluded.|
 dada2__EUK_SSU_v1_9_3_Fungi_cut___0.6|stem|98ca69ed5c9e9917|f0314f4336242bae|0e5eda615cfffb80|2121352380||t20130.5764589908s|s21058b|21058|rds|local|vector|||17.834|Some reference sequences were too short 20nts and were excluded.|
-sintax__Unite___0.4|stem|1479d3b1a3d91707|e4105e6993317082|264ffc127909f888|1645306195||t20130.5764891295s|s21206b|21206|rds|local|vector|||2.596||
-sintax__Unite_Fungi___0.4|stem|f34b4775ef3660e8|dc85558ebf148c8c|0122181e07e85139|682805278||t20130.5765087128s|s21318b|21318|rds|local|vector|||1.683||
-sintax__EUK_ITS_v1_9_3___0.4|stem|de1d0a78980df4f5|ed62e8963d56f8d7|6953d8213ccb418d|-698292245||t20130.5767688507s|s21416b|21416|rds|local|vector|||22.47||
 sintax__EUK_ITS_v1_9_3_Fungi___0.4|stem|13e74cacac303b05|7dbdd63484bcc566|e84b3703ce584fc8|1923565105||t20130.5769107945s|s21496b|21496|rds|local|vector|||12.254||
 sintax__EUK_ITS_v1_9_3_cut___0.4|stem|d2347f365d0b03e4|5b2ea6258fe102d5|dc9feb17679bf754|1437911570||t20130.5770002849s|s21566b|21566|rds|local|vector|||7.722||
-sintax__EUK_ITS_v1_9_3_Fungi_cut___0.4|stem|d69cc945f66158d7|282336f8b6d0c76a|a77f2650cd511053|-1652567408||t20130.5770737106s|s21630b|21630|rds|local|vector|||6.334||
-sintax__EUK_SSU_v1_9_3___0.4|stem|f9bcc047dd212e5b|ef4f05ae8a794431|f6927179837b63fe|941613555||t20130.5772312099s|s21728b|21728|rds|local|vector|||13.601||
 sintax__EUK_SSU_v1_9_3_Fungi___0.4|stem|c3b0add538671a4b|6e1384bb80792d62|98dfbb7fd841b4f3|1657242374||t20130.5772727375s|s21804b|21804|rds|local|vector|||3.577||
-sintax__EUK_SSU_v1_9_3_cut___0.4|stem|c87ee38210d4b7cd|bca7f30f0a2d9c24|ed8fe82c12b7006c|1945291995||t20130.5773017189s|s21875b|21875|rds|local|vector|||2.496||
 sintax__EUK_SSU_v1_9_3_Fungi_cut___0.4|stem|320cb6c526e7c7d5|610dd440e9aa8bc8|c2412271b4eeabf1|1471078511||t20130.5773217651s|s21949b|21949|rds|local|vector|||1.726||
-sintax__Unite___0.5|stem|b79f8b311106db7a|919d57db3be4470b|66f228bd7decafe0|943890120||t20130.5773530613s|s22010b|22010|rds|local|vector|||2.693||
-sintax__Unite_Fungi___0.5|stem|0d5f40531c78eb59|74b033812d35cd2a|e641b3331b71d3f5|1272685371||t20130.5773736631s|s22085b|22085|rds|local|vector|||1.773||
-sintax__EUK_ITS_v1_9_3___0.5|stem|903e84c4e5122e0f|f5699c7e7820b705|58b294112d542db4|973306278||t20130.577626301s|s22158b|22158|rds|local|vector|||21.82||
 sintax__EUK_ITS_v1_9_3_Fungi___0.5|stem|4fd4a0f92c692069|05804fc60349beeb|4ba7712ecbba5292|-1826599413||t20130.5777699578s|s22225b|22225|rds|local|vector|||12.401||
 sintax__EUK_ITS_v1_9_3_cut___0.5|stem|d52396136fc8fe79|76c8590764b0311e|c075023353114714|-1141508542||t20130.5778615778s|s22299b|22299|rds|local|vector|||7.906||
-sintax__EUK_ITS_v1_9_3_Fungi_cut___0.5|stem|927482633e0fde0c|f2e17f4ff2665488|0745a57bbe5c3950|-255597306||t20130.5779333368s|s22370b|22370|rds|local|vector|||6.193||
-sintax__EUK_SSU_v1_9_3___0.5|stem|532c97280eafef30|1f86c00b8adda554|7c5df9760b9ef366|-1092206923||t20130.5780918547s|s22430b|22430|rds|local|vector|||13.687||
 sintax__EUK_SSU_v1_9_3_Fungi___0.5|stem|16644d7ba68e9add|4dbf8d526c52236c|db24c8a3fbaa35e1|-187530864||t20130.5781342619s|s22509b|22509|rds|local|vector|||3.654||
-sintax__EUK_SSU_v1_9_3_cut___0.5|stem|78456f34229f7662|49f19d46162126dc|b62e4c0232cd30fb|-1336685320||t20130.5781656507s|s22570b|22570|rds|local|vector|||2.705||
 sintax__EUK_SSU_v1_9_3_Fungi_cut___0.5|stem|cac73cfcd4e04799|099984b05c3b2397|da023087992057a1|-2094747324||t20130.578183845s|s22633b|22633|rds|local|vector|||1.557||
-sintax__Unite___0.6|stem|74d52a4c79d67c92|1b6e8f75671f4e8f|faa183ed2523ca66|-1308835104||t20130.5782150486s|s22698b|22698|rds|local|vector|||2.687||
-sintax__Unite_Fungi___0.6|stem|463892bd79df41f9|c1fe9a79e0066db4|63733b0a43c49444|490030893||t20130.57823528s|s22759b|22759|rds|local|vector|||1.736||
-sintax__EUK_ITS_v1_9_3___0.6|stem|8a496a0a6bc71370|71f51d5c014b0b19|79fadb3bcf461380|-933894617||t20130.5784912512s|s22836b|22836|rds|local|vector|||22.106||
 sintax__EUK_ITS_v1_9_3_Fungi___0.6|stem|25eab730d3928226|39eb4c8682bbd942|8ffd4e6f3646f089|217010832||t20130.5786350006s|s22896b|22896|rds|local|vector|||12.412||
 sintax__EUK_ITS_v1_9_3_cut___0.6|stem|874095eeb8dd81e8|46f11ff9d4a6de27|5f7a5b09fe005b16|1616082644||t20130.5787223151s|s22963b|22963|rds|local|vector|||7.536||
-sintax__EUK_ITS_v1_9_3_Fungi_cut___0.6|stem|e6387d018488537c|b63ec40e3273c4a6|7cd385d8e64866a9|1159559360||t20130.5787974537s|s23028b|23028|rds|local|vector|||6.481||
-sintax__EUK_SSU_v1_9_3___0.6|stem|463283afed7c0603|821b5d04ba66377a|0d986a4c2e5b48e1|-1451595255||t20130.5789552772s|s23090b|23090|rds|local|vector|||13.627||
 sintax__EUK_SSU_v1_9_3_Fungi___0.6|stem|52cc37458b0cdf4a|ca43d49b9dfe19eb|8ee1cf4550b4e954|-1330051422||t20130.5789969899s|s23149b|23149|rds|local|vector|||3.598||
-sintax__EUK_SSU_v1_9_3_cut___0.6|stem|7a65aa838a96779f|cf10812c6026fcfd|6f15cef0190b2e3c|1524884462||t20130.5790274528s|s23217b|23217|rds|local|vector|||2.622||
 sintax__EUK_SSU_v1_9_3_Fungi_cut___0.6|stem|fd58f994bb65d591|39d73ddf665daeab|a27cbf06b56328b4|1695789692||t20130.5790464805s|s23276b|23276|rds|local|vector|||1.634||
 lca__Unite___0.4|stem|12ba04e8ed5a599c|dc5655a7afeabd30|bc9f7c9998445412|426965284||t20130.5793891643s|s23349b|23349|rds|local|vector|||29.598||
 lca__Unite_Fungi___0.4|stem|ed4b7112b0aa89d9|8f0036836fbafc22|c14c63048d25945a|2115334933||t20130.5796004598s|s23409b|23409|rds|local|vector|||18.246||
+file_taxo_mock|stem|07628e1842678b78|d32bd922b04bfb9a|42fdac7f95ecbaaa|126895375|/home/adrien/Nextcloud/IdEst/Projets/pqverse/arround_MiscMetabar/benchmar_assign_taxo/data/data_raw/metadata/taxo_mock.csv|t20076.5814236111s|s44592b|44592|file|local|vector|||8.084||
+taxo_mock|stem|d455bd486c02b6cd|731e6c21ec15db8e|6cc18f7f693df7c8|-1342107790||t20116.3717592593s|s5782b|5782|rds|local|vector|||0.008||
+d_asv|stem|9023d285232af6e5|2005d0cb6b12d078|2c530c1562a7fbd1|1423905353||t20592.5768687886s|s17665b|17665|rds|local|vector|||8.28||
+d_asv_for_assignation_fake|stem|5f947dc8d34cf776|6604c89d005da5e2|010aa73f235b1899|1711608454||t20592.5768731521s|s28295b|28295|rds|local|vector|||0.301||
+d_asv_for_assignation|stem|d907e2eb43b2c783|c233fa85587c8442|06e2272bce7e9aa3|-2001673172||t20592.5768744094s|s65197b|65197|rds|local|vector|||0.075||
+sintax__EUK_ITS_v1_9_3___0.4|stem|b668a65c31a01ccc|96568b835ca0be04|6f6b05886c0153ac|-698292245||t20592.5793030483s|s69131b|69131|rds|local|vector|||209.79||
+sintax__EUK_ITS_v1_9_3___0.6|stem|7673b881e3d7e4c6|2854873399b3f635|6f6b05886c0153ac|-933894617||t20592.579509044s|s68933b|68933|rds|local|vector|||218.417||
+sintax__EUK_ITS_v1_9_3___0.5|stem|c5b0f4fb957a9887|2a69ec543792fabd|6f6b05886c0153ac|973306278||t20592.579543335s|s69070b|69070|rds|local|vector|||221.569||
+blastn__EUK_ITS_v1_9_3___0.5...unanimity...100|stem|a676421a76d6a013|22d553b09d1b8983|6f6b05886c0153ac|59940546||t20593.3474084271s|s70769b|70769|rds|local|vector|||584.156|Expected 7 pieces. Missing pieces filled with `NA` in 4583 rows [3, 4, 5, 6, 10, 11, 12, 13, 15, 17, 21, 23, 24, 25, 26, 27, 28, 31, 35, 36, ...].|
+blastn__Unite___0.5...abs_majority...100|stem|54849dcd939da783|d785e468a07aa494|6f6b05886c0153ac|-49382442||t20593.3484188202s|s70764b|70764|rds|local|vector|||87.171||
+blastn__EUK_SSU_v1_9_3_Fungi_cut___0.5...abs_majority...100|stem|9b18b01b394bcbe4|51058f76e8ae6d4c|6f6b05886c0153ac|1469069773||t20593.3487911854s|s67955b|67955|rds|local|vector|||32.012|Expected 7 pieces. Missing pieces filled with `NA` in 1125 rows [7, 12, 14, 15, 21, 22, 23, 34, 35, 39, 40, 42, 43, 47, 50, 51, 52, 53, 55, 56, ...].|
+blastn__Unite___0.5...unanimity...100|stem|72a960d7990b0c75|72221ba0abe960cb|6f6b05886c0153ac|-155800684||t20593.3497271206s|s70704b|70704|rds|local|vector|||80.792||
+dada2__EUK_SSU_v1_9_3___0.5|stem|781d213c922b5ce4|6fff9f3337cfdb7c|6f6b05886c0153ac|-585338536||t20593.3522962454s|s69484b|69484|rds|local|vector|||1006.28||
+dada2__EUK_SSU_v1_9_3___0.4|stem|a8ba3ceee6adb70c|55e73c867a4ec6c1|6f6b05886c0153ac|-919226459||t20593.3523045007s|s69561b|69561|rds|local|vector|||1007||
+dada2__EUK_SSU_v1_9_3___0.6|stem|394ccd9d85e2a9de|adf32f225cacf119|6f6b05886c0153ac|-1874410301||t20593.3523542596s|s69400b|69400|rds|local|vector|||1011.159||
+blastn__EUK_SSU_v1_9_3_Fungi___0.5...unanimity...100|stem|9df0e1c32a7eda8c|8565ede028165e07|6f6b05886c0153ac|-538127815||t20593.3526157723s|s67561b|67561|rds|local|vector|||27.492|Expected 7 pieces. Missing pieces filled with `NA` in 1125 rows [7, 12, 14, 15, 21, 22, 23, 34, 35, 39, 40, 42, 43, 47, 50, 51, 52, 53, 55, 56, ...].|
+sintax__Unite_Fungi___0.4|stem|b91a8337ab26a22e|b351e44728eb8743|6f6b05886c0153ac|682805278||t20593.3527392242s|s69464b|69464|rds|local|vector|||10.592||
+blastn__EUK_SSU_v1_9_3_cut___0.5...rel_majority...100|stem|183373302215fa48|9e36b158b536ec4d|6f6b05886c0153ac|-1136792928||t20593.3531245939s|s68476b|68476|rds|local|vector|||33.067|Expected 7 pieces. Missing pieces filled with `NA` in 1137 rows [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 21, 26, 28, 29, 35, 36, 37, 48, ...].|
+sintax__Unite_Fungi___0.5|stem|30686ccbf109c1e3|bf3458b1b82c8633|6f6b05886c0153ac|1272685371||t20593.3532444442s|s69361b|69361|rds|local|vector|||10.307||
+blastn__EUK_SSU_v1_9_3_cut___0.5...abs_majority...100|stem|0f4cdef44c8ee505|712ddb58359ce1ae|6f6b05886c0153ac|1355301663||t20593.3536068298s|s68181b|68181|rds|local|vector|||31.262|Expected 7 pieces. Missing pieces filled with `NA` in 1137 rows [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 21, 26, 28, 29, 35, 36, 37, 48, ...].|
+sintax__Unite_Fungi___0.6|stem|7830009553cc9f6f|2b7f29d4a4e1a3d6|6f6b05886c0153ac|490030893||t20593.3537279654s|s69233b|69233|rds|local|vector|||10.385||
+lca__EUK_ITS_v1_9_3_Fungi___0.4|stem|f47eeafa1cd3bcb6|50b1d094a5734c5a|6f6b05886c0153ac|-872929401||t20593.3587371404s|s67635b|67635|rds|local|vector|||778.386||
+sintax__EUK_SSU_v1_9_3___0.4|stem|96b1655905c71978|67bbc7f41a91893c|6f6b05886c0153ac|941613555||t20593.3594003775s|s68612b|68612|rds|local|vector|||57.198||
+lca__EUK_ITS_v1_9_3_Fungi___0.5|stem|e1890e7a7eecc05c|6d6e3aaa8cf08ae6|6f6b05886c0153ac|614645551||t20593.3625221042s|s67635b|67635|rds|local|vector|||882.693||
+lca__EUK_ITS_v1_9_3_Fungi___0.6|stem|e5f6e9190616de74|4fa816796a427727|6f6b05886c0153ac|1103450660||t20593.3626274639s|s67635b|67635|rds|local|vector|||887.464||
+sintax__EUK_SSU_v1_9_3___0.5|stem|7df07747ea1aad34|4e704d251f41927b|6f6b05886c0153ac|-1092206923||t20593.3633107485s|s68486b|68486|rds|local|vector|||67.966||
+lca__EUK_ITS_v1_9_3___0.4|stem|b15d15e5534d90fb|c8f2c6e09f2cab4f|6f6b05886c0153ac|-51882788||t20593.370247082s|s68192b|68192|rds|local|vector|||1427.165||
+sintax__Unite___0.4|stem|0dcfec91dfca543c|8e28131f34413b3f|6f6b05886c0153ac|1645306195||t20593.3705632967s|s69469b|69469|rds|local|vector|||27.207||
+sintax__EUK_SSU_v1_9_3___0.6|stem|94f256ae3de51730|64dab37be96d7d9e|6f6b05886c0153ac|-1451595255||t20593.3713244571s|s68320b|68320|rds|local|vector|||65.656||
+sintax__Unite___0.5|stem|828d182b3209c2da|c7feaabaff70781d|6f6b05886c0153ac|943890120||t20593.3716738041s|s69376b|69376|rds|local|vector|||30.111||
+sintax__Unite___0.6|stem|1f10062fcd8efd04|ad44fa3b7c35732e|6f6b05886c0153ac|-1308835104||t20593.3720265866s|s69231b|69231|rds|local|vector|||30.405||
+blastn__EUK_ITS_v1_9_3___0.5...rel_majority...100|stem|08b3168691be5d2a|83f82ec14915ee17|6f6b05886c0153ac|485552020||t20593.3729092035s|s72133b|72133|rds|local|vector|||829.202|Expected 7 pieces. Missing pieces filled with `NA` in 4583 rows [3, 4, 5, 6, 10, 11, 12, 13, 15, 17, 21, 23, 24, 25, 26, 27, 28, 31, 35, 36, ...].|
+blastn__EUK_SSU_v1_9_3_Fungi___0.5...abs_majority...100|stem|f49e89cf425eb552|f6f00fd38fa3f7ac|6f6b05886c0153ac|751939343||t20593.3734052042s|s67961b|67961|rds|local|vector|||42.763|Expected 7 pieces. Missing pieces filled with `NA` in 1125 rows [7, 12, 14, 15, 21, 22, 23, 34, 35, 39, 40, 42, 43, 47, 50, 51, 52, 53, 55, 56, ...].|
+blastn__Unite_Fungi___0.5...unanimity...100|stem|b5de54a05f84eb3e|e74ea4f48ebff4e0|6f6b05886c0153ac|-173557161||t20593.3744787644s|s66539b|66539|rds|local|vector|||92.695||
+blastn__EUK_ITS_v1_9_3_Fungi_cut___0.5...abs_majority...100|stem|c7f5e8243ed71e3f|056b1f1f0b281d54|6f6b05886c0153ac|-1197926497||t20593.3765347646s|s68935b|68935|rds|local|vector|||389.413|Expected 7 pieces. Missing pieces filled with `NA` in 5969 rows [1, 3, 4, 40, 43, 44, 54, 58, 61, 63, 64, 69, 80, 81, 95, 118, 158, 167, 168, 177, ...].|
+lca__EUK_ITS_v1_9_3___0.5|stem|ad3af3a21cab22ea|362b8ebddfe16077|6f6b05886c0153ac|-147930006||t20593.3791570413s|s68192b|68192|rds|local|vector|||1706.826||
+blastn__Unite_Fungi___0.5...rel_majority...100|stem|274f3fdeca570b80|4ea5939ff71320d5|6f6b05886c0153ac|883232697||t20593.3801565908s|s66543b|66543|rds|local|vector|||86.272||
+blastn__EUK_SSU_v1_9_3_cut___0.5...unanimity...100|stem|26d5367e31802990|420390d21f7d04dd|6f6b05886c0153ac|-1087360413||t20593.3808421523s|s67766b|67766|rds|local|vector|||59.12|Expected 7 pieces. Missing pieces filled with `NA` in 1137 rows [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 21, 26, 28, 29, 35, 36, 37, 48, ...].|
+blastn__EUK_ITS_v1_9_3_Fungi_cut___0.5...rel_majority...100|stem|2886ecd0642076ff|3c295e9f553b20d7|6f6b05886c0153ac|1463443895||t20593.381206814s|s69233b|69233|rds|local|vector|||403.572|Expected 7 pieces. Missing pieces filled with `NA` in 5969 rows [1, 3, 4, 40, 43, 44, 54, 58, 61, 63, 64, 69, 80, 81, 95, 118, 158, 167, 168, 177, ...].|
+blastn__EUK_SSU_v1_9_3___0.5...abs_majority...100|stem|613db8af31483a33|9cba6593dd3c0716|6f6b05886c0153ac|-432316039||t20593.3820346533s|s69048b|69048|rds|local|vector|||102.949|Expected 7 pieces. Missing pieces filled with `NA` in 1185 rows [7, 18, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 37, 38, ...].|
+lca__EUK_ITS_v1_9_3___0.6|stem|84eb85ec9f8d47f0|27010a9af0d8df1c|6f6b05886c0153ac|482085572||t20593.382054063s|s68192b|68192|rds|local|vector|||1678.379||
+blastn__EUK_ITS_v1_9_3_Fungi___0.5...abs_majority...100|stem|95845cd976192cde|11d2524d93f2c485|6f6b05886c0153ac|455725835||t20593.3825580554s|s68902b|68902|rds|local|vector|||697.987|Expected 7 pieces. Missing pieces filled with `NA` in 4323 rows [1, 4, 5, 57, 72, 81, 82, 101, 107, 115, 128, 130, 131, 134, 135, 149, 175, 176, 211, 259, ...].|
+dada2__EUK_ITS_v1_9_3_Fungi_cut___0.4|stem|69646fdd793e8063|f09a27484167606d|6f6b05886c0153ac|-441561185||t20593.3920845164s|s70539b|70539|rds|local|vector|||939.689|Some reference sequences were too short (<20nts) and were excluded.|
+dada2__EUK_ITS_v1_9_3_Fungi_cut___0.5|stem|0aed69d965efa173|1d7986edcab17624|6f6b05886c0153ac|-596352567||t20593.393189733s|s70346b|70346|rds|local|vector|||963.66|Some reference sequences were too short (<20nts) and were excluded.|
+dada2__EUK_ITS_v1_9_3_Fungi_cut___0.6|stem|8f0f48c30450b9cb|167f1d3848bd6651|6f6b05886c0153ac|1248930264||t20593.3939760943s|s70065b|70065|rds|local|vector|||1029.916|Some reference sequences were too short (<20nts) and were excluded.|
+sintax__EUK_ITS_v1_9_3_Fungi_cut___0.4|stem|365c317b9bfb9855|e87e78c061891d39|6f6b05886c0153ac|-1652567408||t20593.395260855s|s69128b|69128|rds|local|vector|||110.626||
+sintax__EUK_ITS_v1_9_3_Fungi_cut___0.5|stem|c5ec8ccd6197bff1|140c65f4ee85f2d7|6f6b05886c0153ac|-255597306||t20593.3964911137s|s69072b|69072|rds|local|vector|||106.146||
+blastn__Unite_Fungi___0.5...abs_majority...100|stem|747592ca4bb7401d|e533c35cba8f9222|6f6b05886c0153ac|2034307869||t20593.3977268701s|s66543b|66543|rds|local|vector|||106.595||
+sintax__EUK_ITS_v1_9_3_Fungi_cut___0.6|stem|ee31b3b6d8c16652|63a004a02d804ea2|6f6b05886c0153ac|1159559360||t20593.3993496168s|s68959b|68959|rds|local|vector|||140.001||
+lca__EUK_SSU_v1_9_3_Fungi_cut___0.4|stem|a19ace2fcbaa7c52|a14a1c2da470c59a|6f6b05886c0153ac|1740114830||t20593.4218181161s|s66863b|66863|rds|local|vector|||164.06||
+lca__EUK_SSU_v1_9_3_Fungi_cut___0.5|stem|5bbfeac72f9d895c|773856c8bed78464|6f6b05886c0153ac|2100951899||t20593.4239095083s|s66863b|66863|rds|local|vector|||180.626||
+lca__EUK_SSU_v1_9_3_Fungi_cut___0.6|stem|cc9642bc1c732e21|ce7786bbdf62cdd3|6f6b05886c0153ac|-111561835||t20593.4262358271s|s66863b|66863|rds|local|vector|||200.873||
+sintax__EUK_SSU_v1_9_3_cut___0.4|stem|5b9a3cc19b59ef05|91f715db380eae34|6f6b05886c0153ac|1945291995||t20593.4263490994s|s68767b|68767|rds|local|vector|||9.713||
+sintax__EUK_SSU_v1_9_3_cut___0.5|stem|e7fa6b10cc2dd6af|524675b43f803a4f|6f6b05886c0153ac|-1336685320||t20593.4264614269s|s68569b|68569|rds|local|vector|||9.636||
+sintax__EUK_SSU_v1_9_3_cut___0.6|stem|d90520bde50343d1|d7895ac158f999ce|6f6b05886c0153ac|1524884462||t20593.426573649s|s68340b|68340|rds|local|vector|||9.629||
+blastn__EUK_SSU_v1_9_3_Fungi_cut___0.5...unanimity...100|stem|4e268043ae4a216f|78a5d29d6a8ba677|6f6b05886c0153ac|-130738613||t20593.5309282257s|s67566b|67566|rds|local|vector|||31.242|Expected 7 pieces. Missing pieces filled with `NA` in 1125 rows [7, 12, 14, 15, 21, 22, 23, 34, 35, 39, 40, 42, 43, 47, 50, 51, 52, 53, 55, 56, ...].|
+blastn__EUK_SSU_v1_9_3___0.5...rel_majority...100|stem|239abfa66f40542a|3d39576e3e6eb5ff|6f6b05886c0153ac|-893640196||t20593.5312986977s|s69327b|69327|rds|local|vector|||64.043|Expected 7 pieces. Missing pieces filled with `NA` in 1185 rows [7, 18, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 37, 38, ...].|
+blastn__EUK_ITS_v1_9_3_Fungi___0.5...unanimity...100|stem|bfd57eb4b0461b15|14b184058a283040|6f6b05886c0153ac|1865177825||t20593.5358888981s|s67778b|67778|rds|local|vector|||460.26|Expected 7 pieces. Missing pieces filled with `NA` in 4323 rows [1, 4, 5, 57, 72, 81, 82, 101, 107, 115, 128, 130, 131, 134, 135, 149, 175, 176, 211, 259, ...].|
+lca__EUK_ITS_v1_9_3_Fungi_cut___0.4|stem|0328df435daa4267|c381f78f81bc85b6|6f6b05886c0153ac|-2020984075||t20593.5359405311s|s67959b|67959|rds|local|vector|||464.346||
+methods|object|d92aaa5fa80259c0
+n_workers|object|1383ef88fd9bbb0e
+midasim_pq|function|aca2252fe02db0db
+multiply_counts_pq|function|18ee4130a8b7850d
+combine_taxo_assignments|function|1e26f0f4c2283a7e
+cv_fold_number|object|4b8caeb2425c3113
+cv_fold_tested|object|b3a2147ad240fae3
+values_map|object|be73d45b54ede703
+taxo_mock_csv|object|88a37c4717c7dffa
+fake_ref_fasta|object|a23a506fe1b77138
+rev_primer_AM|object|113ebf21e0af019f
+fw_primer_sequences|object|4a5ce245bfeaf5fb
+cutadapt_conda_prelude|object|ab01f9dcda708287
+seq_len_min|object|4fb7122a4503ae71
+permute_da_pq|function|488074fe2ad5a47f
+tc_metrics_mock_vec|function|64362ab7e6b5791b
+sample_col_name|object|1514429e69ce5a39
+cv_max_seq|object|58da83568b77e4fd
+add_shuffle_seq_pq|function|abf044d09f068bc4
+add_external_seq_pq|function|409d727b40dfc4fd
+sam_data_file_name|object|4d2599eb7115a343
+fw_primer_AM|object|c922c922d8be5776
+prop_fake|object|a0f70b97cb958d4f
+rev_primer_sequences|object|faaddc17f0c4384a
+refseq_file_name|object|5921313ad9bd99e8
+targets_seed|object|557d54830fc201b3
+n_threads|object|195dadb6d6a0c78f
+tc_metrics_mock|function|38d74a832a7fd09e
+lca__EUK_SSU_v1_9_3_Fungi___0.4|stem|3b9a8d8c26dbb7f9|921638ba68bac871|6f6b05886c0153ac|-245590156||t20593.5502947629s|s66775b|66775|rds|local|vector|||673.966||
+lca__EUK_ITS_v1_9_3_Fungi_cut___0.5|stem|0827d9f6d343a535|f4bda813438909fb|6f6b05886c0153ac|1638305364||t20593.5512802429s|s67959b|67959|rds|local|vector|||757.705||
+lca__EUK_SSU_v1_9_3_cut___0.4|stem||ed40e4e774af9074|6f6b05886c0153ac|-817099373||t20593.5364511968s||0|rds|local|vector|||782.866|l'exécution de la commande ''vsearch'  --usearch_global /tmp/RtmpdqsnK0/temp.fasta --db data/data_raw/refseq/sintax_format/EUK_SSU_v1_9_3_cut.fasta --lcaout /tmp/RtmpdqsnK0/out_lca.txt -id 0.5 --threads 1 --userfields query+id+target --maxaccepts 0 --maxrejects 32 --lca_cutoff  1 --userout /tmp/RtmpdqsnK0/userout.txt  --top_hits_only 2>&1' renvoie un statut 139|Vsearch usearch_global failed with status 139. vsearch v2.30.2_linux_x86_64, 62.6GB RAM, 6 cores https://github.com/torognes/vsearch  Reading file data/data_raw/refseq/sintax_format/EUK_SSU_v1_9_3_cut.fasta 100% 116826832 nt in 50436 seqs, min 32, max 32756, avg 2316 minseqlength 32: 13784 sequences discarded. Masking 100% Counting k-mers 100% Creating k-mer index 100% SearchingSegmentation fault (core dumped)
+methods|object|d92aaa5fa80259c0
+n_workers|object|9f0cda529028d8d9
+midasim_pq|function|aca2252fe02db0db
+multiply_counts_pq|function|18ee4130a8b7850d
+combine_taxo_assignments|function|1e26f0f4c2283a7e
+cv_fold_number|object|4b8caeb2425c3113
+cv_fold_tested|object|b3a2147ad240fae3
+values_map|object|be73d45b54ede703
+taxo_mock_csv|object|88a37c4717c7dffa
+fake_ref_fasta|object|a23a506fe1b77138
+rev_primer_AM|object|113ebf21e0af019f
+fw_primer_sequences|object|4a5ce245bfeaf5fb
+cutadapt_conda_prelude|object|ab01f9dcda708287
+seq_len_min|object|4fb7122a4503ae71
+permute_da_pq|function|488074fe2ad5a47f
+tc_metrics_mock_vec|function|64362ab7e6b5791b
+sample_col_name|object|1514429e69ce5a39
+cv_max_seq|object|58da83568b77e4fd
+add_shuffle_seq_pq|function|abf044d09f068bc4
+add_external_seq_pq|function|409d727b40dfc4fd
+sam_data_file_name|object|4d2599eb7115a343
+fw_primer_AM|object|c922c922d8be5776
+prop_fake|object|a0f70b97cb958d4f
+rev_primer_sequences|object|faaddc17f0c4384a
+refseq_file_name|object|5921313ad9bd99e8
+targets_seed|object|557d54830fc201b3
+n_threads|object|195dadb6d6a0c78f
+tc_metrics_mock|function|38d74a832a7fd09e

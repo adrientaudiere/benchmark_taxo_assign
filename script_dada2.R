@@ -12,20 +12,12 @@ if (tar_active()) {
 }
 
 here::i_am("script_dada2.R")
+source(here("config.R"))
 source(here("R/functions.R"))
 lapply(list.files("~/Nextcloud/IdEst/Projets/MiscMetabar/R/", full.names = TRUE),
        source)
 
-# Primer ITS fungi Pauvert et al. 2018
-fw_primer_sequences <- "CTTGGTCATTTAGAGGAAGTAA" # ITS-1F Gardes and Bruns, 1993
-rev_primer_sequences <- "GCTGCGTTCTTCATCGATGC" #ITS2 White 1990
-
-seq_len_min <- 200
-n_threads <- 4
-refseq_file_name <- "Unite_Fungi.fasta"
-sam_data_file_name <- "sam_data.csv"
-sample_col_name <- "Sample_names"
-tar_option_set(seed = 22)
+tar_option_set(seed = targets_seed)
 
 
 tar_plan(
@@ -64,16 +56,19 @@ tar_plan(
   ## > Remove primers
   tar_target(
     cutadapt,
-    cutadapt_remove_primers(
-      path_to_fastq = fastq_files_folder,
-      pattern="fastq",
-      primer_fw = fw_primer_sequences,
-      primer_rev = rev_primer_sequences,
-      folder_output = here("data/data_intermediate/seq_wo_primers/"),
-      nproc = n_threads,
-      return_file_path = TRUE,
-      args_before_cutadapt = "source ~/miniforge3/etc/profile.d/conda.sh && conda activate cutadaptenv && "
-    ),
+    {
+      autometric::log_phase_set("cutadapt")
+      cutadapt_remove_primers(
+        path_to_fastq = fastq_files_folder,
+        pattern = "fastq",
+        primer_fw = fw_primer_sequences,
+        primer_rev = rev_primer_sequences,
+        folder_output = here("data/data_intermediate/seq_wo_primers/"),
+        nproc = n_threads,
+        return_file_path = TRUE,
+        args_before_cutadapt = cutadapt_conda_prelude
+      )
+    },
     format = "file"
   ),
   tar_target(data_raw, {
@@ -89,35 +84,66 @@ tar_plan(
   ### Pre-filtered data with low stringency
   tar_target(
     filtered,
-    filter_trim(
-      output_fw = paste(
-        getwd(),
-        here("/data/data_intermediate/filterAndTrim_fwd"),
-        sep = ""
-      ),
-      output_rev = paste(
-        getwd(),
-        here("/data/data_intermediate/filterAndTrim_rev"),
-        sep = ""
-      ),
-      fw = data_fnfs,
-      rev = data_fnrs,
-      multithread = n_threads,
-      compress = TRUE,
-      trimLeft = 1,
-      trimRight = 1
-    )
+    {
+      autometric::log_phase_set("filtered")
+      filter_trim(
+        output_fw = paste(
+          getwd(),
+          here("/data/data_intermediate/filterAndTrim_fwd"),
+          sep = ""
+        ),
+        output_rev = paste(
+          getwd(),
+          here("/data/data_intermediate/filterAndTrim_rev"),
+          sep = ""
+        ),
+        fw = data_fnfs,
+        rev = data_fnrs,
+        multithread = n_threads,
+        compress = TRUE,
+        trimLeft = 1,
+        trimRight = 1
+      )
+    }
   ),
 
   ### Dereplicate fastq files
   tar_target(derep_fs, derepFastq(filtered[[1]]), format = "qs"),
   tar_target(derep_rs, derepFastq(filtered[[2]]), format = "qs"),
   ### Learns the error rates
-  tar_target(err_fs, learnErrors(derep_fs, multithread = n_threads), format = "qs"),
-  tar_target(err_rs, learnErrors(derep_rs, multithread = n_threads), format = "qs"),
+  tar_target(
+    err_fs,
+    {
+      autometric::log_phase_set("err_fs")
+      learnErrors(derep_fs, multithread = n_threads)
+    },
+    format = "qs"
+  ),
+  tar_target(
+    err_rs,
+    {
+      autometric::log_phase_set("err_rs")
+      learnErrors(derep_rs, multithread = n_threads)
+    },
+    format = "qs"
+  ),
   ### Make amplicon sequence variants
-  tar_target(ddF, dada(derep_fs, err_fs, multithread = n_threads), format = "qs"),
-  tar_target(ddR, dada(derep_rs, err_rs, multithread = n_threads), format = "qs"),
+  tar_target(
+    ddF,
+    {
+      autometric::log_phase_set("ddF")
+      dada(derep_fs, err_fs, multithread = n_threads)
+    },
+    format = "qs"
+  ),
+  tar_target(
+    ddR,
+    {
+      autometric::log_phase_set("ddR")
+      dada(derep_rs, err_rs, multithread = n_threads)
+    },
+    format = "qs"
+  ),
   ### Merge paired sequences
   tar_target(
     merged_seq,
@@ -162,20 +188,23 @@ tar_plan(
 
   tar_target(
     tax_tab,
-    assignTaxonomy(
-      seqtab,
-      refFasta = file_refseq_taxo,
-      taxLevels = c(
-        "Kingdom",
-        "Phyla",
-        "Class",
-        "Order",
-        "Family",
-        "Genus",
-        "Species"
-      ),
-      multithread = n_threads
-    )
+    {
+      autometric::log_phase_set("tax_tab")
+      assignTaxonomy(
+        seqtab,
+        refFasta = file_refseq_taxo,
+        taxLevels = c(
+          "Kingdom",
+          "Phyla",
+          "Class",
+          "Order",
+          "Family",
+          "Genus",
+          "Species"
+        ),
+        multithread = n_threads
+      )
+    }
   ),
 
   ## > Create the phyloseq object 'data_phyloseq' with
@@ -221,6 +250,26 @@ tar_plan(
       "OTU vs after mumu cleaning algorithm" = d_vs_mumu,
       "OTU idtaxa after mumu cleaning algorithm" = d_idtaxa_mumu
     )
-  ))
+  )),
+
+  tar_target(
+    benchmark_costs_dada2,
+    {
+      track_df  # force aggregation after all pipeline targets complete
+      log_df <- autometric::log_read(
+        here("data/data_final/autometric_log_dada2.txt")
+      )
+      log_df |>
+        dplyr::filter(!is.na(phase), phase != "") |>
+        dplyr::group_by(phase) |>
+        dplyr::summarise(
+          wall_time_s      = as.numeric(max(time) - min(time)),
+          peak_resident_mb = max(resident, na.rm = TRUE),
+          mean_cpu_pct     = mean(cpu, na.rm = TRUE),
+          n_samples        = dplyr::n(),
+          .groups = "drop"
+        )
+    }
+  )
 )
 

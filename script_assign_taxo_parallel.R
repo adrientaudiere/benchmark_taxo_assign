@@ -1,6 +1,6 @@
 library("conflicted")
 library("MiscMetabar")
-devtools::load_all("~/Nextcloud/IdEst/Projets/MiscMetabar/R/")
+devtools::load_all("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/MiscMetabar/")
 library("targets")
 library("tarchetypes")
 library("here")
@@ -15,12 +15,15 @@ if (tar_active()) {
 here::i_am("script_assign_taxo_parallel.R")
 source(here("config.R"))
 source(here("R/combine_taxo_assignments.R"))
-source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/compare_taxo.R")
-source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/fake_creation.R")
+source("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/comparpq/R/compare_taxo.R")
+source("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/comparpq/R/fake_creation.R")
 
 tar_option_set(
   seed = targets_seed,
-  controller = crew::crew_controller_local(workers = n_workers, seconds_idle = 60)
+  controller = crew::crew_controller_group(
+    crew::crew_controller_local(name = "dada2_ctrl",  workers = 1,         seconds_idle = 60),
+    crew::crew_controller_local(name = "fast_ctrl",   workers = n_workers, seconds_idle = 60)
+  )
 )
 
 methods <- tidyr::expand_grid(
@@ -41,6 +44,8 @@ values_map <-
       "Unite",
       "Unite_Fungi",
       "EUK_ITS_v1_9_3",
+      "EUK_ITS_v1_9_3_Fungi",       # Q2.3: files exist in both formats
+      "EUK_ITS_v1_9_3_Fungi_cut",   # Q2.3
       "EUK_SSU_v1_9_3",
       "EUK_SSU_v1_9_3_Fungi",
       "EUK_SSU_v1_9_3_cut",
@@ -56,6 +61,7 @@ values_map <-
     paste0("data/data_raw/refseq/dada2_format/", db_name),
     paste0("data/data_raw/refseq/sintax_format/", db_name)
   ), ".fasta")) |>
+  mutate(controller = ifelse(method == "dada2", "dada2_ctrl", "fast_ctrl")) |>
   mutate(full_name = gsub(
     "...NA...NA", "",
     paste0(method, "__", db, "___",
@@ -80,7 +86,10 @@ assignment_targets <- tarchetypes::tar_eval(
         vote_algorithm = vote_algorithm,
         nb_voting = nb_voting
       )
-    }
+    },
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = controller)
+    )
   ),
   values_map
 )

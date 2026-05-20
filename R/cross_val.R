@@ -20,10 +20,10 @@ cross_val_param <- function(..., min_bootstrap = c(0.4, 0.5, 0.6)) {
 
 # TODO
 # réfléchir à l'inclusion de fake pour faire un TRUE negative et donc voire
-# émerger un trade-off -> pas si urgent
+# émerger un trade-off 
 #
 # adapté aux autres algos d'assignation
-# + ajouter un argument nperm pour faire un certain nombre de permutations en
+# TODO? + ajouter un argument nperm pour faire un certain nombre de permutations en
 # complément du k-fold -> déjà un peu trop long
 
 #  lca_res <- assign_vsearch_lca(fake_pq, ref_fasta= paste0(tempdir(), "/", "test_refseq.fasta"))
@@ -46,6 +46,7 @@ cross_val_param <- function(..., min_bootstrap = c(0.4, 0.5, 0.6)) {
 #'   value of minimum_bootstrap are used and return in the output data frames.
 #' @param compute_by_tax_level
 #' @param verbose
+#' #TODO complete documentation 
 #'
 #' @returns
 #' @export
@@ -63,9 +64,29 @@ cross_val <- function(ref_fasta,
                       compute_by_tax_level = FALSE,
                       verbose = FALSE,
                       nproc = 1,
+                      max_seq = NULL,
+                      min_seq_length = 50L,
                       ...) {
   dna <- Biostrings::readDNAStringSet(ref_fasta)
   method <- match.arg(method)
+
+  if (!is.null(min_seq_length)) {
+    dna <- dna[Biostrings::width(dna) >= min_seq_length]
+  }
+
+  dna <- dna[!duplicated(names(dna))]
+
+  if (!is.null(max_seq) && length(dna) > max_seq) {
+    dna <- dna[sample(length(dna), max_seq)]
+  }
+
+  if (length(dna) < fold_number) {
+    stop(
+      "Only ", length(dna), " sequences remain after length filtering ",
+      "(min_seq_length=", min_seq_length, "); need at least fold_number=",
+      fold_number, ". The reference database may be unsuitable for this method."
+    )
+  }
 
   if (!method %in% c("sintax", "dada2") && length(min_bootstrap) > 1) {
     stop("min_bootstrap must be set to one value (not a vector) exept if method
@@ -87,6 +108,9 @@ cross_val <- function(ref_fasta,
     }
     index_tested <- which(folds == f, arr.ind = TRUE)
     tested_data <- dna_shuffled[index_tested, ]
+    tested_data <- tested_data[!duplicated(as.character(tested_data))]
+    tested_data <- tested_data[!duplicated(names(tested_data))]
+    n_tested <- length(tested_data)
 
     fake_pq <- create_fake_pq_from_refseq(tested_data)
     if (!is.null(patterns_NA)) {
@@ -111,12 +135,22 @@ cross_val <- function(ref_fasta,
       )
 
     } else if (method == "lca") {
-      assign_res <- assign_vsearch_lca(
+      assign_res <- list()
+      lca_raw <- assign_vsearch_lca(
         fake_pq,
         ref_fasta = paste0(tempdir(), "/", "test_refseq.fasta"),
         nproc = nproc,
         behavior = "return_matrix",
         ...
+      )
+      if (is.null(lca_raw)) {
+        stop("assign_vsearch_lca returned NULL — no LCA output produced.")
+      }
+      # left-join so unmatched sequences appear as NA rows, not missing rows
+      assign_res$taxo_value <- dplyr::left_join(
+        tibble::tibble(taxa_names = taxa_names(fake_pq)),
+        lca_raw,
+        by = "taxa_names"
       )
     } else if (method == "blastn") {
       assign_res <- list()
@@ -129,9 +163,19 @@ cross_val <- function(ref_fasta,
         data.frame() |>
         tibble() |>
         select(ends_with("_blastn")) |>
-        select(-Taxa_name_db_blastn)
+        select(-any_of("Taxa_name_db_blastn"))
 
-      colnames(assign_res$taxo_value) <- colnames(fake_pq@tax_table)
+      if (ncol(assign_res$taxo_value) == 0) {
+        # assign_blastn returned physeq unchanged (no BLAST hits at filter thresholds)
+        assign_res$taxo_value <- tibble::as_tibble(matrix(
+          NA_character_,
+          nrow = n_tested,
+          ncol = length(colnames(fake_pq@tax_table)),
+          dimnames = list(NULL, colnames(fake_pq@tax_table))
+        ))
+      } else {
+        colnames(assign_res$taxo_value) <- colnames(fake_pq@tax_table)
+      }
 
 
     } else if (method == "dada2_2steps") {
@@ -147,23 +191,24 @@ cross_val <- function(ref_fasta,
       assign_res <- list()
       assign_res$taxo_value <- assign_res_pq@tax_table
     } else if (method == "dada2") {
-      dbpq::format2dada2(
-        fasta_db = paste0(tempdir(), "/", "test_refseq.fasta"),
-        output_path = paste0(tempdir(), "/", "test_refseq_dada.fasta"),
-        pattern_to_remove = "\\|rep.*"
-      )
+      # ref_fasta is already in dada2 format (db_path = dada2_format/…), so the
+      # subset written to test_refseq.fasta requires no conversion.
       assign_res_dada <- assignTaxonomy(
         fake_pq@refseq,
-        refFasta = paste0(tempdir(), "/", "test_refseq_dada.fasta"),
+        refFasta = paste0(tempdir(), "/", "test_refseq.fasta"),
         outputBootstraps = TRUE,
         minBoot = 0,
         ...
       )
       assign_res <- list()
-      assign_res$taxo_value <- as_tibble(assign_res_dada$tax, .name_repair	= "minimal")
-      colnames(assign_res$taxo_value)  <-  c(colnames(assign_res_dada$tax)[!is.na(colnames(assign_res_dada$tax))], "taxa_names")
-      assign_res$taxo_bootstrap <- as_tibble(assign_res_dada$boot, .name_repair	= "minimal")
-      colnames(assign_res$taxo_bootstrap)  <-  c(colnames(assign_res_dada$boot)[!is.na(colnames(assign_res_dada$boot))], "taxa_names")
+      assign_res$taxo_value <- assign_res_dada$tax |>
+        as.data.frame() |>
+        tibble::rownames_to_column("taxa_names") |>
+        tibble::as_tibble()
+      assign_res$taxo_bootstrap <- assign_res_dada$boot |>
+        as.data.frame() |>
+        tibble::rownames_to_column("taxa_names") |>
+        tibble::as_tibble()
     }
 
     if (length(min_bootstrap) > 1) {
@@ -212,18 +257,18 @@ cross_val <- function(ref_fasta,
         assign_res$taxo[assign_res$taxo_bootstrap < min_bootstrap[i]] <- NA
 
         NA_matrix <- is.na(assign_res$taxo == tax_tib)
-        res_assign_NA[i, ] <- colSums(NA_matrix) / length(index_tested)
+        res_assign_NA[i, ] <- colSums(NA_matrix) / n_tested
 
-        res_assign_NA_classif[i, ]  <- colSums(is.na(assign_res$taxo)) / length(index_tested)
-        res_assign_NA_database[i, ] <- colSums(is.na(tax_tib)) / length(index_tested)
+        res_assign_NA_classif[i, ]  <- colSums(is.na(assign_res$taxo)) / n_tested
+        res_assign_NA_database[i, ] <- colSums(is.na(tax_tib)) / n_tested
 
         good_classification_matrix <- assign_res$taxo == tax_tib
         res_assign_good_classification[i, ] <-
-          colSums(good_classification_matrix, na.rm =   TRUE) / length(index_tested)
+          colSums(good_classification_matrix, na.rm =   TRUE) / n_tested
 
         bad_classification_matrix <- assign_res$taxo != tax_tib
         res_assign_bad_classification[i, ] <-
-          colSums(bad_classification_matrix, na.rm =  TRUE) / length(index_tested)
+          colSums(bad_classification_matrix, na.rm =  TRUE) / n_tested
 
         if (compute_by_tax_level) {
           for (taxlev in colnames(assign_res$taxo[, -1]))
@@ -361,18 +406,18 @@ cross_val <- function(ref_fasta,
       }
 
       NA_matrix <- is.na(assign_res$taxo == tax_tib)
-      res_assign_NA[1, ] <- colSums(NA_matrix) / length(index_tested)
+      res_assign_NA[1, ] <- colSums(NA_matrix) / n_tested
 
-      res_assign_NA_classif[1, ]  <- colSums(is.na(assign_res$taxo)) / length(index_tested)
-      res_assign_NA_database[1, ] <- colSums(is.na(tax_tib)) / length(index_tested)
+      res_assign_NA_classif[1, ]  <- colSums(is.na(assign_res$taxo)) / n_tested
+      res_assign_NA_database[1, ] <- colSums(is.na(tax_tib)) / n_tested
 
       good_classification_matrix <- assign_res$taxo == tax_tib
       res_assign_good_classification[1, ] <-
-        colSums(good_classification_matrix, na.rm =   TRUE) / length(index_tested)
+        colSums(good_classification_matrix, na.rm =   TRUE) / n_tested
 
       bad_classification_matrix <- assign_res$taxo != tax_tib
       res_assign_bad_classification[1, ] <-
-        colSums(bad_classification_matrix, na.rm =  TRUE) / length(index_tested)
+        colSums(bad_classification_matrix, na.rm =  TRUE) / n_tested
 
       if (compute_by_tax_level) {
         for (taxlev in colnames(assign_res$taxo[, -1]))

@@ -10,19 +10,25 @@ The whole pipeline is built around `phyloseq` objects and depends on functions f
 
 ## Running the pipelines
 
-Two `{targets}` pipelines live at the project root, each with its own store. `make.R` calls both in sequence:
+Three `{targets}` pipelines live at the project root, each with its own store. `make.R` calls the first two in sequence:
 
 ```r
-tar_make(script = "script_dada2.R",       store = "store_dada2")
-tar_make(script = "script_assign_taxo.R", store = "store_assign_taxo")
+tar_make(script = "script_dada2.R",                store = "store_dada2")
+tar_make(script = "script_assign_taxo_parallel.R", store = "store_assign_taxo")
+```
+
+The cross-validation pipeline is run independently:
+
+```r
+tar_make(script = "script_cross_val.R", store = "store_cross_val")
 ```
 
 Useful per-pipeline commands (replace `<script>`/`<store>` accordingly):
 
 ```r
-tar_manifest(script = "script_assign_taxo.R")
-tar_visnetwork(script = "script_assign_taxo.R", targets_only = TRUE)
-tar_make(script = "script_assign_taxo.R", store = "store_assign_taxo")
+tar_manifest(script = "script_assign_taxo_parallel.R")
+tar_visnetwork(script = "script_assign_taxo_parallel.R", targets_only = TRUE)
+tar_make(script = "script_assign_taxo_parallel.R", store = "store_assign_taxo")
 tar_destroy("all", store = "store_assign_taxo/")
 # In a second R session at the project root:
 tar_poll(store = "store_assign_taxo")
@@ -81,7 +87,14 @@ To work with a faster subset, switch `script_assign_taxo.R` to the mini DBs by u
 
 ## Cross-validation tooling
 
-`R/cross_val.R` defines `cross_val()` and `cross_val_param()` — k-fold cross-validation of a single assignment method on a reference fasta. It is not called by any `tar_make`; source it manually for ad-hoc database / method evaluation. Worked examples (the four `CV_*` invocations and the diagnostic ggplots) live in `R/examples_cross_val.R`. The `dada2_2steps` and `idtaxa`-related branches in `cross_val()` still `stop()` — they were never wired up.
+`R/cross_val.R` defines `cross_val()` and `cross_val_param()` — k-fold cross-validation of a single assignment method on a reference fasta. `script_cross_val.R` wires it into a targets pipeline (→ `store_cross_val`) covering 4 methods × 9 DBs × 2 variants (remove_tested TRUE/FALSE). `R/cv_to_tidy.R` converts single-bootstrap `cross_val()` output into a long tibble. Worked examples live in `R/examples_cross_val.R`. The `dada2_2steps` branch in `cross_val()` still `stop()`s — never wired up.
+
+Three constants in `config.R` control CV runs:
+- `cv_fold_number` — total folds (default 10; publication value).
+- `cv_fold_tested` — folds actually run (default 2 for smoke-testing; set to `cv_fold_number` for publication).
+- `cv_max_seq` — cap on sequences sampled from each DB before folding (default 100 for fast smoke-tests; set to `NULL` for the full DB).
+
+Known limitation: the `dada2` branch in `cross_val()` calls `assignTaxonomy` with `minBoot = 0` and never applies the `min_bootstrap` threshold post-hoc, so the bootstrap filter has no effect for dada2 cross-validation.
 
 ## Parallel pipeline
 
@@ -90,7 +103,7 @@ To work with a faster subset, switch `script_assign_taxo.R` to the mini DBs by u
 - `script_assign_taxo_parallel.R` — adds a `crew_controller_local` (workers from `config.R::n_workers`) and a `benchmark_costs` target that aggregates `data/data_final/autometric_log_assign_taxo.txt` per target (phase tagged via `autometric::log_phase_set(full_name)` inside each assignment).
 - `R/combine_taxo_assignments.R` — the combine helper. Detects new columns by `setdiff(colnames(new_tt), colnames(base_tt))`, so it does not need to know per-row suffixes.
 - `tests/test_combine_taxo_assignments.R` — testthat fixture proving the combine output matches a `Reduce()`-style chain accumulator. Run with `Rscript tests/test_combine_taxo_assignments.R` from the project root.
-- `config.R` — shared constants (primers, `n_threads`, `seq_len_min`, `prop_fake`, paths, conda prelude, `n_workers`, `targets_seed`). Sourced by `script_assign_taxo_parallel.R` only; `script_dada2.R` still has inline copies and should be migrated next time that pipeline is touched.
+- `config.R` — shared constants (primers, `n_threads`, `seq_len_min`, `prop_fake`, paths, conda prelude, `n_workers`, `targets_seed`, `cv_fold_number`, `cv_fold_tested`, `cv_max_seq`). Sourced by `script_assign_taxo_parallel.R` and `script_cross_val.R`; `script_dada2.R` still has inline copies and should be migrated next time that pipeline is touched.
 
 When pointing `analysis/benchmark.qmd` at the parallel store, three edits are needed (the `_all_taxo` suffix no longer exists): read `tar_read(d_all_taxo, ...)` directly, drop the `gsub("_all_taxo", ...)` calls, and remove the `rename_ranks_pq(..., gsub("_all_taxo", "", ...))` block.
 

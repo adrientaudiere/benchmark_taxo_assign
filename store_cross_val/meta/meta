@@ -1,0 +1,106 @@
+name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
+cv__sintax__Unite__standard|stem|e8c8e57ec85434d7|db2a480d1752591a|85734dc43d7d45fe|1649148205||t20593.452383384s|s440b|440|rds|local|vector|||12.288||
+cv__blastn__EUK_SSU_v1_9_3_Fungi_cut__leaked|stem|7451e8e286852d75|314b44cbfdb7c753|85734dc43d7d45fe|1916473538||t20593.4523864422s|s489b|489|rds|local|vector|||12.605|Expected 7 pieces. Missing pieces filled with `NA` in 5 rows [3, 4, 5, 6, 8].. Expected 7 pieces. Missing pieces filled with `NA` in 9 rows [1, 2, 3, 4, 5, 6, 7, 8, 9].|
+cv__blastn__EUK_SSU_v1_9_3_cut__leaked|stem|cbcbc104f72e61c4|1eaec82ccba63d22|85734dc43d7d45fe|-506944297||t20593.4523975482s|s470b|470|rds|local|vector|||13.513|Expected 7 pieces. Missing pieces filled with `NA` in 9 rows [1, 2, 3, 4, 6, 7, 8, 9, 11].. Expected 7 pieces. Missing pieces filled with `NA` in 9 rows [1, 2, 3, 4, 5, 6, 7, 10, 11].|
+cv__dada2__EUK_SSU_v1_9_3__leaked|stem|02c28cc5c3fabf4a|2afa5c45c5c13de0|85734dc43d7d45fe|-318362256||t20593.4524221739s|s376b|376|rds|local|vector|||3.316||
+cv__lca__Unite__standard|stem|6edcbaced77784bd|e74d5563bea94b00|85734dc43d7d45fe|-1813584008||t20593.4524226291s|s424b|424|rds|local|vector|||3.048||
+cv__dada2__EUK_SSU_v1_9_3_cut__leaked|stem|cb50d6a4fbf689db|d107a78de31138ef|85734dc43d7d45fe|1693205237||t20593.4524391538s|s426b|426|rds|local|vector|||1.427||
+cv__dada2__Unite_Fungi__standard|stem|5c461794ac8aaac5|083c28b28f7af1b5|85734dc43d7d45fe|366018228||t20593.4524421429s|s383b|383|rds|local|vector|||1.664||
+cv__sintax__EUK_SSU_v1_9_3_Fungi__standard|stem|bdb8ccfee7f6038d|870a472b0fcf57f5|85734dc43d7d45fe|-967515475||t20593.4524453888s|s478b|478|rds|local|vector|||0.512||
+cv__sintax__Unite_Fungi__standard|stem|17bb34fa85b57156|6d9e4f3d008c17a3|85734dc43d7d45fe|1512952832||t20593.4524531961s|s436b|436|rds|local|vector|||0.652||
+cv__sintax__Unite_Fungi__leaked|stem|cb7415c2abf6a4fb|27b43830a8eb8a17|85734dc43d7d45fe|-180298088||t20593.4524616964s|s355b|355|rds|local|vector|||0.684||
+cv__sintax__EUK_SSU_v1_9_3_Fungi_cut__leaked|stem|01c32e47a03cdb84|71e4aa1c86aeb767|85734dc43d7d45fe|1644979425||t20593.4524660679s|s461b|461|rds|local|vector|||0.347||
+cv__lca__EUK_SSU_v1_9_3_Fungi_cut__leaked|stem|8dbb5de1264b3bd3|0f4e3c7f37034c76|85734dc43d7d45fe|-407619285||t20593.4524693473s|s492b|492|rds|local|vector|||6.152||
+cv__lca__EUK_SSU_v1_9_3_Fungi__standard|stem|dc4e39b8a5379a26|738e9be81577d79d|85734dc43d7d45fe|1111130664||t20593.4524841508s|s478b|478|rds|local|vector|||20.807||
+cv__lca__EUK_SSU_v1_9_3_cut__standard|stem|1139e25bd648bdc0|8df9ce0a6c4a2b0c|85734dc43d7d45fe|-875424047||t20593.4525170037s|s503b|503|rds|local|vector|||6.438||
+cv__blastn__EUK_ITS_v1_9_3_Fungi_cut__leaked|stem|f9108518d5d5dc28|8511b23fb47dae6e|85734dc43d7d45fe|248969727||t20593.4525693762s|s482b|482|rds|local|vector|||8.62|Expected 7 pieces. Missing pieces filled with `NA` in 7 rows [1, 2, 3, 4, 6, 7, 9].. Expected 7 pieces. Missing pieces filled with `NA` in 9 rows [1, 2, 3, 4, 5, 6, 7, 8, 10].|
+cv__blastn__EUK_ITS_v1_9_3__leaked|stem|60c537ff2a15f96d|9375332f9942dd4b|85734dc43d7d45fe|-1947515921||t20593.4526340233s|s473b|473|rds|local|vector|||14.481|Expected 7 pieces. Missing pieces filled with `NA` in 6 rows [1, 2, 4, 5, 6, 10].. Expected 7 pieces. Missing pieces filled with `NA` in 5 rows [1, 2, 4, 5, 6].|
+cv__sintax__EUK_ITS_v1_9_3__standard|stem|3bb9f9ea914a83cd|eb652b8babc306c1|85734dc43d7d45fe|727024243||t20593.4526634355s|s470b|470|rds|local|vector|||15.45||
+cv__sintax__EUK_ITS_v1_9_3__leaked|stem|5bba6f9d22271e18|5cfbb1689b60e676|85734dc43d7d45fe|1587764230||t20593.4527055288s|s464b|464|rds|local|vector|||11.668||
+cv__blastn__EUK_ITS_v1_9_3__standard|stem|cc5e776cfef5cfc7|7900567ed3614313|85734dc43d7d45fe|-1337760111||t20593.452709121s|s364b|364|rds|local|vector|||16.544||
+cv__lca__EUK_SSU_v1_9_3_cut__leaked|stem|948d7974cacb9f13|b9cbd43dabcd27bd|85734dc43d7d45fe|241984652||t20593.4527090284s|s475b|475|rds|local|vector|||6.425||
+cv__lca__EUK_ITS_v1_9_3_Fungi__standard|stem|afc292b67ffb40b8|da9d7ea67c3394fb|85734dc43d7d45fe|-589663042||t20593.4527198595s|s484b|484|rds|local|vector|||4.844||
+cv__sintax__EUK_ITS_v1_9_3_Fungi_cut__leaked|stem|5f860520006f3f68|dc008d5213d0c097|85734dc43d7d45fe|-1882796264||t20593.4527444027s|s476b|476|rds|local|vector|||2.575||
+cv__sintax__EUK_ITS_v1_9_3_Fungi_cut__standard|stem|3a86fb613c4e8df0|49a7e2c41d1f7b25|85734dc43d7d45fe|-56008917||t20593.4527458454s|s492b|492|rds|local|vector|||2.672||
+cv__dada2__EUK_SSU_v1_9_3_Fungi_cut__leaked|stem|b86d7373e79c899e|0bd54a29089f5b77|85734dc43d7d45fe|2098967778||t20593.4527499872s|s420b|420|rds|local|vector|||0.452||
+cv__blastn__EUK_SSU_v1_9_3_cut__standard|stem|400f4e1f485451f0|682d08615703d2f8|85734dc43d7d45fe|1983444261||t20593.4527501973s|s367b|367|rds|local|vector|||3.062||
+cv__sintax__EUK_SSU_v1_9_3_Fungi_cut__standard|stem|2ca919c42531556a|11ae2c8df7dd914a|85734dc43d7d45fe|26549740||t20593.4527559033s|s493b|493|rds|local|vector|||0.472||
+cv__dada2__EUK_SSU_v1_9_3_Fungi_cut__standard|stem|32580ee1e1f0abda|b251b0ee937a9387|85734dc43d7d45fe|398123562||t20593.4527587505s|s418b|418|rds|local|vector|||0.739||
+cv__sintax__EUK_ITS_v1_9_3_Fungi__standard|stem|442dc9df9cc498a6|4c706951b6815342|85734dc43d7d45fe|-130584907||t20593.4527634264s|s489b|489|rds|local|vector|||3.74||
+cv__blastn__Unite_Fungi__standard|stem|5e0402f90c94311f|44bdab127acd6c1a|85734dc43d7d45fe|-721687330||t20593.4527899414s|s356b|356|rds|local|vector|||2.676||
+cv__blastn__EUK_ITS_v1_9_3_Fungi__standard|stem|d9ad30d2a7948530|f96d3fda0e2a0225|85734dc43d7d45fe|-996303289||t20593.4528060998s|s429b|429|rds|local|vector|||5.187|Expected 7 pieces. Missing pieces filled with `NA` in 1 rows [3].|
+cv__sintax__EUK_SSU_v1_9_3__standard|stem|bf10cf2f4e016517|27ed6e3e7d3eb725|85734dc43d7d45fe|-1969430976||t20593.4528121741s|s443b|443|rds|local|vector|||1.892||
+cv__dada2__EUK_ITS_v1_9_3__leaked|stem|919b26c6428177ab|88c88fe1329095ea|85734dc43d7d45fe|-1287062439||t20593.4528240834s|s388b|388|rds|local|vector|||5.86||
+cv__blastn__Unite_Fungi__leaked|stem|fb136e6abb8a9608|55a390257e5933b1|85734dc43d7d45fe|315210165||t20593.452843255s|s388b|388|rds|local|vector|||2.637||
+cv__sintax__EUK_SSU_v1_9_3_Fungi__leaked|stem|65bb244894565b00|798b36a72dcb9af9|85734dc43d7d45fe|-524767527||t20593.4528496365s|s475b|475|rds|local|vector|||0.525||
+cv__blastn__EUK_SSU_v1_9_3__standard|stem|1ae5cf2397ed6814|c8721bd8c0bacf76|85734dc43d7d45fe|597379384||t20593.4528534759s|s363b|363|rds|local|vector|||4.062||
+cv__lca__EUK_ITS_v1_9_3_Fungi_cut__leaked|stem|6d3f8c7d2bfbcb69|d0086722cbeee7bd|85734dc43d7d45fe|272304074||t20593.4528631921s|s497b|497|rds|local|vector|||3.353||
+cv__dada2__EUK_SSU_v1_9_3_Fungi__standard|stem|524d1d77e176ed12|395daa073d2f8c49|85734dc43d7d45fe|-887766380||t20593.4528730429s|s396b|396|rds|local|vector|||0.827||
+cv__blastn__Unite__standard|stem|069d47db9ef77dff|93d030fe339df90c|85734dc43d7d45fe|1298494669||t20593.4528835857s|s351b|351|rds|local|vector|||2.906||
+cv__dada2__EUK_ITS_v1_9_3_Fungi_cut__leaked|stem|7972a4d43aad1872|828f916654d0ee24|85734dc43d7d45fe|-353336727||t20593.4528896964s|s436b|436|rds|local|vector|||1.416||
+cv__dada2__EUK_ITS_v1_9_3__standard|stem|0847801810231987|ff8aa9110506de2a|85734dc43d7d45fe|2087908464||t20593.4529170608s|s425b|425|rds|local|vector|||5.465||
+cv__lca__EUK_ITS_v1_9_3__leaked|stem|5d4c4ba601f4e920|0fd6110f87a8061f|85734dc43d7d45fe|-1656161582||t20593.4529322683s|s463b|463|rds|local|vector|||14.569||
+cv__lca__EUK_ITS_v1_9_3_Fungi__leaked|stem|7284fd22555f0ef3|f841a94bfeeac25b|85734dc43d7d45fe|-1809902497||t20593.4529485993s|s486b|486|rds|local|vector|||5.574||
+cv__sintax__EUK_ITS_v1_9_3_Fungi__leaked|stem|93adc7a12d1debd9|df840d8a58dc0139|85734dc43d7d45fe|-2005734605||t20593.4529655668s|s465b|465|rds|local|vector|||4.162||
+cv__blastn__EUK_SSU_v1_9_3_Fungi_cut__standard|stem|11f5be0a475fa6ad|74b6675297ebef06|85734dc43d7d45fe|-1295174513||t20593.4530011887s|s373b|373|rds|local|vector|||3.049||
+cv__blastn__EUK_ITS_v1_9_3_Fungi__leaked|stem|bcdfd12bbdf885e7|e94fc026c89e028d|85734dc43d7d45fe|-62781906||t20593.4530052593s|s456b|456|rds|local|vector|||6.27|Expected 7 pieces. Missing pieces filled with `NA` in 6 rows [1, 3, 5, 6, 7, 8].. Expected 7 pieces. Missing pieces filled with `NA` in 7 rows [1, 2, 3, 5, 6, 7, 8].|
+cv__dada2__Unite_Fungi__leaked|stem|946141c64cc38d64|3178a52aa71dec31|85734dc43d7d45fe|1778934035||t20593.4530093745s|s384b|384|rds|local|vector|||0.67||
+cv__sintax__EUK_SSU_v1_9_3_cut__standard|stem|58b735352e14734d|2454f7498c777b12|85734dc43d7d45fe|1000967393||t20593.4530118861s|s488b|488|rds|local|vector|||0.542||
+cv__lca__EUK_SSU_v1_9_3__standard|stem|eaf678630824f6fc|d5ba496fe44da35d|85734dc43d7d45fe|1715434726||t20593.4530146352s|s462b|462|rds|local|vector|||10.777||
+cv__sintax__EUK_SSU_v1_9_3_cut__leaked|stem|fe5e7cd46735a396|e2e8d281b0fbb59d|85734dc43d7d45fe|-1409110374||t20593.4530181129s|s496b|496|rds|local|vector|||0.503||
+cv__lca__Unite_Fungi__standard|stem|11f623edb2f4d9b7|345dd62ecdc14bc2|85734dc43d7d45fe|1628321187||t20593.4530210075s|s442b|442|rds|local|vector|||0.976||
+cv__blastn__EUK_SSU_v1_9_3_Fungi__leaked|stem|809e9de6b7efbafb|3b49c9045f27c059|85734dc43d7d45fe|2140388575||t20593.4530482824s|s483b|483|rds|local|vector|||2.889|Expected 7 pieces. Missing pieces filled with `NA` in 11 rows [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12].. Expected 7 pieces. Missing pieces filled with `NA` in 8 rows [1, 2, 3, 11, 12, 13, 16, 17].|
+cv__blastn__EUK_SSU_v1_9_3_Fungi__standard|stem|7115d9c438472894|1a79d034f06a69ef|85734dc43d7d45fe|-1554289452||t20593.4530515493s|s451b|451|rds|local|vector|||2.864|Expected 7 pieces. Missing pieces filled with `NA` in 14 rows [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15].. Expected 7 pieces. Missing pieces filled with `NA` in 11 rows [2, 3, 4, 6, 11, 13, 14, 15, 16, 17, 18].|
+cv__dada2__EUK_ITS_v1_9_3_Fungi__standard|stem|5a3b6a66793bbf0a|1f1e5d7260cdd236|85734dc43d7d45fe|-1080051430||t20593.4530843502s|s397b|397|rds|local|vector|||3.089||
+cv__blastn__EUK_SSU_v1_9_3__leaked|stem|794373b353466b1c|1f8676909794d032|85734dc43d7d45fe|1081164238||t20593.4530875501s|s434b|434|rds|local|vector|||5.724|Expected 7 pieces. Missing pieces filled with `NA` in 5 rows [2, 3, 4, 6, 9].. Expected 7 pieces. Missing pieces filled with `NA` in 7 rows [1, 2, 3, 5, 6, 9, 10].|
+cv__dada2__Unite__standard|stem|6be7b24e3aa9d846|ab7640392ab192c0|85734dc43d7d45fe|458649673||t20593.4530970115s|s376b|376|rds|local|vector|||1.051||
+cv__dada2__EUK_ITS_v1_9_3_Fungi_cut__standard|stem|eab1f7da448764b5|6d3a168a36a217b8|85734dc43d7d45fe|-1414667515||t20593.4531049871s|s396b|396|rds|local|vector|||1.484||
+cv__lca__Unite__leaked|stem|a1c2a43087f436ee|45c60b6689c31e98|85734dc43d7d45fe|-1636572118||t20593.4531160733s|s358b|358|rds|local|vector|||1.607||
+cv__lca__Unite_Fungi__leaked|stem|84993ffc67c99e5d|dfdc6ac34c1a0c5a|85734dc43d7d45fe|-1637548326||t20593.4531179277s|s365b|365|rds|local|vector|||1.078||
+cv__lca__EUK_SSU_v1_9_3_Fungi_cut__standard|stem|9036bfbf69d6a5bf|fda31f03c876efc0|85734dc43d7d45fe|-1191583615||t20593.4531381703s|s466b|466|rds|local|vector|||7.467||
+cv__blastn__Unite__leaked|stem|7e53417643c581fd|5301d752221dcb69|85734dc43d7d45fe|-1922120425||t20593.4531533428s|s350b|350|rds|local|vector|||3.037||
+cv__dada2__EUK_SSU_v1_9_3__standard|stem|127a131fabe8d7e6|b05328a1628162ba|85734dc43d7d45fe|-555546241||t20593.4531572679s|s402b|402|rds|local|vector|||3.52||
+cv__sintax__EUK_SSU_v1_9_3__leaked|stem|e8b951526538ec07|8863b9bd3cdbf658|85734dc43d7d45fe|-1869432021||t20593.4531723607s|s441b|441|rds|local|vector|||2.919||
+cv__dada2__Unite__leaked|stem|865774cea5ab0b48|c2682417f57da884|85734dc43d7d45fe|1639691286||t20593.4531857164s|s377b|377|rds|local|vector|||1.095||
+cv__lca__EUK_ITS_v1_9_3_Fungi_cut__standard|stem|8c2bc2e396a8aa05|c19efdbfdf24f816|85734dc43d7d45fe|490940160||t20593.4531865266s|s500b|500|rds|local|vector|||2.502||
+cv__dada2__EUK_SSU_v1_9_3_Fungi__leaked|stem|4de7867d4777fbd4|b1d25027e6f91418|85734dc43d7d45fe|-1421145390||t20593.453195602s|s378b|378|rds|local|vector|||0.759||
+cv__dada2__EUK_ITS_v1_9_3_Fungi__leaked|stem|6ecd433e67407a79|1c36ee76a701936e|85734dc43d7d45fe|1163006833||t20593.4531977233s|s426b|426|rds|local|vector|||3.798||
+cv__dada2__EUK_SSU_v1_9_3_cut__standard|stem|7e0fc6a4857ce542|51236a9344d8dbba|85734dc43d7d45fe|-1594468949||t20593.4532084002s|s414b|414|rds|local|vector|||1.047||
+cv__blastn__EUK_ITS_v1_9_3_Fungi_cut__standard|stem|01cd79f405d58736|9594432b970729a5|85734dc43d7d45fe|-1570817792||t20593.4532308783s|s374b|374|rds|local|vector|||3.86||
+cv__sintax__Unite__leaked|stem|7e0a651782220323|bc379a3118c1fbd6|85734dc43d7d45fe|-1287875884||t20593.4532424986s|s350b|350|rds|local|vector|||0.974||
+cv__lca__EUK_SSU_v1_9_3_Fungi__leaked|stem|0dc6519710800a53|c59a7e1b4d623369|85734dc43d7d45fe|1228967969||t20593.4532645207s|s485b|485|rds|local|vector|||27.261||
+cv__lca__EUK_ITS_v1_9_3__standard|stem|2b9a3ab4d364751d|94fbaba36721029e|85734dc43d7d45fe|546167408||t20593.4532881513s|s494b|494|rds|local|vector|||7.792||
+cv__lca__EUK_SSU_v1_9_3__leaked|stem|3d674a6d410cdda5|56d3e1cc6dbb1255|85734dc43d7d45fe|1706982483||t20593.4534169282s|s455b|455|rds|local|vector|||17.991||
+cv_results|stem|5f40e31703262045|2e4ff023c21e60aa|fe4df31ec7a3069d|-704127388||t20593.4534174979s|s3755b|3755|rds|local|vector|||0.002||
+n_workers|object|195dadb6d6a0c78f
+midasim_pq|function|aca2252fe02db0db
+cv_to_tidy|function|43fc83806bbde4c8
+create_fake_pq_from_refseq|function|a277e7a198a834f1
+multiply_counts_pq|function|18ee4130a8b7850d
+cv_fold_number|object|4b8caeb2425c3113
+cv_fold_tested|object|b3a2147ad240fae3
+taxo_mock_csv|object|88a37c4717c7dffa
+fake_ref_fasta|object|a23a506fe1b77138
+rev_primer_AM|object|113ebf21e0af019f
+fw_primer_sequences|object|4a5ce245bfeaf5fb
+cutadapt_conda_prelude|object|ab01f9dcda708287
+seq_len_min|object|4fb7122a4503ae71
+cv_methods|object|a3ce066bc01f32d1
+permute_da_pq|function|488074fe2ad5a47f
+tc_metrics_mock_vec|function|64362ab7e6b5791b
+sample_col_name|object|1514429e69ce5a39
+cv_values_map|object|36f79da6c59b9e9b
+cv_max_seq|object|58da83568b77e4fd
+add_shuffle_seq_pq|function|abf044d09f068bc4
+add_external_seq_pq|function|409d727b40dfc4fd
+sam_data_file_name|object|4d2599eb7115a343
+prop_fake|object|a0f70b97cb958d4f
+fw_primer_AM|object|c922c922d8be5776
+rev_primer_sequences|object|faaddc17f0c4384a
+refseq_file_name|object|5921313ad9bd99e8
+targets_seed|object|557d54830fc201b3
+n_threads|object|195dadb6d6a0c78f
+cross_val|function|8bc9e3c6568ca510
+tc_metrics_mock|function|38d74a832a7fd09e
+cross_val_param|function|7d101295da50a0ae
+run_cv|function|f34e7a166fb96765
