@@ -770,9 +770,9 @@ db_meta <- tibble::tribble(
   "EUK_ITS_v1_9_3",             "EUK_ITS",  "full",
   "EUK_ITS_v1_9_3_Fungi",       "EUK_ITS",  "Fungi",
   "EUK_ITS_v1_9_3_Fungi_cut",   "EUK_ITS",  "Fungi+cut",
-  "EUK_SSU_v1_9_3",             "EUK_SSU",  "full",
-  "EUK_SSU_v1_9_3_Fungi",       "EUK_SSU",  "Fungi",
-  "EUK_SSU_v1_9_3_cut",         "EUK_SSU",  "cut",
+ # "EUK_SSU_v1_9_3",             "EUK_SSU",  "full",
+#  "EUK_SSU_v1_9_3_Fungi",       "EUK_SSU",  "Fungi",
+ # "EUK_SSU_v1_9_3_cut",         "EUK_SSU",  "cut",
   "EUK_SSU_v1_9_3_Fungi_cut",   "EUK_SSU",  "Fungi+cut"
 )
 

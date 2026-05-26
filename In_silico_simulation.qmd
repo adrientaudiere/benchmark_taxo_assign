@@ -1,64 +1,355 @@
 ---
-title: "In silico simulations"
+title: "In silico simulations (D1b)"
 author: "Adrien Taudière"
 format: html
 ---
 
-```{r}
+```{r setup}
+#| message: false
 library("conflicted")
 library("MiscMetabar")
 library("targets")
-library("tarchetypes")
 library("here")
 library("tibble")
 library("tidyr")
-library("autometric")
+library("dplyr")
+library("ggplot2")
+library("Biostrings")
+library("miaSim")
 
 conflicted::conflicts_prefer(dplyr::filter)
+
+here::i_am("In_silico_simulation.qmd")
+source(here("config.R"))
+devtools::load_all("~/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/MiscMetabar/")
+source("~/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/comparpq/R/compare_taxo.R")
+source("~/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/comparpq/R/fake_creation.R")
 ```
 
-```{r}
-here::i_am("analysis/benchmark.qmd")
-devtools::load_all("~/Nextcloud/IdEst/Projets/MiscMetabar/R/")
-source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/compare_taxo.R")
-source("~/Nextcloud/IdEst/Projets/arround_MiscMetabar/comparpq/R/taxtab_modification.R")
+# Overview
+
+Two sub-branches following the Bokulich (2020) multi-dataset approach:
+
+- **D1b-A** — InSilicoSeq: real UNITE sequences + simulated Illumina errors → fastq
+  → DADA2 → assignment. Ground truth = input fasta taxonomy.
+- **D1b-B** — miaSim: neutral (Hubbell) community structure applied to real UNITE
+  sequences, bypassing DADA2. Ground truth = input fasta taxonomy. Tests
+  assignment accuracy independent of denoising errors.
+
+Both branches reuse `tc_metrics_mock()` machinery from `comparpq`.
+
+---
+
+# D1b-A — InSilicoSeq path
+
+This branch requires InSilicoSeq installed in the `cutadaptenv` conda environment
+(or a dedicated env). It is not run inline — follow the steps below, then use the
+DADA2 + assignment pipeline on the resulting fastqs.
+
+## Step 1 — Prepare input fasta
+
+Select a curated set of Fungi sequences (50–200 species, spanning ≥ 4 phyla) from
+`mini_Unite_Fungi.fasta`. Using the mini DB keeps InSilicoSeq runs fast during
+development; switch to the full `Unite_Fungi.fasta` for the publication run.
+
+```{r prepare-iss-input}
+# Output path for the curated input fasta
+iss_input_fasta <- here("data/data_raw/insilico/iss_input_fungi.fasta")
+dir.create(dirname(iss_input_fasta), showWarnings = FALSE, recursive = TRUE)
+
+if (!file.exists(iss_input_fasta)) {
+  db_path <- here(
+    "data/data_raw/refseq/dada2_format",
+    ifelse(mini_db, "mini_Unite_Fungi.fasta", "Unite_Fungi.fasta")
+  )
+  all_seqs <- Biostrings::readDNAStringSet(db_path)
+  set.seed(targets_seed)
+  n_iss <- min(100, length(all_seqs))
+  picks  <- sample(length(all_seqs), n_iss)
+  Biostrings::writeXStringSet(all_seqs[picks], iss_input_fasta)
+  message("Wrote ", n_iss, " sequences to ", iss_input_fasta)
+}
 ```
 
-# Fastq files
+## Step 2 — Run InSilicoSeq (terminal)
 
-## Ecolottery
+Run from the project root in the `cutadaptenv` conda environment. Repeat with
+3 different `--seed` values for replicate communities.
 
-```{r}
-# devtools::install_github("frmunoz/ecolottery/pkg")
-library("ecolottery")
+```bash
+source ~/miniforge3/etc/profile.d/conda.sh && conda activate cutadaptenv
+
+for seed in 1 2 3; do
+  iss generate \
+    --genomes data/data_raw/insilico/iss_input_fungi.fasta \
+    --sequence_type amplicon \
+    --n_reads 10000 \
+    --abundance zero_inflated_lognormal \
+    --model MiSeq \
+    --seed ${seed} \
+    --output data/data_raw/insilico/iss_seed${seed} \
+    --cpus 4
+done
 ```
 
-```{r}
-pool <- cbind(1:10000, rep(1:500, 20), rep(NA, 10000))
-coalesc(500, 0.1, 50)
+Outputs: `data/data_raw/insilico/iss_seed{1,2,3}_R{1,2}.fastq.gz`
+
+## Step 3 — Process with existing DADA2 + assignment pipeline
+
+Once fastqs exist, point `script_dada2.R` and `script_assign_taxo_parallel.R` at
+`data/data_raw/insilico/` (adapting sample metadata) and run with dedicated stores:
+
+```r
+tar_make(script = "script_dada2.R",                store = "store_dada2_insilico")
+tar_make(script = "script_assign_taxo_parallel.R", store = "store_assign_taxo_insilico")
 ```
 
-https://krisrs1128.github.io/microbiome-simulation/index.html
+The truth table for D1b-A is built in the same way as D1b-B below (parse taxonomy
+from `iss_input_fasta` headers).
 
-## miaSim
+---
 
-[miaSim](https://github.com/microbiome/miaSim) : https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.14129
+# D1b-B — miaSim path
 
-```{r}
-#if (!requireNamespace("BiocManager", quietly = TRUE))
-#    install.packages("BiocManager")
-# BiocManager::install("microbiome")
+Neutral (Hubbell) community dynamics applied to real UNITE sequences. No DADA2:
+each simulated time-step is treated as a perfectly denoised sample.
 
+## Helper — parse UNITE taxonomy from header
 
-library(miaSim)
-hubbell_pq <- simulateHubbell(n_species = 100,
-                               M = 200,
-                   carrying_capacity = 1000,
-                               k_events = 50,
-                   migration_p = 0.02,
-                   t_end = 1000) |>
-  mia::makePhyloseqFromTreeSE() 
+```{r parse-taxonomy-fn}
+# Extracts the k__/p__/.../s__ taxonomy string from UNITE dada2-format headers.
+# Headers: "ID|acc|SH|type|k__Kingdom;p__Phylum;...;s__Species"
+parse_unite_taxonomy <- function(headers) {
+  tax_str <- sub(".*\\|", "", headers)
+  ranks   <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+  prfx    <- c("k__",     "p__",    "c__",   "o__",   "f__",    "g__",   "s__")
 
-hubbell_pq@otu_table[, nsamples(hubbell_pq)] 
-# TODO faire une boucle pour créer plusieurs communautés au dernier pas de temps
+  result <- lapply(tax_str, function(h) {
+    parts <- strsplit(h, ";")[[1]]
+    vapply(seq_along(ranks), function(i) {
+      hit <- grep(paste0("^", prfx[i]), parts, value = TRUE)
+      if (length(hit) == 0) { return(NA_character_) }
+      sub(prfx[i], "", hit[1])
+    }, character(1))
+  })
+
+  df <- as.data.frame(do.call(rbind, result), stringsAsFactors = FALSE)
+  names(df)    <- ranks
+  rownames(df) <- headers
+  df
+}
+```
+
+## 1. Sample species from UNITE Fungi
+
+```{r sample-species}
+db_path <- here(
+  "data/data_raw/refseq/dada2_format",
+  ifelse(mini_db, "mini_Unite_Fungi.fasta", "Unite_Fungi.fasta")
+)
+all_fungi <- Biostrings::readDNAStringSet(db_path)
+
+# Keep only sequences with ≥ genus-level annotation.
+has_genus <- !grepl("g__.*Incertae_sedis|g__[^;]+_gen_", names(all_fungi))
+all_fungi <- all_fungi[has_genus]
+
+n_species <- min(50, length(all_fungi))
+set.seed(targets_seed)
+idx       <- sample(length(all_fungi), n_species)
+sim_seqs  <- all_fungi[idx]
+
+# Truth table: one row per species, columns = taxonomy ranks.
+truth_table <- parse_unite_taxonomy(names(sim_seqs))
+
+cat("Species selected:", n_species, "\n")
+cat("Phyla represented:", length(unique(truth_table$Phylum)), "\n")
+print(table(truth_table$Phylum))
+```
+
+## 2. Simulate community abundances with Hubbell model
+
+Run `n_samples` independent Hubbell simulations (different seeds = independent
+communities from the same metacommunity). Each returns a species × time matrix;
+we take the final time step as the community composition.
+
+```{r simulate-hubbell}
+n_samples <- 10
+sim_seed  <- targets_seed
+
+all_counts <- vapply(seq_len(n_samples), function(s) {
+  set.seed(sim_seed + s)
+  sim <- miaSim::simulateHubbell(
+    n_species         = n_species,
+    M                 = 200,
+    carrying_capacity = 1000,
+    k_events          = 50,
+    migration_p       = 0.02,
+    t_end             = 200
+  )
+  counts_mat <- SummarizedExperiment::assay(sim, "counts")
+  as.integer(counts_mat[, ncol(counts_mat)])
+}, integer(n_species))
+
+rownames(all_counts) <- names(sim_seqs)
+colnames(all_counts) <- paste0("sim_sample_", seq_len(n_samples))
+
+cat("OTU table dimensions:", nrow(all_counts), "species ×", ncol(all_counts), "samples\n")
+cat("Samples with 0 reads:", sum(colSums(all_counts) == 0), "\n")
+```
+
+## 3. Build phyloseq + inject fake taxa
+
+```{r build-phyloseq}
+pq_sim <- phyloseq::phyloseq(
+  phyloseq::otu_table(all_counts, taxa_are_rows = TRUE),
+  phyloseq::sample_data(data.frame(
+    sample_id = colnames(all_counts),
+    row.names = colnames(all_counts)
+  ))
+)
+pq_sim@refseq <- sim_seqs
+
+# Inject shuffled (fake_*) and external (non-Fungi) sequences for TN computation,
+# mirroring the real pipeline in script_assign_taxo_parallel.R.
+pq_sim <- add_shuffle_seq_pq(pq_sim, prop_fake = prop_fake)
+pq_sim <- add_external_seq_pq(
+  pq_sim,
+  Biostrings::readDNAStringSet(here(fake_ref_fasta))
+)
+
+cat("Phyloseq taxa after fake injection:", ntaxa(pq_sim), "\n")
+```
+
+## 4. Assign taxonomy
+
+Run a small subset of method × DB combinations. Adjust `sim_values_map` to test
+more combinations. The `mini_db` flag from `config.R` controls which database
+files are used (mini_* for smoke-testing, full for publication).
+
+```{r assign-taxonomy}
+sim_values_map <- tibble::tibble(
+  method = c("sintax", "sintax", "dada2"),
+  db     = c("Unite_Fungi", "EUK_ITS_v2_Fungi", "Unite_Fungi"),
+  min_bootstrap = 0.5
+) |>
+  dplyr::mutate(
+    db_name   = ifelse(mini_db, paste0("mini_", db), db),
+    db_path   = paste0(
+      ifelse(method == "dada2",
+             "data/data_raw/refseq/dada2_format/",
+             "data/data_raw/refseq/sintax_format/"),
+      db_name, ".fasta"
+    ),
+    full_name = paste0(method, "__", db, "___", min_bootstrap)
+  ) |>
+  dplyr::filter(file.exists(here(db_path)))
+
+if (nrow(sim_values_map) == 0) {
+  stop("No database files found. Run derive_all_variants() first.")
+}
+
+pq_assigned <- pq_sim
+for (i in seq_len(nrow(sim_values_map))) {
+  row <- sim_values_map[i, ]
+  message("Assigning: ", row$full_name)
+  pq_assigned <- add_new_taxonomy_pq(
+    pq_assigned,
+    method        = row$method,
+    ref_fasta     = here(row$db_path),
+    suffix        = paste0("_", row$full_name),
+    min_bootstrap = row$min_bootstrap
+  )
+}
+```
+
+## 5. Compute performance metrics
+
+```{r compute-metrics}
+assignment_suffixes <- paste0("_", sim_values_map$full_name)
+
+res_sim <- tc_metrics_mock(
+  pq_assigned,
+  truth_table,
+  assignment_suffixes
+)
+
+# Add method / db / bootstrap columns for easier filtering.
+res_sim <- res_sim |>
+  dplyr::left_join(
+    sim_values_map |> dplyr::select(full_name, method, db, min_bootstrap),
+    by = c("suffix" = "full_name")
+  )
+
+head(res_sim)
+```
+
+## 6. Visualise results
+
+### F1 and MCC per taxonomic rank
+
+```{r plot-metrics}
+res_sim |>
+  dplyr::filter(metric %in% c("F1", "MCC")) |>
+  ggplot2::ggplot(ggplot2::aes(
+    x    = tax_level,
+    y    = value,
+    fill = db
+  )) +
+  ggplot2::geom_col(position = "dodge") +
+  ggplot2::facet_grid(metric ~ method, scales = "free_y") +
+  ggplot2::labs(
+    title = "D1b-B: assignment accuracy on miaSim communities",
+    x     = "Taxonomic rank",
+    y     = "Score",
+    fill  = "Reference DB"
+  ) +
+  ggplot2::theme_bw()
+```
+
+### NA (unclassified) proportion per rank
+
+```{r plot-na}
+res_sim |>
+  dplyr::filter(metric == "NA_prop") |>
+  ggplot2::ggplot(ggplot2::aes(
+    x    = tax_level,
+    y    = value,
+    colour = method,
+    group  = full_name
+  )) +
+  ggplot2::geom_line() +
+  ggplot2::geom_point() +
+  ggplot2::facet_wrap(~db) +
+  ggplot2::labs(
+    title = "D1b-B: proportion unclassified per rank",
+    x     = "Taxonomic rank",
+    y     = "Proportion NA"
+  ) +
+  ggplot2::theme_bw()
+```
+
+---
+
+# Comparison: D1b-B vs mock community (D1)
+
+To compare in silico and mock-community results, load `res_comp_tax` from
+`store_assign_taxo` and bind with `res_sim`, then facet by `dataset`.
+
+```{r compare-mock, eval=FALSE}
+# Load mock-community metrics from the main store.
+res_mock <- targets::tar_read(d_all_taxo, store = here("store_assign_taxo")) |>
+  # Reproduce the tc_metrics_mock call from benchmark.qmd ...
+  identity()
+
+res_combined <- dplyr::bind_rows(
+  dplyr::mutate(res_sim,  dataset = "in_silico_miaSim"),
+  dplyr::mutate(res_mock, dataset = "mock_community")
+)
+
+res_combined |>
+  dplyr::filter(metric == "F1") |>
+  ggplot2::ggplot(ggplot2::aes(x = tax_level, y = value, fill = dataset)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::facet_wrap(~method) +
+  ggplot2::theme_bw()
 ```

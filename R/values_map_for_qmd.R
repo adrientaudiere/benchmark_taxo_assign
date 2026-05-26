@@ -29,18 +29,18 @@ values_map <-
     db = c(
       "Unite",
       "Unite_Fungi",
-      "EUK_ITS_v1_9_3",
-      "EUK_ITS_v1_9_3_Fungi",
-      "EUK_ITS_v1_9_3_Fungi_cut",
-      "EUK_SSU_v1_9_3",
-      "EUK_SSU_v1_9_3_Fungi",
-      "EUK_SSU_v1_9_3_cut",
-      "EUK_SSU_v1_9_3_Fungi_cut"
+      "EUK_ITS_v2",
+      "EUK_ITS_v2_Fungi",
+      "EUK_ITS_v2_Fungi_cut",
+    #  "EUK_SSU_v2",
+    #  "EUK_SSU_v2_Fungi",
+    #  "EUK_SSU_v2_cut",
+      "EUK_SSU_v2_Fungi_cut"
     )
   ) |>
   mutate(cutadapted_db = ifelse(grepl("cut", db), "cut", "")) |>
   mutate(db_filter = ifelse(grepl("Fungi", db), "Fungi", "")) |>
-  mutate(db_name = db) |>
+  mutate(db_name = ifelse(mini_db, paste0("mini_", db), db)) |>
   mutate(do_clean_pq = ifelse(method == "dada2", TRUE, FALSE)) |>
   mutate(db_path = paste0(ifelse(
     method == "dada2",

@@ -46,21 +46,22 @@ cv_values_map <- tidyr::expand_grid(
   db = c(
     "Unite",
     "Unite_Fungi",
-    "EUK_ITS_v1_9_3",
-    "EUK_ITS_v1_9_3_Fungi",
-    "EUK_ITS_v1_9_3_Fungi_cut",
-    "EUK_SSU_v1_9_3",
-    "EUK_SSU_v1_9_3_Fungi",
-    "EUK_SSU_v1_9_3_cut",
-    "EUK_SSU_v1_9_3_Fungi_cut"
+    "EUK_ITS_v2",
+    "EUK_ITS_v2_Fungi",
+    "EUK_ITS_v2_Fungi_cut",
+   # "EUK_SSU_v2",
+   # "EUK_SSU_v2_Fungi",
+   # "EUK_SSU_v2_cut",
+    "EUK_SSU_v2_Fungi_cut"
   ),
   remove_tested = c(TRUE, FALSE)
 ) |>
   dplyr::mutate(
+    db_name = ifelse(mini_db, paste0("mini_", db), db),
     db_path = paste0(ifelse(
       method == "dada2",
-      paste0("data/data_raw/refseq/dada2_format/", db),
-      paste0("data/data_raw/refseq/sintax_format/", db)
+      paste0("data/data_raw/refseq/dada2_format/", db_name),
+      paste0("data/data_raw/refseq/sintax_format/", db_name)
     ), ".fasta"),
     leaked_suffix = ifelse(remove_tested, "standard", "leaked"),
     full_name = paste0(

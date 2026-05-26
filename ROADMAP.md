@@ -2,32 +2,44 @@
 
 Working plan derived from `Coffre_principal/PROJETS/Projets IdEst/Dev packages R/MiscMetabar/autour_de_MiscMetabar/benchmark_taxo_assign/` (`Taxonomic assignation manuscript.md` + `Taxonomic assignation.md`). Use this as the running todo; tick items as you go.
 
+## Little side questions to explore
+
+### Software parameters
+
+What is the effect of set --maxaccepts 16 in sintax ?
+What is the effect of set --dbmask none in sintax ?
+
+### Databases building
+
+What is the effect of taxing the Unite database with singletons as RefSeq only (Unite_RefS.fasta) ? 
+What is the effect of adding only some sequences to a FUNGI filtered database ?
+
 ## Actions requiring manual execution (in temporal order)
 
 These steps require you to actually run commands in a terminal or edit external files. They are ordered by the suggested execution sequence; later steps may depend on earlier ones completing.
 
-### Phase 1 — Complete the mock-community Results section
+### ✅ Phase 1 — Complete the mock-community Results section
 
-| #   | Action                                                                                                                    | Command / location                                                                              | Blocker for                              |
-| --- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| 1   | Re-run assign_taxo pipeline to compute the two new `EUK_ITS_v1_9_3_Fungi` targets added in Q2.3                           | `tar_make(script="script_assign_taxo_parallel.R", store="store_assign_taxo")` from project root | Q2 figures with Fungi-only ITS databases |
-| 2   | Add IdTaxa exclusion note to the methods table in `Taxonomic assignation.md` (external Markdown file in Coffre_principal) | Edit manually — mark IdTaxa as "evaluated elsewhere, not in this study"                         | Q1.5b                                    |
+| #   | Action                                                                                                                    | Command / location                                                                              | Blocker for                              | Status   |
+| --- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------- | -------- |
+| 1   | Re-run assign_taxo pipeline with v2 databases (renamed from v1_9_3 in Q2.3)                                               | `tar_make(script="script_assign_taxo_parallel.R", store="store_assign_taxo")` from project root | Q2 figures with Fungi-only ITS databases | ✅ Done  |
+| 2   | Add IdTaxa exclusion note to the methods table in `Taxonomic assignation.md` (external Markdown file in Coffre_principal) | Edit manually — mark IdTaxa as "evaluated elsewhere, not in this study"                         | Q1.5b                                    | ✅ Done  |
 
-### Phase 2 — Cross-validation
+### ✅ Phase 2 — Cross-validation
 
-| #   | Action                                                                                                                      | Command / location                                                                                                               | Blocker for                               |
-| --- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| 3   | **(Smoke test first)** Run CV pipeline with `cv_fold_tested = 2L` (already set in `config.R`) to verify the pipeline wiring | `tar_make(script="script_cross_val.R", store="store_cross_val")`                                                                 | Confirming D1a wiring before the long run |
-| 4   | Set `cv_fold_tested <- cv_fold_number` (i.e., `10L`) in `config.R` for the publication run, then re-run                     | Edit `config.R` line `cv_fold_tested <- 2L`, then `tar_make(script="script_cross_val.R", store="store_cross_val")` (hours-scale) | D1a CV figures                            |
+| #   | Action                                                                                                                      | Command / location                                                                                                               | Blocker for                               | Status  |
+| --- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------- |
+| 3   | **(Smoke test first)** Run CV pipeline with `cv_fold_tested = 2L` (already set in `config.R`) to verify the pipeline wiring | `tar_make(script="script_cross_val.R", store="store_cross_val")`                                                                 | Confirming D1a wiring before the long run | ✅ Done |
+| 4   | Set `cv_fold_tested <- cv_fold_number` in `config.R` for the publication run, then re-run                                   | Edit `config.R`, then `tar_make(script="script_cross_val.R", store="store_cross_val")` (hours-scale)                            | D1a CV figures                            | ✅ Done |
 
 
-### Phase 3 — Database derivation verification
+### ✅ Phase 3 — Database derivation verification
 
-| #   | Action                                                                         | Command / location                                                                                              | Blocker for |
-| --- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | ----------- |
-| 5   | Verify `make_databases.R::derive_all_variants()` end-to-end on a clean machine | `Rscript make_databases.R` (or `source("make_databases.R")` then `derive_all_variants()`) into a test directory | C1 sign-off |
+| #   | Action                                                                                        | Command / location                                                                                              | Blocker for | Status  |
+| --- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------- | ------- |
+| 5   | Verify `make_databases.R::derive_all_variants()` end-to-end with new v2 source files         | `source("make_databases.R"); derive_all_variants()` — sources Unite.fasta, Euk_ITS_v2.fasta, Euk_SSU_v2.fasta  | C1 sign-off | ✅ Done |
 
-### Phase 4 — In silico simulations
+### 🔄 Phase 4 — In silico simulations
 
 | #   | Action                                                                                        | Command / location                                                                                                                                                     | Blocker for           |
 | --- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
@@ -71,8 +83,8 @@ Plus the methodological scaffolding the manuscript announces:
 | `tc_metrics_mock()` (TP/FP/FN/MCC/ACC/F1) per (method × db × rank)       | `benchmark.qmd` via `comparpq`                                                     | ✅ produced as `res_comp_tax`                                      |
 | Three consensus strategies (unanimity, rel_majority, preference) applied | `benchmark.qmd` § "Create column using consensus..."                               | ✅ partial                                                         |
 | Per-rank NA proportion plots                                             | `benchmark.qmd` § "Proportion of NA"                                               | ✅ exploratory plots                                               |
-| Cross-validation helper `cross_val()`                                    | `R/cross_val.R`                                                                    | ⚠️ source-able, no targets pipeline                               |
-| In silico notebook                                                       | `In_silico_simulation.qmd`                                                         | ⚠️ ~70 lines, scratchpad only                                     |
+| Cross-validation helper `cross_val()` + targets pipeline                 | `R/cross_val.R` + `script_cross_val.R` → `store_cross_val`                        | ✅ pipeline run (phases 2–3 done)                                  |
+| In silico notebook                                                       | `In_silico_simulation.qmd`                                                         | 🔄 D1b-B (miaSim) in progress                                     |
 | Biological community dataset                                             | Taudière et al. 2018, doi:10.1016/j.funeco.2018.07.008 (endophytes; site × height) | ⚠️ chosen, fastq fetch pending                                    |
 | `benchmark.qmd` ↔ parallel store wiring                                  | `benchmark.qmd` still grep's `_all_taxo`                                           | ❌ needs the three small edits (see CLAUDE.md "Parallel pipeline") |
 
@@ -91,7 +103,7 @@ Already producible from `res_comp_tax`. What's missing is the **systematic figur
 
 ## Q2 — Database & simplification
 
-The DB axis spans seven labels (Unite, Unite_Fungi, EUK_ITS_v1_9_3, EUK_SSU_v1_9_3, EUK_SSU_v1_9_3_Fungi, EUK_SSU_v1_9_3_cut, EUK_SSU_v1_9_3_Fungi_cut). The qmd currently has DB on the y-axis of the NA plots but no systematic accuracy view.
+The DB axis spans six labels (Unite, Unite_Fungi, EUK_ITS_v1_9_3, EUK_ITS_v1_9_3_Fungi, EUK_ITS_v1_9_3_Fungi_cut, EUK_SSU_v1_9_3_Fungi_cut) (decision 7). The qmd currently has DB on the y-axis of the NA plots but no systematic accuracy view.
 
 - [x] **Q2.1** — **Per-DB accuracy figure**: all 4 methods faceted (`fig_q2_db.{pdf,png}`). Update `method_for_q2` to the best method from Q1.2 before finalising. Color = simplification type (full/Fungi/cut/Fungi+cut) via `db_meta` tibble.
 - [x] **Q2.2** — **Simplification-effect table** + figure: `db_pair_delta()` helper computes Δ F1/MCC for three pairs; `knitr::kable` summary + `fig_q2_simplification.{pdf,png}`.
@@ -123,8 +135,8 @@ Mock is done. The other three Bokulich-style datasets are partly missing.
 | **"Novel taxon" possible?** | No — all taxa are in the DB                                              | No — sequences are drawn from the DB             | No (D1b-A) / depends on model (D1b-B)                       | Yes — environmental taxa may be absent from any DB    |
 | **Metrics computable**      | Full: TP/FP/FN/TN/MCC/F1/TAR/TDR                                         | good/wrong/NA proportions per fold               | Full (same as mock)                                         | Agreement-only: Jaccard, Bray-Curtis, richness        |
 | **Main analytical risk**    | Mock may not represent natural diversity                                 | DB leakage (remove_tested = TRUE/FALSE variants) | Sequencing model may not capture real error profile         | No objective benchmark possible                       |
-| **Script / store**          | `script_dada2.R` + `script_assign_taxo_parallel.R` → `store_assign_taxo` | `script_cross_val.R` → `store_cross_val`         | New `store_*_insilico` (planned)                            | New `store_*_endophyte` (planned)                     |
-| **Status**                  | ✅ complete                                                               | ⚠️ pipeline written, not yet run                 | ❌ not yet implemented                                       | ❌ fastq fetch pending                                 |
+| **Script / store**          | `script_dada2.R` + `script_assign_taxo_parallel.R` → `store_assign_taxo` | `script_cross_val.R` → `store_cross_val`         | `In_silico_simulation.qmd` (D1b-B); `store_*_insilico` for D1b-A | New `store_*_endophyte` (planned)                     |
+| **Status**                  | ✅ complete                                                               | ✅ pipeline run (phases 2–3 done)                | 🔄 D1b-B (miaSim) in progress; D1b-A (InSilicoSeq) outlined | ❌ fastq fetch pending                                 |
 
 ### D1a — Cross-validation
 - [x] Wire `cross_val()` into its own targets script (`script_cross_val.R` → `store_cross_val`). Inputs: each DB in `values_map$db`; each method. Outputs: a tibble per (method, db) with good/wrong/NA proportions per rank (averaged over folds via `cv_to_tidy()`). Note: dada2 single-bootstrap branch in `cross_val()` does not apply the bootstrap filter (known upstream limitation).
@@ -198,6 +210,7 @@ The set used in `tc_metrics_mock` already covers TP/FP/FN/TN/MCC/ACC/F1. The man
 4. **Mini DBs in publication** — dropped. `mini_*` derivations stay in `make_databases.R` purely as a smoke-test tool for fast iteration on the analysis; they are excluded from the Results.
 5. **Primary metric set** — **F1 + MCC** (Hleap-style) **+ TAR/TDR per rank** for mock-community results. F1 is the headline; MCC complements it (handles class imbalance); TAR/TDR are presence/absence checks for the mock.
 6. **`nb_agree_threshold` values** — **1, 2, 3** (as default in Q3.3).
+7. **SSU database reduction** — of the four EUK_SSU variants (full, Fungi-only, cut, Fungi+cut), only **EUK_SSU_v1_9_3_Fungi_cut** is retained. Rationale: the ITS region is a subregion of the 18S SSU gene, so ITS sequences are already present in any full SSU database — comparing all SSU variants would be redundant with the ITS database comparisons. The Fungi-filtered, primer-trimmed variant is the most directly comparable to the ITS databases and avoids inflating the DB axis with near-duplicate conditions.
 
 ## Suggested execution order (updated for the six decisions)
 

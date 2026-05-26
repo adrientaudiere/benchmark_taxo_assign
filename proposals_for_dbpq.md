@@ -27,12 +27,22 @@ filter_db(ref_fasta, pattern, output = NULL,
           keep_temporary_files = FALSE)
 ```
 
-**Implementation sketch** — add `if (invert) grep_args <- "-v"` to the shell
-pipeline; everything else stays. The harder case is "give me the non-Fungi
-records as full two-line entries" because `grep -v 'Fungi' -A 1` does not do
-what you want — that flag only affects matched lines. The current bash
-trick (extract Fungi block, then exclude *those exact lines* from the input)
-is what `filter_db(invert = TRUE)` would need to reproduce.
+**Implementation sketch** — `grep -v 'Fungi' -A 1` does not work for inversion
+because `-A 1` only applies to *matched* lines, not the unmatched ones you want
+to keep. `grep -vFf` (exclude exact lines from a prior grep pass) works only
+for two-line FASTA and breaks silently for multi-line sequences.
+
+The correct approach (same as `make_databases.R::derive_no_pattern()` after the
+2026-05-26 fix): normalize to two-line format first, then use awk to exclude
+matching records:
+
+```bash
+cat input.fasta | sed ':a;N;/>/!s/\n//;ta;P;D' > tmp_2line.fasta
+awk '/^>/{keep=!/pattern/} keep{print}' tmp_2line.fasta > output.fasta
+```
+
+The `force_two_lines_per_seq` normalisation step already in `filter_db` covers
+this — `invert = TRUE` just needs to flip the awk condition.
 
 ---
 

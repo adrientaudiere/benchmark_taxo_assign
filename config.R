@@ -27,10 +27,15 @@ cutadapt_conda_prelude <-
 
 # Number of crew workers for parallel assignments. Lower this if your machine
 # can't host n_workers * n_threads cores.
-n_workers <- 1
+n_workers <- 3
 
 targets_seed <- 22
 
 cv_fold_number <- 10L
-cv_fold_tested <- 2L    # smoke-test default; set to cv_fold_number for the publication run
-cv_max_seq     <- 100L  # NULL for the full DB; set low (e.g. 200) for fast smoke-tests
+cv_fold_tested <- cv_fold_number    # smoke-test default; set to cv_fold_number for the publication run
+cv_max_seq     <- NULL  # NULL for the full DB; set low (e.g. 200) for fast smoke-tests
+
+# When TRUE, all pipelines use mini_* variants of the reference databases for
+# fast smoke-testing. Target names are unchanged; only the file paths change.
+# Set to FALSE for the full production run.
+mini_db <- TRUE
