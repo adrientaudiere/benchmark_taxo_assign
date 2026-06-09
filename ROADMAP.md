@@ -225,3 +225,15 @@ A path that gives you a draftable Results section fast, then expands.
 7. **Polishing** — M2.2 (CO₂eq via greenAlgoR), M2.3 (DADA2 cost split), Q1.5b (IdTaxa-exclusion note in the methods table), C1–C4.
 
 Stop at step 2 if the goal is a short methods note; go through step 5 for the full four-dataset manuscript per Bokulich 2020.
+
+
+# Other todo ?
+
+- **[Medium / moderate]** Finalize distance-to-true-community metric in the in-silico benchmarking workflow.
+  (source: `arround_MiscMetabar/benchmar_assign_taxo/analysis/benchmark.qmd`:402)
+
+- **[Medium / moderate]** Loop to create multiple communities at the last timestep of miaSim Hubbell model (multiple independent simulations for robustness).
+  (source: `arround_MiscMetabar/benchmar_assign_taxo/In_silico_simulation.qmd`:69)
+
+- **[Low / easy]** Optionally add "fake" taxa to benchmark for TRUE-negative / trade-off analysis. Not urgent.
+  (source: `arround_MiscMetabar/benchmar_assign_taxo/R/functions.R`:103)
