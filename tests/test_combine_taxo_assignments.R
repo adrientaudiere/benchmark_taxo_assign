@@ -1,6 +1,6 @@
 # Verifies combine_taxo_assignments() reproduces the column set and values of
 # the sequential `previous_target` chain used in the original
-# script_assign_taxo.R. Run from the project root:
+# archived script_assign_taxo.R. Run from the project root:
 #   Rscript tests/test_combine_taxo_assignments.R
 
 library("phyloseq")
@@ -87,6 +87,21 @@ test_that("combine_taxo_assignments preserves taxa_names and otu_table", {
 
   expect_equal(taxa_names(combined), taxa_names(base_pq))
   expect_equal(as.matrix(otu_table(combined)), as.matrix(otu_table(base_pq)))
+})
+
+test_that("combine_taxo_assignments refuses an assignment that added no column", {
+  base_pq <- make_base_pq()
+  pq_a <- simulate_add_taxo(base_pq, "m1")
+  expect_error(
+    combine_taxo_assignments(base_pq, m1 = pq_a, blastn_empty = base_pq),
+    "blastn_empty"
+  )
+  combined <- combine_taxo_assignments(base_pq, m1 = pq_a, blastn_empty = base_pq,
+                                       allow_empty = TRUE)
+  expect_equal(
+    as.matrix(unclass(combined@tax_table)),
+    as.matrix(unclass(pq_a@tax_table))
+  )
 })
 
 test_that("combine_taxo_assignments is order-stable (column order = arg order)", {

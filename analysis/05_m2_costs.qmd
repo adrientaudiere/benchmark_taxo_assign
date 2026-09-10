@@ -1,0 +1,136 @@
+---
+title: "05 — M2: compute cost and carbon footprint"
+author: "Adrien Taudière"
+---
+
+Accuracy versus compute cost of each assignment target. `benchmark_costs`
+comes from the per-target {autometric} logs written inside the crew workers
+(`R/autometric_helpers.R`, ROADMAP S1.1): wall time, peak resident memory and
+mean CPU of the newest run of each target. M2.2 converts wall time to CO₂eq
+with `greenAlgoR`.
+
+Until the production rerun that follows S1.1, this chapter reads a
+`benchmark_costs` object computed from the legacy 2025-02 log; treat the
+figures as placeholders (ROADMAP, M2 re-validation).
+
+```{r setup}
+here::i_am("analysis/05_m2_costs.qmd")  # _quarto.yml would otherwise make here() root = analysis/
+source(here::here("analysis/00_setup.R"))
+res_comp_tax    <- cache_read("res_comp_tax")
+benchmark_costs <- tar_read(benchmark_costs, store = store_assign_taxo)
+```
+
+## M2.1 — Accuracy vs cost (F1 × wall time)
+
+The manuscript's practical recommendation: which method gives the best
+accuracy per unit of compute? Default settings only.
+
+```{r m2-1}
+f1_all_ranks <- res_comp_tax |>
+  filter(metrics == "F1_score") |>
+  filter_default_settings() |>
+  mutate(tax_level = factor(tax_level, levels = tax_order))
+
+accuracy_vs_cost <- f1_all_ranks |>
+  left_join(
+    benchmark_costs |> select(phase, wall_time_s, peak_resident_mb, mean_cpu_pct),
+    by = c("method_db" = "phase")
+  )
+
+fig_m2_cost_species <- accuracy_vs_cost |>
+  filter(tax_level == "Gen_sp", !is.na(wall_time_s)) |>
+  ggplot(aes(x = wall_time_s / 3600, y = values, color = algo)) +
+  geom_point(size = 3, alpha = 0.85) +
+  ggrepel::geom_label_repel(aes(label = db), size = 2.2, max.overlaps = 20,
+                            show.legend = FALSE) +
+  labs(x = "Wall time (hours)", y = "F1 score (Gen_sp rank)", color = "Method") +
+  theme_bw()
+
+save_fig(fig_m2_cost_species, "fig_m2_cost_species", width = 8, height = 6)
+```
+
+```{r m2-1-allranks}
+fig_m2_cost_allranks <- accuracy_vs_cost |>
+  filter(!is.na(wall_time_s)) |>
+  ggplot(aes(x = wall_time_s / 3600, y = values, color = algo, shape = db)) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  facet_wrap(~tax_level, nrow = 1) +
+  labs(x = "Wall time (hours)", y = "F1 score", color = "Method", shape = "Database") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+save_fig(fig_m2_cost_allranks, "fig_m2_cost_allranks", width = 18, height = 5)
+```
+
+## M2.2 — CO₂eq per assignment target
+
+Carbon footprint (gCO2eq) estimated via `greenAlgoR::ga_footprint()` from
+`wall_time_s`. Hardware parameters default to the machine's detected RAM and
+WORLD carbon intensity; `n_cores` is `n_threads` from `config.R`.
+
+```{r m2-2-co2}
+benchmark_costs <- benchmark_costs |>
+  rowwise() |>
+  mutate(
+    co2eq_gCO2 = greenAlgoR::ga_footprint(
+      runtime_h      = wall_time_s / 3600,
+      n_cores        = n_threads,
+      add_ref_values = FALSE
+    )$carbon_footprint_total_gCO2
+  ) |>
+  ungroup()
+
+accuracy_vs_co2 <- f1_all_ranks |>
+  left_join(
+    benchmark_costs |> select(phase, co2eq_gCO2),
+    by = c("method_db" = "phase")
+  )
+
+fig_m2_co2_species <- accuracy_vs_co2 |>
+  filter(tax_level == "Gen_sp", !is.na(co2eq_gCO2)) |>
+  ggplot(aes(x = co2eq_gCO2, y = values, color = algo)) +
+  geom_point(size = 3, alpha = 0.85) +
+  ggrepel::geom_label_repel(
+    aes(label = db), size = 2.2, max.overlaps = 20, show.legend = FALSE
+  ) +
+  labs(
+    x = expression(CO[2]*"eq (gCO2)"),
+    y = "F1 score (Gen_sp rank)",
+    color = "Method"
+  ) +
+  theme_bw()
+
+save_fig(fig_m2_co2_species, "fig_m2_co2_species", width = 8, height = 6)
+```
+
+```{r m2-2-allranks}
+fig_m2_co2_allranks <- accuracy_vs_co2 |>
+  filter(!is.na(co2eq_gCO2)) |>
+  ggplot(aes(x = co2eq_gCO2, y = values, color = algo, shape = db)) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  facet_wrap(~tax_level, nrow = 1) +
+  labs(
+    x = expression(CO[2]*"eq (gCO2)"),
+    y = "F1 score",
+    color = "Method",
+    shape = "Database"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+save_fig(fig_m2_co2_allranks, "fig_m2_co2_allranks", width = 18, height = 5)
+```
+
+## M2.3 — DADA2 preprocessing cost
+
+Cost of the denoising step, attributable separately from the assignments
+(`benchmark_costs_dada2` in `store_dada2`).
+
+```{r m2-3}
+tar_read(benchmark_costs_dada2, store = here("store_dada2")) |>
+  arrange(desc(wall_time_s)) |>
+  knitr::kable(
+    digits = 1,
+    caption = "DADA2 phases: wall time (s), peak resident memory (MB), mean CPU (%)"
+  )
+```

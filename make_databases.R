@@ -300,6 +300,7 @@ derive_all_variants <- function(force = FALSE) {
     derive_fake_ref(
       input  = unite_wo,
       output = here("data/data_raw/fake_ref/fake_ref_asv_100.fasta"),
+      seed   = targets_seed,
       force  = force
     )
   } else {

@@ -26,10 +26,10 @@ cross_val_param <- function(..., min_bootstrap = c(0.4, 0.5, 0.6)) {
 # TODO? + ajouter un argument nperm pour faire un certain nombre de permutations en
 # complément du k-fold -> déjà un peu trop long
 
-#  lca_res <- assign_vsearch_lca(fake_pq, ref_fasta= paste0(tempdir(), "/", "test_refseq.fasta"))
-# blast_res_tophit <- assign_blastn(fake_pq, ref_fasta= paste0(tempdir(), "/", "test_refseq.fasta"),  keep_blast_metrics = TRUE, method="top-hit")
-#  blast_res_vote <- assign_blastn(fake_pq, ref_fasta= paste0(tempdir(), "/", "test_refseq.fasta"), method = "vote", vote_algorithm= "consensus",  keep_blast_metrics = TRUE)
-#  dada2_res <- assign_dada(fake_pq, ref_fasta= paste0(tempdir(), "/", "test_refseq.fasta"))
+#  lca_res <- assign_vsearch_lca(fake_pq, ref_fasta= tmp_fasta)
+# blast_res_tophit <- assign_blastn(fake_pq, ref_fasta= tmp_fasta,  keep_blast_metrics = TRUE, method="top-hit")
+#  blast_res_vote <- assign_blastn(fake_pq, ref_fasta= tmp_fasta, method = "vote", vote_algorithm= "consensus",  keep_blast_metrics = TRUE)
+#  dada2_res <- assign_dada(fake_pq, ref_fasta= tmp_fasta)
 
 #' Cross validation of taxonomic assignation algorithm on a given fasta database
 #'
@@ -111,6 +111,8 @@ cross_val <- function(ref_fasta,
     tested_data <- tested_data[!duplicated(as.character(tested_data))]
     tested_data <- tested_data[!duplicated(names(tested_data))]
     n_tested <- length(tested_data)
+    # One reference fasta per fold; tempdir() is cleaned when the session ends.
+    tmp_fasta <- tempfile(pattern = "cv_refseq_", fileext = ".fasta")
 
     fake_pq <- create_fake_pq_from_refseq(tested_data)
     if (!is.null(patterns_NA)) {
@@ -119,16 +121,16 @@ cross_val <- function(ref_fasta,
 
     if (remove_tested_sequences) {
       Biostrings::writeXStringSet(dna_shuffled[-index_tested],
-                                  paste0(tempdir(), "/", "test_refseq.fasta"))
+                                  tmp_fasta)
     } else {
       Biostrings::writeXStringSet(dna_shuffled,
-                                  paste0(tempdir(), "/", "test_refseq.fasta"))
+                                  tmp_fasta)
     }
 
     if (method == "sintax") {
       assign_res <- assign_sintax(
         fake_pq,
-        ref_fasta = paste0(tempdir(), "/", "test_refseq.fasta"),
+        ref_fasta = tmp_fasta,
         nproc = nproc,
         behavior = "return_matrix",
         ...
@@ -138,7 +140,7 @@ cross_val <- function(ref_fasta,
       assign_res <- list()
       lca_raw <- assign_vsearch_lca(
         fake_pq,
-        ref_fasta = paste0(tempdir(), "/", "test_refseq.fasta"),
+        ref_fasta = tmp_fasta,
         nproc = nproc,
         behavior = "return_matrix",
         ...
@@ -155,7 +157,7 @@ cross_val <- function(ref_fasta,
     } else if (method == "blastn") {
       assign_res <- list()
       assign_res$taxo_value <- assign_blastn(fake_pq,
-                                             ref_fasta = paste0(tempdir(), "/", "test_refseq.fasta"),
+                                             ref_fasta = tmp_fasta,
                                              behavior = "add_to_phyloseq",
                                              ...)@tax_table
 
@@ -184,7 +186,7 @@ cross_val <- function(ref_fasta,
       stop("method dada2_2steps is not working for the moment")
       assign_res_pq <- assign_dada2(
         fake_pq,
-        ref_fasta = paste0(tempdir(), "/", "test_refseq.fasta"),
+        ref_fasta = tmp_fasta,
         nproc = nproc,
         ...
       )
@@ -195,7 +197,7 @@ cross_val <- function(ref_fasta,
       # subset written to test_refseq.fasta requires no conversion.
       assign_res_dada <- assignTaxonomy(
         fake_pq@refseq,
-        refFasta = paste0(tempdir(), "/", "test_refseq.fasta"),
+        refFasta = tmp_fasta,
         outputBootstraps = TRUE,
         minBoot = 0,
         ...

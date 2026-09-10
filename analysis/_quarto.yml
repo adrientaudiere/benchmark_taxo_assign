@@ -1,0 +1,27 @@
+# Quarto project for the benchmark analysis (ROADMAP S3.3).
+#
+# Render everything:        quarto render analysis
+# Render one chapter:       quarto render analysis/02_q1_methods.qmd
+# Chapters read their inputs from analysis/_cache/, written by
+# 01_load_and_clean.qmd; render that one first (or the whole project).
+# sandbox/ is not rendered by default.
+project:
+  type: default
+  execute-dir: project
+  output-dir: _output
+  render:
+    - "0*.qmd"
+    - "in_silico_simulation.qmd"
+
+execute:
+  freeze: auto
+  warning: false
+  message: false
+
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+    fig-width: 10
+    fig-height: 6

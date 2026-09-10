@@ -1,0 +1,24 @@
+# Named {targets} projects (ROADMAP S3.1). Select one with the TAR_PROJECT
+# environment variable, then call tar_make() / tar_read() / tar_visnetwork()
+# without script = / store = arguments:
+#
+#   Sys.setenv(TAR_PROJECT = "assign_taxo"); targets::tar_make()
+#
+# The *_mini projects run the same script on the mini_* databases (config.R
+# sets mini_db from the project name) and write to their own store, so a smoke
+# test can never overwrite a production store.
+dada2:
+  script: pipelines/dada2.R
+  store: store_dada2
+assign_taxo:
+  script: pipelines/assign_taxo.R
+  store: store_assign_taxo
+assign_taxo_mini:
+  script: pipelines/assign_taxo.R
+  store: store_assign_taxo_mini
+cross_val:
+  script: pipelines/cross_val.R
+  store: store_cross_val
+cross_val_mini:
+  script: pipelines/cross_val.R
+  store: store_cross_val_mini

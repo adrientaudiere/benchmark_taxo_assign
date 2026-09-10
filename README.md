@@ -20,35 +20,53 @@ Five consensus-voting strategies and their parameters are compared via
 source("make_databases.R")
 derive_all_variants()
 
-# Run both pipelines (parallel; uses crew_controller_local from config.R)
+# Run the three pipelines in order (named projects in _targets.yaml)
 source("make.R")
 
-# Test the combine helper
+# Or one pipeline at a time
+Sys.setenv(TAR_PROJECT = "assign_taxo"); targets::tar_make()
+
+# Smoke test on the mini_* databases (own stores, never overwrite production)
+Sys.setenv(TAR_PROJECT = "assign_taxo_mini"); targets::tar_make()
+
+# Tests
 Rscript tests/test_combine_taxo_assignments.R
+Rscript tests/test_values_map.R
 ```
 
-The headline analysis lives in `analysis/benchmark.qmd`.
+The analysis is a Quarto project in `analysis/` (`quarto render analysis`, or
+one chapter at a time starting with `01_load_and_clean.qmd`, which feeds the
+others through `analysis/_cache/`). Figures are written to `figures/`
+(not tracked).
 
 ## Documentation
 
 - **`CLAUDE.md`** — architecture, pipeline layout, external dependencies.
-- **`ROADMAP.md`** — running todo list mapping each manuscript question to
-  concrete tasks, with scope decisions taken on 2026-05-19, and a table of
-  manual actions in execution order.
+- **`ROADMAP.md`** — running todo list: structural debt (section 1), open
+  manuscript work (section 2), scope decisions of 2026-05-19, and the done
+  log.
+- **`critique_fable/`** — evidence files behind the structural items of the
+  ROADMAP (2026-09-10 review).
 - **`proposals_for_dbpq.md`** — six helpers still implemented locally that
   could be upstreamed to [`dbpq`](https://github.com/adrientaudiere/dbpq).
+- **`docs/`** — design diagram and external reference documents.
 
 ## Layout
 
 ```
-script_dada2.R                # ASV pipeline -> store_dada2
-script_assign_taxo_parallel.R # 4 methods x 9 DBs in parallel -> store_assign_taxo
-script_cross_val.R            # k-fold CV pipeline -> store_cross_val
+_targets.yaml                 # named targets projects (dada2, assign_taxo, cross_val, *_mini)
+pipelines/dada2.R             # ASV pipeline -> store_dada2
+pipelines/assign_taxo.R       # 4 methods x 6 DBs in parallel -> store_assign_taxo
+pipelines/cross_val.R         # k-fold CV pipeline -> store_cross_val
+make.R                        # DB derivation + the three production projects in order
 make_databases.R              # idempotent DB derivation (delegates to dbpq::)
-config.R                      # shared constants (primers, threads, paths, seed, CV params)
-R/                            # combine helper, cross-validation, cv_to_tidy, helpers
-analysis/                     # benchmark.qmd
+config.R                      # shared constants (primers, threads, db_list, seed, CV params)
+R/                            # load_pqverse, values_map, autometric helpers, combine, cross_val
+analysis/                     # Quarto project: 00_setup.R + chapters 01..06, sandbox/
+figures/                      # save_fig() output of the chapters (not tracked)
 tests/                        # Rscript-runnable testthat fixtures
+docs/                         # design diagram, external references
+critique_fable/               # structural review (evidence for ROADMAP section 1)
 Archives/                     # superseded scripts (kept for reference)
 ```
 
@@ -63,4 +81,6 @@ Archives/                     # superseded scripts (kept for reference)
   [`crew`](https://wlandau.github.io/crew/),
   [`autometric`](https://wlandau.github.io/autometric/)
 - `cutadapt` installed in a conda env named `cutadaptenv`
-- `vsearch` on `PATH`
+- `vsearch` (>= 2.31) and BLAST+ (`blastn`, `makeblastdb`) on `PATH`; install
+  them from your package manager or from source, they are not shipped in this
+  repository

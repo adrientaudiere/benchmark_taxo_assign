@@ -1,5 +1,5 @@
 # Helpers used during development of the benchmark pipeline. Sourced by
-# script_dada2.R, but the pipeline does not call anything defined here at
+# pipelines/cross_val.R (and pipelines/dada2.R), but the pipeline does not call anything defined here at
 # runtime — the helpers are kept available for interactive use.
 #
 # Database derivation (the fake-reference set, format conversions, Fungi-only

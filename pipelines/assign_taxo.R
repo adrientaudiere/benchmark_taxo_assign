@@ -1,90 +1,60 @@
+# Taxonomic assignment: every (method x database x parameter) combination runs
+# in parallel on `d_asv_for_assignation`, then `d_all_taxo` stacks the results.
+#
+# Run with:
+#   Sys.setenv(TAR_PROJECT = "assign_taxo"); targets::tar_make()
+# Smoke test on the mini_* databases: TAR_PROJECT = "assign_taxo_mini"
+# (own store store_assign_taxo_mini, see _targets.yaml and config.R).
+
 library("conflicted")
-library("MiscMetabar")
-devtools::load_all("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/MiscMetabar/")
 library("targets")
 library("tarchetypes")
 library("here")
 library("tibble")
 library("tidyr")
-library("autometric")
+library("dplyr")
 
-if (tar_active()) {
-  log_start(path = "data/data_final/autometric_log_assign_taxo.txt", seconds = 1)
-}
-
-here::i_am("script_assign_taxo_parallel.R")
+here::i_am("pipelines/assign_taxo.R")
 source(here("config.R"))
+source(here("R/load_pqverse.R"))
+source(here("R/values_map.R"))
 source(here("R/combine_taxo_assignments.R"))
-source("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/comparpq/R/compare_taxo.R")
-source("/home/adrien/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/comparpq/R/fake_creation.R")
+source(here("R/autometric_helpers.R"))
+load_pqverse(c("MiscMetabar", "comparpq"))
 
 tar_option_set(
   seed = targets_seed,
+  # Workers attach these CRAN packages; the pqverse checkouts are loaded inside
+  # each target with load_pqverse() (they are not installed packages).
+  packages = c("here", "phyloseq", "dplyr", "tidyr", "tibble"),
   controller = crew::crew_controller_group(
-    crew::crew_controller_local(name = "dada2_ctrl",  workers = 1,         seconds_idle = 60),
-    crew::crew_controller_local(name = "fast_ctrl",   workers = n_workers, seconds_idle = 60)
+    crew::crew_controller_local(name = "dada2_ctrl", workers = 1,         seconds_idle = 60),
+    crew::crew_controller_local(name = "fast_ctrl",  workers = n_workers, seconds_idle = 60)
   )
 )
 
-methods <- tidyr::expand_grid(
-  method = c("dada2", "sintax", "lca"),
-  min_bootstrap = c(0.4, 0.5, 0.6)
-) |>
-  full_join(tidyr::expand_grid(
-    method = c("blastn"),
-    vote_algorithm = c("rel_majority", "abs_majority", "unanimity"),
-    nb_voting = 100,
-    min_bootstrap = 0.5
-  ))
+values_map <- build_values_map(dbs = db_list, mini_db = mini_db)
 
-values_map <-
-  tidyr::expand_grid(
-    methods,
-    db = c(
-       "Unite",
-       "Unite_Fungi",
-       "EUK_ITS_v2",
-       "EUK_ITS_v2_Fungi",
-       "EUK_ITS_v2_Fungi_cut",
-  #    "EUK_SSU_v2",
-  #    "EUK_SSU_v2_Fungi",
-  #    "EUK_SSU_v2_cut",
-       "EUK_SSU_v2_Fungi_cut"
-    )
-  ) |>
-  mutate(cutadapted_db = ifelse(grepl("cut", db), "cut", "")) |>
-  mutate(db_filter = ifelse(grepl("Fungi", db), "Fungi", "")) |>
-  mutate(db_name = ifelse(mini_db, paste0("mini_", db), db)) |>
-  mutate(do_clean_pq = ifelse(method == "dada2", TRUE, FALSE)) |>
-  mutate(db_path = paste0(ifelse(
-    method == "dada2",
-    paste0("data/data_raw/refseq/dada2_format/", db_name),
-    paste0("data/data_raw/refseq/sintax_format/", db_name)
-  ), ".fasta")) |>
-  mutate(controller = ifelse(method == "dada2", "dada2_ctrl", "fast_ctrl")) |>
-  mutate(full_name = gsub(
-    "...NA...NA", "",
-    paste0(method, "__", db, "___",
-           min_bootstrap, "...",
-           vote_algorithm, "...",
-           nb_voting)
-  ))
+# One autometric log file per target and per run (see R/autometric_helpers.R).
+autometric_dir_assign <- here("data/data_final/autometric/assign_taxo")
 
 assignment_targets <- tarchetypes::tar_eval(
   tar_target(
     full_name,
     {
-      # Tag the autometric log with this target name so benchmark_costs can
-      # split runtime/memory per (method, db) row.
-      autometric::log_phase_set(full_name)
-      add_new_taxonomy_pq(
-        d_asv_for_assignation,
-        method = method,
-        ref_fasta = db_path,
-        suffix = paste0("_", full_name),
-        min_bootstrap = min_bootstrap,
-        vote_algorithm = vote_algorithm,
-        nb_voting = nb_voting
+      load_pqverse(c("MiscMetabar", "comparpq"))
+      with_autometric(
+        full_name,
+        add_new_taxonomy_pq(
+          d_asv_for_assignation,
+          method = method,
+          ref_fasta = db_path,
+          suffix = paste0("_", full_name),
+          min_bootstrap = min_bootstrap,
+          vote_algorithm = vote_algorithm,
+          nb_voting = nb_voting
+        ),
+        dir = autometric_dir_assign
       )
     },
     resources = tar_resources(
@@ -95,11 +65,16 @@ assignment_targets <- tarchetypes::tar_eval(
 )
 
 tar_plan(
-  tar_target(d_asv, tar_read(d_asv, store = here::here("store_dada2"))),
+  # File dependency on the DADA2 store so a rebuilt d_asv invalidates
+  # everything downstream (ROADMAP S1.2).
+  tar_target(d_asv_file, here("store_dada2/objects/d_asv"), format = "file",
+             deployment = "main"),
+  tar_target(d_asv, readRDS(d_asv_file), deployment = "main"),
   tar_target(
     file_taxo_mock,
     here(taxo_mock_csv),
-    format = "file"
+    format = "file",
+    deployment = "main"
   ),
   tar_target(
     taxo_mock,
@@ -107,44 +82,54 @@ tar_plan(
       select(any_of(c(
         "Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"
       ))) |>
-      magrittr::set_rownames(read.csv(file_taxo_mock)$MockStrain)
+      magrittr::set_rownames(read.csv(file_taxo_mock)$MockStrain),
+    deployment = "main"
   ),
+  # Negative controls: shuffled ASVs (fake_*) then external non-Fungi
+  # sequences (external_*); both feed the TN denominator of tc_metrics_mock().
   tar_target(
-    d_asv_for_assignation_fake,
-    add_shuffle_seq_pq(d_asv, prop_fake = prop_fake)
+    d_asv_shuffled,
+    add_shuffle_seq_pq(d_asv, prop_fake = prop_fake),
+    deployment = "main"
   ),
   tar_target(
     d_asv_for_assignation,
     add_external_seq_pq(
-      d_asv_for_assignation_fake,
+      d_asv_shuffled,
       Biostrings::readDNAStringSet(here(fake_ref_fasta))
-    )
+    ),
+    deployment = "main"
   ),
   assignment_targets,
+  # Production refuses an assignment that added no column (ROADMAP S1.3);
+  # smoke tests on the mini_* databases tolerate it (blastn often has no hit).
   tarchetypes::tar_combine(
     d_all_taxo,
     assignment_targets,
-    command = combine_taxo_assignments(d_asv_for_assignation, !!!.x)
+    command = combine_taxo_assignments(d_asv_for_assignation, !!!.x,
+                                       allow_empty = mini_db),
+    deployment = "main"
   ),
   tar_target(
     benchmark_costs,
     {
-      # Force aggregation to run after the combine, so the log is complete.
-      d_all_taxo
-      log_df <- autometric::log_read(
-        here("data/data_final/autometric_log_assign_taxo.txt")
-      )
-      log_df |>
-        dplyr::filter(!is.na(phase), phase != "") |>
-        dplyr::group_by(phase) |>
-        dplyr::summarise(
-          wall_time_s      = as.numeric(max(time) - min(time)),
-          peak_resident_mb = max(resident, na.rm = TRUE),
-          mean_cpu_pct     = mean(cpu, na.rm = TRUE),
-          n_samples        = dplyr::n(),
-          .groups = "drop"
-        ) |>
+      d_all_taxo # aggregate only once every assignment has run
+      read_autometric_dir(autometric_dir_assign) |>
+        summarise_autometric_costs() |>
         dplyr::inner_join(values_map, by = c("phase" = "full_name"))
-    }
+    },
+    deployment = "main"
+  ),
+  # Versions of the pqverse checkouts and of R used for this run (decision 10).
+  tar_target(
+    session_info,
+    {
+      d_all_taxo
+      list(
+        pqverse = pqverse_versions(),
+        session = sessioninfo::session_info()
+      )
+    },
+    deployment = "main"
   )
 )

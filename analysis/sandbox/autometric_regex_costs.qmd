@@ -1,0 +1,147 @@
+---
+title: "Sandbox — legacy compute-cost analysis (regex on the single autometric log)"
+author: "Adrien Taudière"
+---
+
+Historical analysis of the append-only log `data/data_final/autometric_log_assign_taxo.txt`
+(sequential pipeline, 2025-02). Superseded by the `benchmark_costs` target
+and `05_m2_costs.qmd`; kept for reference until the new per-target logs exist,
+then delete together with the legacy log (see `data/README.md`). Not part of
+the project render.
+
+```{r setup}
+here::i_am("analysis/sandbox/autometric_regex_costs.qmd")  # _quarto.yml would otherwise make here() root = analysis/
+source(here::here("analysis/00_setup.R"))
+se <- function(x) sqrt(var(x, na.rm = TRUE) / length(x))
+```
+
+```{r read-log}
+log_data_raw <- autometric::log_read(
+  here("data/data_final/autometric_log_assign_taxo.txt"),
+  units_time = "hours",
+  units_memory = "gigabytes"
+)
+
+log_data <- log_data_raw |>
+  as_tibble() |>
+  filter(!grepl("conclude:", phase)) |>
+  filter(!grepl("prepare:", phase)) |>
+  filter(!grepl("__DEFAULT__", phase)) |>
+  mutate(bootstrap = gsub(".*__", "", phase)) |>
+  mutate(algo = gsub("__.*", "", phase)) |>
+  mutate(db = gsub(".*__", "", gsub("___.*", "", phase))) |>
+  filter(!grepl("d_asv", algo)) |>
+  group_by(algo, db, bootstrap) |>
+  summarise(
+    phase = first(phase),
+    time = n(),
+    cpu = mean(cpu),
+    core = mean(core),
+    resident = mean(resident),
+    virtual = mean(virtual),
+    .groups = "drop"
+  )
+```
+
+```{r summaries}
+log_data |> group_by(db) |> summarize(time = mean(time), cpu = mean(cpu)) |> arrange(desc(time))
+log_data |> group_by(algo) |> summarize(time = mean(time), cpu = mean(cpu)) |> arrange(desc(time))
+log_data |> group_by(bootstrap) |> summarize(time = mean(time), cpu = mean(cpu)) |> arrange(desc(time))
+```
+
+## Time
+
+```{r time}
+log_data |>
+  filter(bootstrap == 0.5) |>
+  ggplot(aes(x = time / 3600, y = reorder(phase, dplyr::desc(time)), fill = cpu)) +
+  geom_bar(stat = "identity") +
+  scale_color_viridis_b("Memory (Gb)", end = 0.9, direction = -1) +
+  xlab("Time (in hours)") +
+  ylab("") +
+  facet_grid(db ~ ., scales = "free")
+
+log_data |>
+  ggplot(aes(x = time, y = db)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~algo)
+
+p_time <- log_data |>
+  mutate(db_is_fungi = grepl("_Fungi", phase)) |>
+  mutate(db_is_cut = grepl("_cut", phase)) |>
+  mutate(db_base = stringr::str_remove(db, "_.*")) |>
+  group_by(phase, db, algo, db_is_fungi, db_is_cut, db_base, bootstrap) |>
+  summarise(time = sum(time, na.rm = TRUE), .groups = "drop") |>
+  ggplot(aes(x = time, y = db, fill = paste0(db_is_fungi, db_is_cut))) +
+  geom_bar(stat = "identity") +
+  facet_grid(~algo) +
+  scale_fill_manual(values = c("grey", "#2585A2", "#FFA600", "#929551"))
+
+p_time +
+  (
+    p_time$data |>
+      group_by(algo) |>
+      summarise(mean_value = mean(time, na.rm = TRUE), sd_value = se(time)) |>
+      ggplot(aes(y = mean_value, x = 1)) +
+      coord_flip() +
+      geom_bar(stat = "identity") +
+      geom_segment(aes(y = mean_value + sd_value, yend = mean_value - sd_value)) +
+      facet_grid(~algo) +
+      theme_void()
+  ) +
+  plot_layout(heights = c(9, 1))
+
+p_time$data |>
+  group_by(db_is_fungi, db_is_cut, db_base) |>
+  summarise(mean_value = mean(time, na.rm = TRUE), sd_value = se(time), .groups = "drop") |>
+  ggplot(aes(y = mean_value, x = db_base, fill = db_base)) +
+  geom_bar(stat = "identity") +
+  facet_grid(db_is_fungi ~ db_is_cut)
+
+p_time$data |>
+  filter(!db_is_cut) |>
+  filter(!db_is_fungi) |>
+  filter(algo != "idtaxa") |>
+  group_by(db_base, bootstrap, algo) |>
+  summarise(mean_value = mean(time, na.rm = TRUE), sd_value = se(time), .groups = "drop") |>
+  ggplot(aes(y = mean_value, x = bootstrap, fill = bootstrap)) +
+  geom_bar(stat = "identity") +
+  facet_grid(db_base ~ algo)
+```
+
+## CPU
+
+```{r cpu}
+p_cpu <- log_data |>
+  mutate(db_is_fungi = grepl("_Fungi", phase)) |>
+  mutate(db_is_cut = grepl("_cut", phase)) |>
+  mutate(db_base = stringr::str_remove(stringr::str_remove(phase, ".*__"), "_.*")) |>
+  group_by(phase, db, algo, db_is_fungi, db_is_cut, db_base) |>
+  summarise(cpu = mean(cpu, na.rm = TRUE), .groups = "drop") |>
+  ggplot(aes(x = cpu, y = db, fill = paste0(db_is_fungi, db_is_cut))) +
+  geom_bar(stat = "identity") +
+  facet_grid(~algo, scales = "free_x") +
+  scale_fill_manual(values = c("grey", "#2585A2", "#FFA600", "#929551"))
+
+p_cpu +
+  (
+    p_cpu$data |>
+      group_by(algo) |>
+      summarise(mean_value = mean(cpu, na.rm = TRUE), sd_value = se(cpu)) |>
+      ggplot(aes(y = mean_value, x = 1)) +
+      coord_flip() +
+      geom_bar(stat = "identity") +
+      geom_segment(aes(y = mean_value + sd_value, yend = mean_value - sd_value)) +
+      facet_grid(~algo, scales = "free_x") +
+      theme_void()
+  ) +
+  plot_layout(heights = c(9, 1))
+
+p_cpu$data |>
+  group_by(db_is_fungi, db_is_cut, db_base, algo) |>
+  summarise(mean_value = mean(cpu, na.rm = TRUE), sd_value = se(cpu), .groups = "drop") |>
+  ggplot(aes(y = log1p(mean_value), x = db_base, fill = algo, color = db_base)) +
+  geom_bar(stat = "identity", position = "dodge", size = 1) +
+  facet_grid(db_is_fungi ~ db_is_cut) +
+  scale_color_manual(values = c("bisque4", "cyan4"))
+```

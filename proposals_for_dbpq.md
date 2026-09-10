@@ -3,7 +3,7 @@
 The benchmark project keeps these local because dbpq does not (yet) cover
 them. Each is a thin operation that fits dbpq's scope ("download, format,
 summarize, and modify FASTA reference databases") and would let
-`make_databases.R` and `R/functions.R` collapse to pure dbpq calls.
+`make_databases.R` and `R/create_fake_pq_from_refseq.R` collapse to pure dbpq calls.
 
 Ordered roughly by usefulness × ease of porting.
 
@@ -146,7 +146,7 @@ Build a degenerate `phyloseq` object from a reference fasta: 1-column
 `cross_val()` to wrap each test-fold's sequences in a phyloseq so they can
 be passed to `assign_*` functions.
 
-**Local call site** — `R/functions.R::create_fake_pq_from_refseq()`, called
+**Local call site** — `R/create_fake_pq_from_refseq.R::create_fake_pq_from_refseq()`, called
 inside `R/cross_val.R`.
 
 **Suggested signature**

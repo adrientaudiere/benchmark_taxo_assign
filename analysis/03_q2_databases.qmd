@@ -1,0 +1,136 @@
+---
+title: "03 — Q2: reference database and simplification"
+author: "Adrien Taudière"
+---
+
+Effect of the reference database and of its simplification (Fungi-only,
+primer-trimmed `_cut`). Figures: Q2.1 (per-DB accuracy), Q2.2 (paired
+simplification effect), Q2.5 (DB size vs compute cost and accuracy).
+
+```{r setup}
+here::i_am("analysis/03_q2_databases.qmd")  # _quarto.yml would otherwise make here() root = analysis/
+source(here::here("analysis/00_setup.R"))
+res_comp_tax    <- cache_read("res_comp_tax")
+benchmark_costs <- tar_read(benchmark_costs, store = store_assign_taxo)
+```
+
+## Q2.1 — Per-DB accuracy
+
+Default settings (bootstrap 0.5 / rel_majority). `db_meta` (which
+simplification step each DB represents) comes from `config.R`.
+
+```{r q2-1}
+fig_q2_base <- res_comp_tax |>
+  filter(metrics %in% c("F1_score", "MCC")) |>
+  filter_default_settings() |>
+  left_join(db_meta, by = "db") |>
+  mutate(
+    tax_level      = factor(tax_level,      levels = tax_order),
+    simplification = factor(simplification, levels = c("full", "Fungi", "cut", "Fungi+cut"))
+  )
+
+fig_q2_db <- fig_q2_base |>
+  ggplot(aes(x = db, y = values, fill = simplification)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_grid(metrics + algo ~ tax_level) +
+  labs(x = "Database", y = "Value", fill = "Simplification") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 55, hjust = 1))
+
+save_fig(fig_q2_db, "fig_q2_db", width = 18, height = 14)
+```
+
+## Q2.2 — Simplification effect (paired Δ F1/MCC)
+
+Three paired comparisons available under decision 7 (only one SSU variant is
+benchmarked): (a) Unite → Fungi, (b) EUK_ITS → Fungi, (c) EUK_ITS_Fungi → cut.
+
+```{r q2-2-table}
+# Signed delta (simplified − full) for one pair of databases.
+db_pair_delta <- function(data, db_full, db_simp, label) {
+  data |>
+    filter(db %in% c(db_full, db_simp)) |>
+    select(algo, tax_level, metrics, db, values) |>
+    pivot_wider(names_from = db, values_from = values) |>
+    mutate(
+      delta      = .data[[db_simp]] - .data[[db_full]],
+      comparison = label
+    ) |>
+    select(algo, tax_level, metrics, comparison, delta)
+}
+
+db_pairs <- tibble::tribble(
+  ~db_full,           ~db_simp,               ~label,
+  "Unite",            "Unite_Fungi",          "(a) Unite → Fungi",
+  "EUK_ITS_v2",       "EUK_ITS_v2_Fungi",     "(b) EUK_ITS → Fungi",
+  "EUK_ITS_v2_Fungi", "EUK_ITS_v2_Fungi_cut", "(c) EUK_ITS_Fungi → cut"
+) |>
+  filter(db_full %in% db_list, db_simp %in% db_list)
+
+tab_q2_simplif <- purrr::pmap(
+  db_pairs,
+  \(db_full, db_simp, label) db_pair_delta(fig_q2_base, db_full, db_simp, label)
+) |>
+  bind_rows() |>
+  mutate(tax_level = factor(tax_level, levels = tax_order))
+
+tab_q2_simplif |>
+  group_by(comparison, algo, metrics, tax_level) |>
+  summarise(delta_mean = round(mean(delta, na.rm = TRUE), 3), .groups = "drop") |>
+  pivot_wider(names_from = tax_level, values_from = delta_mean) |>
+  arrange(comparison, metrics, algo) |>
+  knitr::kable(caption = "Δ F1/MCC (simplified − full). Positive = simplification helps.")
+```
+
+```{r q2-2-fig}
+fig_q2_simplif <- tab_q2_simplif |>
+  ggplot(aes(x = algo, y = delta, fill = comparison)) +
+  geom_hline(yintercept = 0, linewidth = 0.4, linetype = "dashed") +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_grid(metrics ~ tax_level) +
+  labs(x = "Method", y = "Δ (simplified − full)", fill = "Comparison") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+save_fig(fig_q2_simplif, "fig_q2_simplification", width = 18, height = 8)
+```
+
+## Q2.5 — DB size vs compute cost and accuracy
+
+Does a smaller (filtered / trimmed) DB pay for itself in runtime without
+losing F1? Uses `benchmark_costs` (see `05_m2_costs.qmd` for its provenance).
+
+```{r q2-5}
+db_size_tbl <- benchmark_costs |>
+  filter(!startsWith(db, "mini_")) |>
+  mutate(db_size_mb = file.size(here(db_path)) / 1e6) |>
+  group_by(db, db_size_mb) |>
+  summarise(mean_wall_h = mean(wall_time_s, na.rm = TRUE) / 3600,
+            .groups = "drop")
+
+f1_by_db <- res_comp_tax |>
+  filter(metrics == "F1_score", tax_level == "Gen_sp") |>
+  filter_default_settings() |>
+  group_by(db) |>
+  summarise(mean_f1 = mean(values, na.rm = TRUE), .groups = "drop")
+
+q2_5_data <- left_join(db_size_tbl, f1_by_db, by = "db") |>
+  left_join(db_meta |> select(db, db_base, simplification), by = "db")
+
+p_size_time <- q2_5_data |>
+  ggplot(aes(x = db_size_mb, y = mean_wall_h, color = db_base, label = simplification)) +
+  geom_point(size = 3) +
+  ggrepel::geom_label_repel(size = 2.5, show.legend = FALSE) +
+  labs(x = "DB size (MB)", y = "Mean wall time (h)", color = "DB family") +
+  theme_bw()
+
+p_size_f1 <- q2_5_data |>
+  ggplot(aes(x = db_size_mb, y = mean_f1, color = db_base, label = simplification)) +
+  geom_point(size = 3) +
+  ggrepel::geom_label_repel(size = 2.5, show.legend = FALSE) +
+  labs(x = "DB size (MB)", y = "Mean F1 (Gen_sp)", color = "DB family") +
+  theme_bw()
+
+fig_q2_5 <- p_size_time / p_size_f1 + patchwork::plot_layout(guides = "collect")
+save_fig(fig_q2_5, "fig_q2_5_size_cost", width = 8, height = 10)
+```

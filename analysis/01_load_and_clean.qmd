@@ -1,0 +1,363 @@
+---
+title: "01 — Load, clean, compute metrics"
+author: "Adrien Taudière"
+---
+
+Reads `d_all_taxo` from `store_assign_taxo`, cleans the taxonomy strings,
+builds the `Gen_sp_*` columns and the consensus columns (Q3.1, Q3.3), then
+computes the mock-community metrics (`res_comp_tax`, M1.1). Every later
+chapter reads its inputs from `analysis/_cache/`, written at the end of this
+file.
+
+```{r setup}
+here::i_am("analysis/01_load_and_clean.qmd")  # _quarto.yml would otherwise make here() root = analysis/
+source(here::here("analysis/00_setup.R"))
+```
+
+# Import from store_assign_taxo
+
+```{r load}
+d_all_taxo <- tar_read(d_all_taxo, store = store_assign_taxo)
+taxo_mock  <- tar_read(taxo_mock,  store = store_assign_taxo) |>
+  rename(Gen_sp = Species)
+```
+
+## Clean taxonomy strings
+
+```{r clean}
+d_all_taxo <- d_all_taxo |>
+  taxtab_replace_pattern_by_NA(
+    patterns = ".*_sp$",
+    progress_bar = TRUE,
+    taxonomic_ranks =
+      colnames(d_all_taxo@tax_table)[grep("^Species_", colnames(d_all_taxo@tax_table))]
+  ) |>
+  taxtab_replace_pattern_by_NA(
+    patterns = c(
+      ".*_incertae_sedis",
+      ".*_Incertae_sedis",
+      "unclassified.*",
+      "^$"
+    ),
+    progress_bar = TRUE
+  ) |>
+  simplify_taxo()
+```
+
+## Build `Gen_sp_<method_db>` columns
+
+Genus + Species concatenated per assignment column (candidate for
+`tidypq::mutate_taxa_pq()`, ROADMAP S5.1).
+
+```{r gen-sp}
+taxtab_d_all <- d_all_taxo@tax_table |>
+  as.data.frame()
+
+cl_names <- gsub(
+  "Kingdom|Phylum|Phyla|Class|Order|Family|Genus|Species", NA,
+  unique(gsub("Kingdom_|Phyla_|Phylum_|Class_|Order_|Family_|Genus_|Species_", "",
+              colnames(d_all_taxo@tax_table)))
+) |>
+  na.omit() |>
+  as.vector()
+
+cl_names <- grep("Taxa_name_", cl_names, invert = TRUE, value = TRUE)
+
+for (cl in cl_names) {
+  if (paste0("Species_", cl) %in% colnames(taxtab_d_all)) {
+    sp <- as.vector(taxtab_d_all[, paste0("Species_", cl)])
+  } else {
+    sp <- NA
+  }
+  if (paste0("Genus_", cl) %in% colnames(taxtab_d_all)) {
+    gen <- as.vector(taxtab_d_all[, paste0("Genus_", cl)])
+  } else {
+    gen <- NA
+  }
+
+  if (sum(grepl("_", sp)) == sum(!is.na(sp))) {
+    taxtab_d_all[paste0("Gen_sp_", cl)] <- sp
+  } else {
+    taxtab_d_all[paste0("Gen_sp_", cl)] <- paste(gen, sp, sep = "_")
+  }
+  taxtab_d_all[grepl("NA", as.vector(taxtab_d_all[paste0("Gen_sp_", cl)][, 1])), paste0("Gen_sp_", cl)] <- NA
+}
+
+d_all_taxo@tax_table <- tax_table(as.matrix(taxtab_d_all))
+```
+
+# Consensus columns
+
+Three base strategies, then (Q3.1) `consensus` + `abs_majority`, the
+`strict = TRUE` variants of all five, and (Q3.3) `rel_majority` with
+`nb_agree_threshold` 2 and 3. `preference_pattern` is set in `00_setup.R`.
+
+```{r consensus-base}
+ranks_base <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Gen_sp")
+
+d_all_taxo <- d_all_taxo |>
+  resolve_taxo_conflict(
+    pattern_tax_ranks = ranks_base,
+    method = "rel_majority",
+    new_names = paste0(ranks_base, "_rel_majority_consensus"),
+    replace_collapsed_rank_by_NA = TRUE
+  ) |>
+  resolve_taxo_conflict(
+    pattern_tax_ranks = ranks_base,
+    method = "preference",
+    new_names = paste0(ranks_base, "_preference_consensus"),
+    preference_pattern = preference_pattern,
+    replace_collapsed_rank_by_NA = TRUE
+  ) |>
+  resolve_taxo_conflict(
+    pattern_tax_ranks = ranks_base,
+    method = "unanimity",
+    new_names = paste0(ranks_base, "_unanimity_consensus"),
+    replace_collapsed_rank_by_NA = TRUE
+  )
+```
+
+```{r consensus-extra}
+extra_consensus_configs <- list(
+  list(method = "consensus",    strict = FALSE, nb = 1L, suffix = "consensus_consensus"),
+  list(method = "abs_majority", strict = FALSE, nb = 1L, suffix = "abs_majority_consensus"),
+  list(method = "rel_majority", strict = TRUE,  nb = 1L, suffix = "rel_majority_strict_consensus"),
+  list(method = "preference",   strict = TRUE,  nb = 1L, suffix = "preference_strict_consensus"),
+  list(method = "unanimity",    strict = TRUE,  nb = 1L, suffix = "unanimity_strict_consensus"),
+  list(method = "consensus",    strict = TRUE,  nb = 1L, suffix = "consensus_strict_consensus"),
+  list(method = "abs_majority", strict = TRUE,  nb = 1L, suffix = "abs_majority_strict_consensus"),
+  list(method = "rel_majority", strict = FALSE, nb = 2L, suffix = "rel_majority_nb2_consensus"),
+  list(method = "rel_majority", strict = FALSE, nb = 3L, suffix = "rel_majority_nb3_consensus")
+)
+
+for (cfg in extra_consensus_configs) {
+  args <- list(
+    physeq              = d_all_taxo,
+    pattern_tax_ranks   = ranks_base,
+    method              = cfg$method,
+    strict              = cfg$strict,
+    nb_agree_threshold  = cfg$nb,
+    new_names           = paste0(ranks_base, "_", cfg$suffix),
+    replace_collapsed_rank_by_NA = TRUE
+  )
+  if (cfg$method == "preference") {
+    args$preference_pattern <- preference_pattern
+  }
+  d_all_taxo <- do.call(resolve_taxo_conflict, args)
+}
+
+all_consensus_suffixes <- c(
+  "rel_majority_consensus",
+  "preference_consensus",
+  "unanimity_consensus",
+  vapply(extra_consensus_configs, \(cfg) cfg$suffix, character(1))
+)
+```
+
+# Performance metrics
+
+## Proportion of NA per rank (exploratory)
+
+```{r na-prop}
+df_na <- data.frame(
+  "method_db" = names(colSums(is.na(d_all_taxo@tax_table)) / ntaxa(d_all_taxo)),
+  "prop_na"   = as.vector(colSums(is.na(d_all_taxo@tax_table)) / ntaxa(d_all_taxo))
+) |>
+  mutate(tax_level = gsub("_.*", "", method_db)) |>
+  mutate(tax_level = substr(tax_level, 1, 1)) |>
+  filter(tax_level %in% c("K", "P", "C", "O", "F", "G", "S")) |>
+  mutate(bootstrap = gsub(".*__", "", method_db)) |>
+  mutate(db = sub(".*__", "", gsub("___.*", "", method_db))) |>
+  mutate(algo = dplyr::case_when(
+    grepl("dada2", method_db)                  ~ "dada2",
+    grepl("sintax", method_db)                 ~ "sintax",
+    grepl("lca", method_db)                    ~ "lca",
+    grepl("blastn", method_db)                 ~ "blastn",
+    grepl("rel_majority_consensus", method_db) ~ "rel_majority_consensus",
+    grepl("preference_consensus", method_db)   ~ "preference_consensus",
+    grepl("unanimity_consensus", method_db)    ~ "unanimity_consensus",
+    TRUE                                       ~ method_db
+  )) |>
+  mutate(
+    db        = ifelse(grepl("consensus", algo), NA, db),
+    bootstrap = ifelse(grepl("consensus", algo), NA, bootstrap)
+  )
+
+prop_fake_taxa <- sum(grepl("external|fake", taxa_names(d_all_taxo))) / ntaxa(d_all_taxo)
+
+df_na |>
+  filter(algo %in% c("unanimity_consensus", "preference_consensus", "rel_majority_consensus")) |>
+  ggplot() +
+  geom_bar(aes(x = prop_na, y = db, fill = db), stat = "identity", position = position_dodge()) +
+  geom_vline(xintercept = prop_fake_taxa) +
+  facet_grid(algo ~ factor(tax_level, levels = c("K", "P", "C", "O", "F", "G", "S"))) +
+  xlim(c(0, 1)) + no_legend()
+
+df_na |>
+  filter(algo %in% single_methods) |>
+  ggplot() +
+  geom_bar(aes(x = prop_na, y = db, fill = db), stat = "identity", position = position_dodge()) +
+  geom_vline(xintercept = prop_fake_taxa) +
+  facet_grid(algo ~ factor(tax_level, levels = c("K", "P", "C", "O", "F", "G", "S"))) +
+  xlim(c(0, 1)) + no_legend()
+```
+
+## Rank columns of interest
+
+```{r ranks-df}
+ranks_df_list <- list()
+for (db_name in c(all_consensus_suffixes, values_map$full_name)) {
+  ranks_df_list[[db_name]] <- paste0(ranks_base, "_", db_name)
+}
+ranks_df <- do.call(data.frame, ranks_df_list)
+
+missing_cols <- setdiff(as.vector(unlist(ranks_df)), colnames(d_all_taxo@tax_table))
+if (length(missing_cols) > 0) {
+  print(missing_cols)
+  stop("Columns expected from values_map / consensus suffixes are missing in d_all_taxo.")
+}
+```
+
+## `tc_metrics_mock()` and M1.1 enrichment
+
+```{r metrics}
+res_comp_tax <- tc_metrics_mock(
+  d_all_taxo,
+  ranks_df = ranks_df,
+  true_values_df = taxo_mock
+)
+
+res_comp_tax <- res_comp_tax |>
+  mutate(bootstrap = gsub(".*__", "", method_db)) |>
+  mutate(algo = gsub("__.*", "", method_db)) |>
+  mutate(db = gsub(".*__", "", gsub("___.*", "", method_db)))
+
+# M1.1: vote_algorithm, bootstrap_num, TAR/TDR aliases
+# (TAR = PPV = TP/(TP+FP); TDR = TPR = TP/(TP+FN)).
+res_comp_tax <- res_comp_tax |>
+  mutate(
+    vote_algorithm = ifelse(
+      algo == "blastn",
+      stringr::str_extract(method_db, "(?<=\\.\\.\\.)[a-z_]+(?=\\.\\.\\.)"),
+      NA_character_
+    ),
+    bootstrap_num = suppressWarnings(
+      as.numeric(stringr::str_extract(bootstrap, "^[0-9.]+"))
+    )
+  )
+
+res_comp_tax <- dplyr::bind_rows(
+  res_comp_tax,
+  res_comp_tax |> filter(metrics == "PPV") |> mutate(metrics = "TAR"),
+  res_comp_tax |> filter(metrics == "TPR") |> mutate(metrics = "TDR")
+)
+
+# Consensus-row metadata: is_consensus, strict flag, nb_agree_threshold value.
+res_comp_tax <- res_comp_tax |>
+  mutate(
+    is_consensus     = !algo %in% single_methods,
+    consensus_strict = is_consensus & grepl("_strict_", method_db),
+    nb_agree         = dplyr::case_when(
+      grepl("_nb2_", method_db) ~ 2L,
+      grepl("_nb3_", method_db) ~ 3L,
+      TRUE ~ 1L
+    )
+  )
+```
+
+# Hand over to the next chapters
+
+```{r cache}
+cache_write(d_all_taxo,   "d_all_taxo")
+cache_write(taxo_mock,    "taxo_mock")
+cache_write(res_comp_tax, "res_comp_tax")
+cache_write(ranks_df,     "ranks_df")
+```
+
+# Exploratory views (not in the manuscript)
+
+```{r explore-metrics}
+plot_tc_metrics_mock(res_comp_tax, metric = "ACC", modality_x = "tax_level") + no_legend()
+
+plot_tc_metrics_mock(res_comp_tax, modality_x = "algo", modality_line = "metrics",
+                     modality_column = "tax_level", modality_fill = "db")
+
+for (m in c("FP", "MCC", "F1_score", "ACC")) {
+  print(
+    plot_tc_metrics_mock(res_comp_tax, metric = m, modality_x = "db", modality_line = "algo",
+                         modality_column = "tax_level", modality_fill = "bootstrap") +
+      coord_flip() + geom_hline(yintercept = 1) + geom_hline(yintercept = 0, linewidth = 0.2)
+  )
+}
+```
+
+```{r explore-per-db}
+res_comp_tax |>
+  filter(metrics %in% c("ACC", "F1_score", "MCC")) |>
+  filter(bootstrap == 0.5 | grepl("consensus", algo) | algo == "blastn") |>
+  filter(tax_level %in% c("Class", "Order", "Family", "Genus", "Gen_sp")) |>
+  plot_tc_metrics_mock(modality_x = "tax_level", modality_line = "metrics",
+                       modality_column = "algo", modality_fill = "db")
+
+for (one_db in c("Unite", "Unite_Fungi", "EUK_ITS_v2")) {
+  print(
+    res_comp_tax |>
+      filter(metrics %in% c("ACC", "F1_score", "MCC", "FP", "FN")) |>
+      filter(tax_level %in% c("Class", "Order", "Family", "Genus", "Gen_sp")) |>
+      filter(db == one_db) |>
+      plot_tc_metrics_mock(modality_x = "bootstrap", modality_line = "metrics",
+                           modality_column = "tax_level", modality_fill = "algo") +
+      ggtitle(one_db)
+  )
+}
+```
+
+```{r explore-tpr-tnr}
+res_comp_tax |>
+  filter(metrics %in% c("TPR", "TNR")) |>
+  mutate(db_unite = ifelse(grepl("Unite", method_db), "Unite", "Euk")) |>
+  filter(bootstrap == 0.5) |>
+  filter(!tax_level %in% c("Kingdom", "Phylum", "Class", "Gen_sp")) |>
+  pivot_wider(names_from = metrics, values_from = values) |>
+  ggplot(aes(x = TPR, y = TNR, pch = algo, color = db)) +
+  geom_point(size = 3, alpha = 0.8) +
+  xlim(c(0.4, 1)) + ylim(c(0.4, 1)) +
+  facet_wrap(db_unite ~ tax_level)
+
+p <- res_comp_tax |>
+  filter(metrics %in% c("TPR", "TNR")) |>
+  group_by(method_db) |>
+  pivot_wider(names_from = metrics, values_from = values) |>
+  summarise(
+    TPR_mean = mean(TPR),
+    TNR_mean = mean(TNR),
+    TPR_sd = var(TPR),
+    TNR_sd = var(TNR)
+  ) |>
+  mutate(bootstrap = gsub(".*__", "", method_db)) |>
+  mutate(algo = gsub("__.*", "", method_db)) |>
+  mutate(db = gsub(".*__", "", gsub("___.*", "", method_db))) |>
+  mutate(db_unite = ifelse(grepl("Unite", method_db), "Unite", "Euk")) |>
+  ggplot(aes(x = TPR_mean, y = TNR_mean, color = algo)) +
+  geom_point()
+
+p +
+  geom_segment(aes(x = TPR_mean, y = TNR_mean - TNR_sd, yend = TNR_mean + TNR_sd), alpha = 0.5) +
+  geom_segment(aes(y = TNR_mean, x = TPR_mean - TPR_sd, xend = TPR_mean + TPR_sd), alpha = 0.5) +
+  ggrepel::geom_label_repel(
+    data = subset(p$data, grepl("consensus", method_db) | TNR_mean > 0.85 | TPR_mean > 0.85),
+    aes(label = method_db), size = 2, max.overlaps = 10, force = 3
+  ) +
+  xlim(c(0.5, 1)) + ylim(c(0.5, 1)) + facet_wrap(db_unite ~ .)
+```
+
+```{r explore-tc-bar}
+tc_bar(d_all_taxo,
+       rank_1 = paste0("Family_", preference_pattern),
+       rank_2 = "Family_sintax__Unite___0.5",
+       color_rank = paste0("Genus_", preference_pattern))
+
+tc_circle(d_all_taxo,
+          "Family_sintax__Unite___0.5",
+          paste0("Family_", preference_pattern))
+```

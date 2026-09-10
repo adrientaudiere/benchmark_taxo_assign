@@ -1,0 +1,96 @@
+---
+title: "Sandbox — distance to the true community"
+author: "Adrien Taudière"
+---
+
+Work in progress (ROADMAP: "Finalize distance-to-true-community metric").
+Moved from the "En chantier" section of the former `benchmark.qmd`; not part
+of the project render. Builds, per sample, a presence/absence matrix of the
+`Gen_sp_*` calls of every method against the mock truth, then compares them
+with Jaccard / Bray-Curtis distances and UpSet plots. Candidate for
+`tidypq::pq_to_tidy()` (ROADMAP S5.1).
+
+```{r setup}
+here::i_am("analysis/sandbox/distance_to_true_community.qmd")  # _quarto.yml would otherwise make here() root = analysis/
+source(here::here("analysis/00_setup.R"))
+d_all_taxo <- cache_read("d_all_taxo")
+taxo_mock  <- cache_read("taxo_mock")
+```
+
+## Community matrices per sample
+
+```{r mat-com}
+distinct_species_taxo_mock <- distinct(taxo_mock, Gen_sp)
+
+mat_com_interm <- d_all_taxo |>
+  psmelt() |>
+  select(OTU, Sample, Abundance, contains("Gen_sp")) |>
+  filter(Abundance > 0) |>
+  full_join(tibble(
+    "Sample"      = rep("TRUE_sample", nrow(distinct_species_taxo_mock)),
+    "Abundance"   = rep(1, nrow(distinct_species_taxo_mock)),
+    "Gen_sp_true" = distinct_species_taxo_mock$Gen_sp
+  ))
+
+mat_com <- mat_com_interm |>
+  pivot_longer(contains("Gen_sp")) |>
+  filter(!is.na(value)) |>
+  pivot_wider(names_from = name, values_from = Abundance) |>
+  mutate(across(contains("Gen_sp"), ~ tidyr::replace_na(., 0))) |>
+  group_by(Sample, value) |>
+  summarise(across(contains("Gen_sp"), ~ sum(.)), .groups = "drop")
+
+mat_com_true <- mat_com |>
+  filter(Sample == "TRUE_sample") |>
+  select(value, Gen_sp_true)
+
+one_sample_matrix <- function(sample_name) {
+  mat_com |>
+    filter(Sample == sample_name) |>
+    group_by(value) |>
+    select(contains("Gen_sp")) |>
+    mutate(val = across(contains("Gen_sp"), ~ ifelse(. == 0, 0, 1)))
+}
+
+mat_comA <- one_sample_matrix("samp_ITSEnz_DikA")
+mat_comB <- one_sample_matrix("samp_ITSEnz_DikB")
+mat_comC <- one_sample_matrix("samp_ITSEnz_DikC")
+```
+
+## Distance between communities
+
+```{r distances}
+compar <- full_join(mat_comA[, 1:2], mat_com_true) |>
+  mutate(across(everything(), ~ tidyr::replace_na(., 0))) |>
+  column_to_rownames("value")
+
+vegan::vegdist(t(compar), binary = TRUE)
+vegan::vegdist(t(compar), binary = FALSE)
+```
+
+## UpSet plots
+
+```{r upset}
+upset_df <- function(mat_com_x) {
+  full_join(mat_com_x, mat_com_true, by = join_by(value == value)) |>
+    column_to_rownames("value") |>
+    select(contains("Gen_sp")) |>
+    mutate(across(everything(), ~ ifelse(. == 0, FALSE, TRUE))) |>
+    as_tibble() |>
+    mutate(across(everything(), ~ tidyr::replace_na(.x, FALSE)))
+}
+
+data_upset_df_comA <- upset_df(mat_comA)
+data_upset_df_comB <- upset_df(mat_comB)
+data_upset_df_comC <- upset_df(mat_comC)
+
+ComplexUpset::upset(data_upset_df_comA, intersect = colnames(data_upset_df_comA), min_size = 2)
+ComplexUpset::upset(data_upset_df_comB, intersect = colnames(data_upset_df_comB), min_size = 2)
+ComplexUpset::upset(data_upset_df_comC, intersect = colnames(data_upset_df_comC), min_size = 2)
+```
+
+## Root mean square error (RMSE)
+
+To do. See also
+https://adriancorrendo.github.io/metrica/articles/classification_case.html
+(`metrica::confusion_matrix`).

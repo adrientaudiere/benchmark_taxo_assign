@@ -19,11 +19,10 @@ library("miaSim")
 
 conflicted::conflicts_prefer(dplyr::filter)
 
-here::i_am("In_silico_simulation.qmd")
+here::i_am("analysis/in_silico_simulation.qmd")
 source(here("config.R"))
-devtools::load_all("~/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/MiscMetabar/")
-source("~/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/comparpq/R/compare_taxo.R")
-source("~/Nextcloud/IdEst/Projets/pqverse/pqverse_pkg/comparpq/R/fake_creation.R")
+source(here("R/load_pqverse.R"))
+load_pqverse(c("MiscMetabar", "comparpq"))
 ```
 
 # Overview
@@ -96,12 +95,15 @@ Outputs: `data/data_raw/insilico/iss_seed{1,2,3}_R{1,2}.fastq.gz`
 
 ## Step 3 — Process with existing DADA2 + assignment pipeline
 
-Once fastqs exist, point `script_dada2.R` and `script_assign_taxo_parallel.R` at
-`data/data_raw/insilico/` (adapting sample metadata) and run with dedicated stores:
+Once fastqs exist, add two projects to `_targets.yaml` (`dada2_insilico`,
+`assign_taxo_insilico`) reusing `pipelines/dada2.R` and
+`pipelines/assign_taxo.R` with dedicated stores, point the raw-read folder
+and sample metadata at `data/data_raw/insilico/` (a per-dataset switch in
+`config.R` is still to be designed, see ROADMAP D1d), then:
 
 ```r
-tar_make(script = "script_dada2.R",                store = "store_dada2_insilico")
-tar_make(script = "script_assign_taxo_parallel.R", store = "store_assign_taxo_insilico")
+Sys.setenv(TAR_PROJECT = "dada2_insilico");       targets::tar_make()
+Sys.setenv(TAR_PROJECT = "assign_taxo_insilico"); targets::tar_make()
 ```
 
 The truth table for D1b-A is built in the same way as D1b-B below (parse taxonomy

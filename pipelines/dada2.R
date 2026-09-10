@@ -1,24 +1,32 @@
+# DADA2 denoising of the mock-community fastqs -> d_asv (plus OTU variants).
+#
+# Run with:
+#   Sys.setenv(TAR_PROJECT = "dada2"); targets::tar_make()
+# Requires cutadapt in the `cutadaptenv` conda env (config.R) and vsearch on
+# PATH. Single-process pipeline (no crew controller).
+
 library("conflicted")
-library("MiscMetabar")
 library("targets")
 library("tarchetypes")
 library("here")
 library("tibble")
 library("tidyr")
-library("autometric")
+# dada2 is an Import (not a Depends) of MiscMetabar; the bare derepFastq(),
+# learnErrors(), dada(), mergePairs(), makeSequenceTable(), assignTaxonomy()
+# calls below need it attached.
+library("dada2")
 
-if (tar_active()) {
-  log_start(path = "data/data_final/autometric_log_dada2.txt", seconds = 1)
-}
-
-here::i_am("script_dada2.R")
+here::i_am("pipelines/dada2.R")
 source(here("config.R"))
-source(here("R/functions.R"))
-lapply(list.files("~/Nextcloud/IdEst/Projets/MiscMetabar/R/", full.names = TRUE),
-       source)
+source(here("R/load_pqverse.R"))
+source(here("R/create_fake_pq_from_refseq.R"))
+source(here("R/autometric_helpers.R"))
+load_pqverse("MiscMetabar")
 
 tar_option_set(seed = targets_seed)
 
+# One autometric log file per phase and per run (see R/autometric_helpers.R).
+autometric_dir_dada2 <- here("data/data_final/autometric/dada2")
 
 tar_plan(
   tar_target(
@@ -28,7 +36,7 @@ tar_plan(
   ),
   tar_target(
     name = file_refseq_taxo,
-    command = here("data/data_raw/refseq/", refseq_file_name),
+    command = here("data/data_raw/refseq/dada2_format", refseq_file_name),
     format = "file"
   ),
   tar_target(
@@ -56,8 +64,8 @@ tar_plan(
   ## > Remove primers
   tar_target(
     cutadapt,
-    {
-      autometric::log_phase_set("cutadapt")
+    with_autometric(
+      "cutadapt",
       cutadapt_remove_primers(
         path_to_fastq = fastq_files_folder,
         pattern = "fastq",
@@ -67,14 +75,15 @@ tar_plan(
         nproc = n_threads,
         return_file_path = TRUE,
         args_before_cutadapt = cutadapt_conda_prelude
-      )
-    },
+      ),
+      dir = autometric_dir_dada2
+    ),
     format = "file"
   ),
   tar_target(data_raw, {
     cutadapt
     list_fastq_files(path = here::here("data/data_intermediate/seq_wo_primers/"),
-                     pattern_R1="_R1",
+                     pattern_R1 = "_R1",
                      pattern_R2 = "_R2")
   }),
 
@@ -84,27 +93,20 @@ tar_plan(
   ### Pre-filtered data with low stringency
   tar_target(
     filtered,
-    {
-      autometric::log_phase_set("filtered")
+    with_autometric(
+      "filtered",
       filter_trim(
-        output_fw = paste(
-          getwd(),
-          here("/data/data_intermediate/filterAndTrim_fwd"),
-          sep = ""
-        ),
-        output_rev = paste(
-          getwd(),
-          here("/data/data_intermediate/filterAndTrim_rev"),
-          sep = ""
-        ),
+        output_fw = here("data/data_intermediate/filterAndTrim_fwd"),
+        output_rev = here("data/data_intermediate/filterAndTrim_rev"),
         fw = data_fnfs,
         rev = data_fnrs,
         multithread = n_threads,
         compress = TRUE,
         trimLeft = 1,
         trimRight = 1
-      )
-    }
+      ),
+      dir = autometric_dir_dada2
+    )
   ),
 
   ### Dereplicate fastq files
@@ -113,35 +115,27 @@ tar_plan(
   ### Learns the error rates
   tar_target(
     err_fs,
-    {
-      autometric::log_phase_set("err_fs")
-      learnErrors(derep_fs, multithread = n_threads)
-    },
+    with_autometric("err_fs", learnErrors(derep_fs, multithread = n_threads),
+                    dir = autometric_dir_dada2),
     format = "qs"
   ),
   tar_target(
     err_rs,
-    {
-      autometric::log_phase_set("err_rs")
-      learnErrors(derep_rs, multithread = n_threads)
-    },
+    with_autometric("err_rs", learnErrors(derep_rs, multithread = n_threads),
+                    dir = autometric_dir_dada2),
     format = "qs"
   ),
   ### Make amplicon sequence variants
   tar_target(
     ddF,
-    {
-      autometric::log_phase_set("ddF")
-      dada(derep_fs, err_fs, multithread = n_threads)
-    },
+    with_autometric("ddF", dada(derep_fs, err_fs, multithread = n_threads),
+                    dir = autometric_dir_dada2),
     format = "qs"
   ),
   tar_target(
     ddR,
-    {
-      autometric::log_phase_set("ddR")
-      dada(derep_rs, err_rs, multithread = n_threads)
-    },
+    with_autometric("ddR", dada(derep_rs, err_rs, multithread = n_threads),
+                    dir = autometric_dir_dada2),
     format = "qs"
   ),
   ### Merge paired sequences
@@ -168,6 +162,7 @@ tar_plan(
   tar_target(seqtab, seqtab_wo_chimera[, nchar(colnames(seqtab_wo_chimera)) >= seq_len_min]),
 
   ## > Load sample data and rename samples
+  ## (candidate for tidypq::rename_samples_pq() / filter_samples_pq(), ROADMAP S5.2)
   tar_target(
     sam_tab,
     rename_samples(
@@ -186,16 +181,17 @@ tar_plan(
     taxa_are_rows = FALSE
   )),
 
+  ## > Seed taxonomy (the benchmark itself re-assigns in store_assign_taxo)
   tar_target(
     tax_tab,
-    {
-      autometric::log_phase_set("tax_tab")
+    with_autometric(
+      "tax_tab",
       assignTaxonomy(
         seqtab,
         refFasta = file_refseq_taxo,
         taxLevels = c(
           "Kingdom",
-          "Phyla",
+          "Phylum",
           "Class",
           "Order",
           "Family",
@@ -203,11 +199,12 @@ tar_plan(
           "Species"
         ),
         multithread = n_threads
-      )
-    }
+      ),
+      dir = autometric_dir_dada2
+    )
   ),
 
-  ## > Create the phyloseq object 'data_phyloseq' with
+  ## > Create the phyloseq object 'd_asv' with
   ###   (i) table of asv,
   ###   ii) taxonomic table,
   ###   (iii) sample data and
@@ -223,7 +220,7 @@ tar_plan(
     d_asv,
     method = "vsearch", tax_adjust = 0
   )),
-  ## > Create post-clustering ASV into OTU using vsearch
+  ## > Create post-clustering ASV into OTU using clusterize
   tar_target(d_idtaxa, asv2otu(
     d_asv,
     method = "clusterize", tax_adjust = 0
@@ -255,21 +252,20 @@ tar_plan(
   tar_target(
     benchmark_costs_dada2,
     {
-      track_df  # force aggregation after all pipeline targets complete
-      log_df <- autometric::log_read(
-        here("data/data_final/autometric_log_dada2.txt")
+      track_df # aggregate only once every logged phase has run
+      read_autometric_dir(autometric_dir_dada2) |>
+        summarise_autometric_costs()
+    }
+  ),
+
+  tar_target(
+    session_info,
+    {
+      track_df
+      list(
+        pqverse = pqverse_versions(),
+        session = sessioninfo::session_info()
       )
-      log_df |>
-        dplyr::filter(!is.na(phase), phase != "") |>
-        dplyr::group_by(phase) |>
-        dplyr::summarise(
-          wall_time_s      = as.numeric(max(time) - min(time)),
-          peak_resident_mb = max(resident, na.rm = TRUE),
-          mean_cpu_pct     = mean(cpu, na.rm = TRUE),
-          n_samples        = dplyr::n(),
-          .groups = "drop"
-        )
     }
   )
 )
-

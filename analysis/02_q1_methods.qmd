@@ -1,0 +1,179 @@
+---
+title: "02 — Q1: algorithm and parameters"
+author: "Adrien Taudière"
+---
+
+Effect of the classification algorithm and its parameters on the mock
+community. Figures: Q1.2 (per-rank × method), Q1.3 (bootstrap sweep), Q1.4
+(blastn vote sweep); tables: Q1.6 (means and win matrix), Q1.7 (mixed model).
+
+```{r setup}
+here::i_am("analysis/02_q1_methods.qmd")  # _quarto.yml would otherwise make here() root = analysis/
+source(here::here("analysis/00_setup.R"))
+res_comp_tax <- cache_read("res_comp_tax")
+```
+
+## Q1.2 — Per-rank × method (ACC, F1, MCC)
+
+Comparing the four methods at bootstrap 0.5; blastn shown with `rel_majority`
+vote (the default; see Q1.4 for the vote-algorithm sweep).
+
+```{r q1-2}
+fig_q1_data <- res_comp_tax |>
+  filter(metrics %in% c("ACC", "F1_score", "MCC")) |>
+  filter_default_settings() |>
+  mutate(tax_level = factor(tax_level, levels = tax_order))
+
+fig_q1_methods <- fig_q1_data |>
+  ggplot(aes(x = algo, y = values, fill = db)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_grid(metrics ~ tax_level) +
+  labs(x = "Method", y = "Value", fill = "Database") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+save_fig(fig_q1_methods, "fig_q1_methods", width = 16, height = 7)
+```
+
+## Q1.3 — Bootstrap sweep (dada2 & sintax)
+
+F1 and MCC across `min_bootstrap ∈ {0.4, 0.5, 0.6}` per rank.
+
+```{r q1-3}
+fig_q1_bootstrap_data <- res_comp_tax |>
+  filter(metrics %in% c("F1_score", "MCC")) |>
+  filter(algo %in% c("dada2", "sintax")) |>
+  filter(!startsWith(db, "mini_")) |>
+  mutate(tax_level = factor(tax_level, levels = tax_order))
+
+fig_q1_bootstrap <- fig_q1_bootstrap_data |>
+  ggplot(aes(x = factor(bootstrap_num), y = values, fill = db)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_grid(metrics + algo ~ tax_level) +
+  labs(x = "Min bootstrap", y = "Value", fill = "Database") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+save_fig(fig_q1_bootstrap, "fig_q1_bootstrap", width = 16, height = 9)
+```
+
+## Q1.4 — Blastn vote-algorithm sweep
+
+F1 and MCC across `c("rel_majority", "abs_majority", "unanimity")` per rank × DB.
+
+```{r q1-4}
+fig_q1_blastn_data <- res_comp_tax |>
+  filter(metrics %in% c("F1_score", "MCC")) |>
+  filter(algo == "blastn") |>
+  filter(!startsWith(db, "mini_")) |>
+  mutate(tax_level = factor(tax_level, levels = tax_order))
+
+fig_q1_blastn <- fig_q1_blastn_data |>
+  ggplot(aes(x = vote_algorithm, y = values, fill = db)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_grid(metrics ~ tax_level) +
+  labs(x = "Vote algorithm", y = "Value", fill = "Database") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+save_fig(fig_q1_blastn, "fig_q1_blastn_vote", width = 16, height = 7)
+```
+
+## Q1.6 — Per-rank method comparison table and win matrix
+
+```{r q1-6-table}
+method_summary_tbl <- res_comp_tax |>
+  filter(metrics %in% c("F1_score", "ACC")) |>
+  filter_default_settings() |>
+  group_by(tax_level, algo, metrics) |>
+  summarise(
+    mean_val = round(mean(values, na.rm = TRUE), 3),
+    sd_val   = round(sd(values, na.rm = TRUE), 3),
+    .groups  = "drop"
+  ) |>
+  mutate(mean_sd = paste0(mean_val, " (±", sd_val, ")")) |>
+  pivot_wider(
+    id_cols     = c(tax_level, algo),
+    names_from  = metrics,
+    values_from = mean_sd
+  ) |>
+  mutate(tax_level = factor(tax_level, levels = tax_order)) |>
+  arrange(tax_level, algo)
+
+knitr::kable(
+  method_summary_tbl,
+  col.names = c("Rank", "Method", "ACC", "F1"),
+  caption   = "Mean (±sd) F1 and ACC per method × rank (bootstrap = 0.5, averaged across DBs)"
+)
+```
+
+```{r q1-6-wins}
+win_matrix_tbl <- res_comp_tax |>
+  filter(metrics == "F1_score") |>
+  filter_default_settings() |>
+  group_by(tax_level, db) |>
+  slice_max(values, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  count(tax_level, algo, name = "n_wins") |>
+  pivot_wider(
+    names_from  = algo,
+    values_from = n_wins,
+    values_fill = 0L
+  ) |>
+  mutate(tax_level = factor(tax_level, levels = tax_order)) |>
+  arrange(tax_level)
+
+knitr::kable(
+  win_matrix_tbl,
+  caption = "Win matrix: number of DBs where each method achieves highest F1 per rank (bootstrap = 0.5)"
+)
+```
+
+## Q1.7 — Statistical test: F1 ~ method + (1|db) per rank
+
+Linear mixed model with DB as random intercept, testing whether the method
+fixed effect explains significant variance in F1 (LRT vs. null model). Requires
+`lme4`.
+
+```{r q1-7}
+lmm_res_list <- lapply(
+  intersect(tax_order, unique(res_comp_tax$tax_level)),
+  function(rank) {
+    dat <- res_comp_tax |>
+      filter(metrics == "F1_score", tax_level == rank) |>
+      filter_default_settings()
+    if (nrow(dat) < 8 || dplyr::n_distinct(dat$db) < 3) {
+      return(NULL)
+    }
+    tryCatch({
+      m_full <- lme4::lmer(values ~ algo + (1 | db), data = dat, REML = FALSE)
+      m_null <- lme4::lmer(values ~ 1 + (1 | db), data = dat, REML = FALSE)
+      lrt    <- anova(m_null, m_full)
+      tibble::tibble(
+        tax_level = rank,
+        LRT_chisq = round(lrt$Chisq[2], 3),
+        df        = as.integer(lrt[["Chi Df"]][2]),
+        p_value   = round(lrt[["Pr(>Chisq)"]][2], 4),
+        signif    = dplyr::case_when(
+          lrt[["Pr(>Chisq)"]][2] < 0.001 ~ "***",
+          lrt[["Pr(>Chisq)"]][2] < 0.01  ~ "**",
+          lrt[["Pr(>Chisq)"]][2] < 0.05  ~ "*",
+          TRUE ~ ""
+        )
+      )
+    }, error = function(e) {
+      tibble::tibble(tax_level = rank, LRT_chisq = NA_real_,
+                     df = NA_integer_, p_value = NA_real_, signif = "ERROR")
+    })
+  }
+)
+
+lmm_results <- dplyr::bind_rows(lmm_res_list) |>
+  mutate(tax_level = factor(tax_level, levels = tax_order)) |>
+  arrange(tax_level)
+
+knitr::kable(
+  lmm_results,
+  caption = "LRT: F1 ~ method + (1|db) vs. null (1|db) per rank. *** p<0.001, ** p<0.01, * p<0.05."
+)
+```
