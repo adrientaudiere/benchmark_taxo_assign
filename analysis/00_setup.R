@@ -26,12 +26,24 @@ load_pqverse(c("MiscMetabar", "comparpq", "dbpq", "greenAlgoR", "tidypq"))
 
 # ---- stores and directories ------------------------------------------------
 
-store_assign_taxo <- here("store_assign_taxo")
-store_cross_val   <- here("store_cross_val")
-figures_dir       <- here("figures")
-cache_dir         <- here("analysis/_cache")
-dir.create(figures_dir, showWarnings = FALSE)
-dir.create(cache_dir,   showWarnings = FALSE)
+# BENCHMARK_ANALYSIS_MINI=TRUE renders the chapters on the smoke-test stores
+# of the *_mini targets projects, with their own cache and figure folders, so
+# mini results can never overwrite production figures:
+#   BENCHMARK_ANALYSIS_MINI=TRUE quarto render analysis/01_load_and_clean.qmd
+analysis_mini <- as.logical(Sys.getenv("BENCHMARK_ANALYSIS_MINI", unset = "FALSE"))
+if (is.na(analysis_mini)) {
+  stop("BENCHMARK_ANALYSIS_MINI must be TRUE or FALSE.")
+}
+variant_suffix <- if (analysis_mini) "_mini" else ""
+
+store_assign_taxo <- here(paste0("store_assign_taxo", variant_suffix))
+store_cross_val   <- here(paste0("store_cross_val", variant_suffix))
+figures_dir       <- if (analysis_mini) here("figures/mini") else here("figures")
+cache_dir         <- if (analysis_mini) here("analysis/_cache/mini") else here("analysis/_cache")
+dir.create(figures_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(cache_dir,   showWarnings = FALSE, recursive = TRUE)
+message("analysis: ", if (analysis_mini) "MINI" else "production",
+        " stores (", basename(store_assign_taxo), ", ", basename(store_cross_val), ")")
 
 # Same grid as pipelines/assign_taxo.R: only the column-name machinery
 # (full_name, method, db, ...) is used here, never db_path.
@@ -41,13 +53,14 @@ values_map <- build_values_map(dbs = db_list)
 
 tax_order      <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Gen_sp")
 single_methods <- c("dada2", "sintax", "lca", "blastn")
+# One point shape per database: ggplot's default shape palette stops at 6
+# values and silently drops the points of the other databases.
+db_shapes <- setNames(c(16, 17, 15, 18, 1, 2, 0, 5)[seq_along(db_list)], db_list)
 
 # (method, db, bootstrap) column preferred by the `preference` consensus
-# strategy (Q3.5). Must be one of values_map$full_name.
-preference_pattern <- "sintax__EUK_ITS_v2___0.5"
+# strategy (Q3.5); preference_method and preference_db come from config.R.
+preference_pattern <- full_name_for(preference_method, preference_db, 0.5)
 stopifnot(preference_pattern %in% values_map$full_name)
-preference_method  <- "sintax"
-preference_db      <- "EUK_ITS_v2"
 
 # ---- helpers ---------------------------------------------------------------
 
@@ -66,8 +79,9 @@ filter_default_settings <- function(res) {
 
 # Write a figure as pdf + png (300 dpi) under figures/ and return it invisibly.
 save_fig <- function(plot, name, width, height, dpi = 300) {
+  # cairo_pdf: the default pdf device replaces non-ASCII labels such as → and −.
   ggsave(file.path(figures_dir, paste0(name, ".pdf")), plot,
-         width = width, height = height)
+         width = width, height = height, device = cairo_pdf)
   ggsave(file.path(figures_dir, paste0(name, ".png")), plot,
          width = width, height = height, dpi = dpi)
   invisible(plot)

@@ -6,7 +6,7 @@
 # keep each fold small.
 
 CV_unite <- cross_val(
-  ref_fasta = "data/data_raw/refseq/sintax_format/Unite.fasta",
+  ref_fasta = "data/data_raw/refseq/sintax_format/Unite_s_all_20250219.fasta",
   method = "sintax",
   verbose = TRUE,
   fold_number = 1000,
@@ -17,7 +17,7 @@ CV_unite <- cross_val(
 )
 
 CV_eukF <- cross_val(
-  ref_fasta = "data/data_raw/refseq/sintax_format/EUK_ITS_v1_9_3_Fungi.fasta",
+  ref_fasta = "data/data_raw/refseq/sintax_format/EUK_ITS_v2.1_Fungi.fasta",
   method = "sintax",
   verbose = TRUE,
   fold_number = 1000,
@@ -28,7 +28,7 @@ CV_eukF <- cross_val(
 )
 
 CV_unite_minboot <- cross_val(
-  ref_fasta = "data/data_raw/refseq/sintax_format/Unite.fasta",
+  ref_fasta = "data/data_raw/refseq/sintax_format/Unite_s_all_20250219.fasta",
   method = "sintax",
   verbose = TRUE,
   fold_number = 10000,
@@ -39,7 +39,7 @@ CV_unite_minboot <- cross_val(
 )
 
 CV_unite_blast <- cross_val(
-  ref_fasta = "data/data_raw/refseq/sintax_format/Unite.fasta",
+  ref_fasta = "data/data_raw/refseq/sintax_format/Unite_s_all_20250219.fasta",
   method = "blastn",
   verbose = TRUE,
   fold_number = 500,

@@ -14,7 +14,10 @@ project:
     - "in_silico_simulation.qmd"
 
 execute:
-  freeze: auto
+  # No freeze: chapters exchange data through analysis/_cache/ and switch
+  # stores with BENCHMARK_ANALYSIS_MINI, neither of which Quarto can see, so a
+  # frozen chapter could silently show results from another store.
+  freeze: false
   warning: false
   message: false
 

@@ -46,6 +46,30 @@ cross_val_param <- function(..., min_bootstrap = c(0.4, 0.5, 0.6)) {
 #'   value of minimum_bootstrap are used and return in the output data frames.
 #' @param compute_by_tax_level
 #' @param verbose
+#' @param max_seq (int) Size of the random subsample of the database (NULL:
+#'   every record). With trimmed queries, the number of queries.
+#' @param primer_fw,primer_rev (character) Primers of the amplicon. When both
+#'   are set, the queries are trimmed with trim_cv_queries() (R/cv_queries.R)
+#'   and the records without the reverse-primer site are never queried: they
+#'   stay in the training part, which keeps full-length records.
+#' @param primer_min_overlap (int) cutadapt minimum overlap (-O) for the
+#'   trimming.
+#' @param oversample (numeric, default 2) Records drawn per wanted query when
+#'   the queries are trimmed.
+#' @param cutadapt_prelude (character) Shell prelude activating cutadapt (NULL:
+#'   the dbpq default).
+#' @param query_fasta (character, default NULL) Fasta from which the queries
+#'   are drawn and trimmed when the records of ref_fasta no longer hold the
+#'   primer sites (the _Fungi source of a _Fungi_cut database). Queries are
+#'   paired by name with the ref_fasta records, and a query whose amplicon
+#'   differs from its paired record is dropped. NULL or ref_fasta: the queries
+#'   come from ref_fasta.
+#' @param id_fasta,query_id_fasta (character, default NULL) sintax-format
+#'   fasta holding the same records as ref_fasta (query_fasta) in the same
+#'   order. When it differs from ref_fasta (a dada2-format file, whose headers
+#'   are the taxonomy only), the records are named by its identifiers, so that
+#'   records sharing a taxonomy are not deduplicated; the dada2 headers are
+#'   kept for the truth table and the training fasta (ROADMAP B22).
 #' #TODO complete documentation 
 #'
 #' @returns
@@ -66,9 +90,29 @@ cross_val <- function(ref_fasta,
                       nproc = 1,
                       max_seq = NULL,
                       min_seq_length = 50L,
+                      primer_fw = NULL,
+                      primer_rev = NULL,
+                      primer_min_overlap = NULL,
+                      oversample = 2,
+                      cutadapt_prelude = NULL,
+                      query_fasta = NULL,
+                      id_fasta = NULL,
+                      query_id_fasta = NULL,
                       ...) {
   dna <- Biostrings::readDNAStringSet(ref_fasta)
   method <- match.arg(method)
+
+  # dada2-format headers are the taxonomy only: without identifiers, the name
+  # deduplication below kept one record per taxonomy string for dada2 until
+  # 2026-09-15 (ROADMAP B22). The records are named by the identifiers of
+  # id_fasta and the dada2 headers are kept aside in `headers`.
+  headers <- NULL
+  if (!is.null(id_fasta) &&
+      normalizePath(id_fasta) != normalizePath(ref_fasta)) {
+    ids <- record_ids(id_fasta, widths = Biostrings::width(dna))
+    headers <- stats::setNames(names(dna), ids)
+    names(dna) <- ids
+  }
 
   if (!is.null(min_seq_length)) {
     dna <- dna[Biostrings::width(dna) >= min_seq_length]
@@ -76,63 +120,141 @@ cross_val <- function(ref_fasta,
 
   dna <- dna[!duplicated(names(dna))]
 
-  if (!is.null(max_seq) && length(dna) > max_seq) {
-    dna <- dna[sample(length(dna), max_seq)]
-  }
-
-  if (length(dna) < fold_number) {
-    stop(
-      "Only ", length(dna), " sequences remain after length filtering ",
-      "(min_seq_length=", min_seq_length, "); need at least fold_number=",
-      fold_number, ". The reference database may be unsuitable for this method."
-    )
-  }
-
   if (!method %in% c("sintax", "dada2") && length(min_bootstrap) > 1) {
     stop("min_bootstrap must be set to one value (not a vector) exept if method
          is set to 'sintax' or 'dada2'")
   }
+  # The seed is set before the subsample is drawn (before 2026-09-15 the
+  # subsample followed the targets seed, not `seed`; ROADMAP S8.6).
   if (!is.null(seed)) {
     set.seed(seed)
     newseed <- round(runif(1, 1, 1e+09))
     on.exit(set.seed(newseed))
   }
 
-  dna_shuffled <- dna[sample(length(dna)), ]
-  folds <- cut(seq(1, length(dna_shuffled)), breaks = fold_number, labels = FALSE)
+  # Trimmed queries (ROADMAP D1a, 2026-09-15): the drawn records are cut with
+  # cutadapt and the subsample stops at the max_seq-th record holding the
+  # reverse-primer site. The training part always gets the ref_fasta records.
+  # A _Fungi_cut database no longer holds the primer sites: its queries are
+  # drawn and trimmed from query_fasta (its _Fungi source) and paired by name
+  # with the ref_fasta records; the trimmed query must equal its paired record.
+  trim_queries <- !is.null(primer_fw) && !is.null(primer_rev)
+  if (!is.null(query_fasta) &&
+      normalizePath(query_fasta) == normalizePath(ref_fasta)) {
+    query_fasta <- NULL
+  }
+  if (!is.null(query_fasta) && !trim_queries) {
+    stop("query_fasta is only used when primer_fw and primer_rev are set.")
+  }
+  if (is.null(query_fasta)) {
+    pool_names <- names(dna)
+  } else {
+    query_index <- Biostrings::fasta.index(query_fasta)
+    query_index$id <- query_index$desc
+    if (!is.null(headers)) {
+      query_index$id <- record_ids(query_id_fasta, widths = query_index$seqlength)
+    }
+    query_index <- query_index[
+      !duplicated(query_index$id) & query_index$id %in% names(dna),
+    ]
+    pool_names <- query_index$id
+  }
+  if (!is.null(max_seq) && length(pool_names) > max_seq) {
+    n_draw <- if (trim_queries) {
+      min(length(pool_names), ceiling(oversample * max_seq))
+    } else {
+      max_seq
+    }
+    pool_names <- pool_names[sample(length(pool_names), n_draw)]
+  }
+  if (is.null(query_fasta)) {
+    source_dna <- dna[match(pool_names, names(dna))]
+  } else {
+    # Rows read in file order, then named by identifier and put back in the
+    # drawn order (dada2 headers are not unique, so names cannot be matched).
+    rows <- sort(match(pool_names, query_index$id))
+    source_dna <- Biostrings::readDNAStringSet(query_index[rows, ])
+    names(source_dna) <- query_index$id[rows]
+    source_dna <- source_dna[match(pool_names, names(source_dna))]
+  }
+  if (trim_queries) {
+    queries <- trim_cv_queries(
+      source_dna,
+      primer_fw = primer_fw,
+      primer_rev = primer_rev,
+      min_overlap = primer_min_overlap,
+      nproc = nproc,
+      prelude = cutadapt_prelude
+    )
+    if (!is.null(min_seq_length)) {
+      queries <- queries[Biostrings::width(queries) >= min_seq_length]
+    }
+    if (!is.null(query_fasta)) {
+      paired <- dna[match(names(queries), names(dna))]
+      queries <- queries[as.character(queries) == as.character(paired)]
+    }
+    kept <- cv_select_queries(pool_names, names(queries), max_seq)
+    dna <- dna[match(kept$pool, names(dna))]
+    queries <- queries[match(kept$queries, names(queries))]
+  } else {
+    dna <- source_dna
+    queries <- dna
+  }
+
+  if (length(queries) < fold_number) {
+    stop(
+      "Only ", length(queries), " query sequences remain after length filtering ",
+      "(min_seq_length=", min_seq_length, ") and primer trimming; need at least ",
+      "fold_number=", fold_number, ". The reference database may be unsuitable ",
+      "for this method."
+    )
+  }
+
+  queries_shuffled <- queries[sample(length(queries))]
+  folds <- cut(seq_along(queries_shuffled), breaks = fold_number, labels = FALSE)
 
   res <- list()
   for (f in 1:fold_tested) {
     if (verbose) {
       print(paste0(f, "/", fold_tested))
     }
-    index_tested <- which(folds == f, arr.ind = TRUE)
-    tested_data <- dna_shuffled[index_tested, ]
+    tested_data <- queries_shuffled[folds == f]
+    tested_names <- names(tested_data)
     tested_data <- tested_data[!duplicated(as.character(tested_data))]
     tested_data <- tested_data[!duplicated(names(tested_data))]
     n_tested <- length(tested_data)
     # One reference fasta per fold; tempdir() is cleaned when the session ends.
     tmp_fasta <- tempfile(pattern = "cv_refseq_", fileext = ".fasta")
 
-    fake_pq <- create_fake_pq_from_refseq(tested_data)
+    fake_pq <- create_fake_pq_from_refseq(
+      tested_data,
+      headers = if (is.null(headers)) NULL else unname(headers[names(tested_data)])
+    )
     if (!is.null(patterns_NA)) {
       fake_pq <- taxtab_replace_pattern_by_NA(fake_pq, patterns = patterns_NA, ignore.case = ignore.case)
     }
 
-    if (remove_tested_sequences) {
-      Biostrings::writeXStringSet(dna_shuffled[-index_tested],
-                                  tmp_fasta)
+    # Training part: the records of ref_fasta (with or without primer site),
+    # under their original headers (dada2 reads the taxonomy from them).
+    training <- if (remove_tested_sequences) {
+      dna[!names(dna) %in% tested_names]
     } else {
-      Biostrings::writeXStringSet(dna_shuffled,
-                                  tmp_fasta)
+      dna
     }
+    if (!is.null(headers)) {
+      names(training) <- unname(headers[names(training)])
+    }
+    Biostrings::writeXStringSet(training, tmp_fasta)
 
     if (method == "sintax") {
+      # assign_sintax() applies its own min_bootstrap (default 0.5) to
+      # taxo_value: pass ours, or 0 when several values are filtered below.
       assign_res <- assign_sintax(
         fake_pq,
         ref_fasta = tmp_fasta,
         nproc = nproc,
         behavior = "return_matrix",
+        min_bootstrap = if (length(min_bootstrap) > 1) 0 else min_bootstrap,
         ...
       )
 
@@ -153,17 +275,19 @@ cross_val <- function(ref_fasta,
         tibble::tibble(taxa_names = taxa_names(fake_pq)),
         lca_raw,
         by = "taxa_names"
-      )
+      ) |>
+        # assign_vsearch_lca() names its ranks "<rank>_sintax"; use the plain
+        # rank names so lca rows line up with the other methods (ROADMAP S1.4).
+        dplyr::rename_with(\(x) sub("_sintax$", "", x), -taxa_names)
     } else if (method == "blastn") {
       assign_res <- list()
       assign_res$taxo_value <- assign_blastn(fake_pq,
                                              ref_fasta = tmp_fasta,
                                              behavior = "add_to_phyloseq",
-                                             ...)@tax_table
-
-      assign_res$taxo_value <- assign_res$taxo_value |>
-        data.frame() |>
-        tibble() |>
+                                             nproc = nproc,
+                                             ...) |>
+        tidypq::tax_table_to_df(convert = FALSE) |>
+        select(-taxon) |>
         select(ends_with("_blastn")) |>
         select(-any_of("Taxa_name_db_blastn"))
 
@@ -172,11 +296,11 @@ cross_val <- function(ref_fasta,
         assign_res$taxo_value <- tibble::as_tibble(matrix(
           NA_character_,
           nrow = n_tested,
-          ncol = length(colnames(fake_pq@tax_table)),
-          dimnames = list(NULL, colnames(fake_pq@tax_table))
+          ncol = length(phyloseq::rank_names(fake_pq)),
+          dimnames = list(NULL, phyloseq::rank_names(fake_pq))
         ))
       } else {
-        colnames(assign_res$taxo_value) <- colnames(fake_pq@tax_table)
+        colnames(assign_res$taxo_value) <- phyloseq::rank_names(fake_pq)
       }
 
 
@@ -194,23 +318,32 @@ cross_val <- function(ref_fasta,
       assign_res$taxo_value <- assign_res_pq@tax_table
     } else if (method == "dada2") {
       # ref_fasta is already in dada2 format (db_path = dada2_format/…), so the
-      # subset written to test_refseq.fasta requires no conversion.
-      assign_res_dada <- assignTaxonomy(
+      # subset written to tmp_fasta requires no conversion. dada2:: because
+      # crew workers do not attach dada2 (an Import of MiscMetabar).
+      # minBoot (0-100) applies min_bootstrap; with several values, every
+      # call is kept and filtered below on the rescaled bootstraps.
+      assign_res_dada <- dada2::assignTaxonomy(
         fake_pq@refseq,
         refFasta = tmp_fasta,
         outputBootstraps = TRUE,
-        minBoot = 0,
+        minBoot = if (length(min_bootstrap) > 1) 0 else 100 * min_bootstrap,
+        multithread = nproc,
         ...
       )
       assign_res <- list()
       assign_res$taxo_value <- assign_res_dada$tax |>
         as.data.frame() |>
         tibble::rownames_to_column("taxa_names") |>
-        tibble::as_tibble()
+        tibble::as_tibble() |>
+        # UNITE dada2 references return "k__Fungi"-style values; the truth
+        # table has prefixes removed by simplify_taxo() (ROADMAP S1.4).
+        dplyr::mutate(dplyr::across(-taxa_names, \(x) sub("^[a-z]__", "", x)))
       assign_res$taxo_bootstrap <- assign_res_dada$boot |>
         as.data.frame() |>
         tibble::rownames_to_column("taxa_names") |>
-        tibble::as_tibble()
+        tibble::as_tibble() |>
+        # assignTaxonomy() bootstraps are 0-100, min_bootstrap is 0-1.
+        dplyr::mutate(dplyr::across(-taxa_names, \(x) x / 100))
     }
 
     if (length(min_bootstrap) > 1) {
@@ -242,7 +375,7 @@ cross_val <- function(ref_fasta,
         tib_by_tax_level <- tibble(.rows = 5)
       }
       for (i in seq_along(min_bootstrap)) {
-        tax_tib <- as_tibble(as.matrix(unclass(fake_pq@tax_table)))
+        tax_tib <- tidypq::tax_table_to_df(fake_pq, convert = FALSE) |> select(-taxon)
 
         if (!is.null(patterns_NA)) {
           for (pat in patterns_NA) {
@@ -333,19 +466,19 @@ cross_val <- function(ref_fasta,
 
       res_assign_NA <- res_assign_NA |>
         as_tibble() |>
-        mutate(bootstrap = min_bootstrap[[i]]) |>
+        mutate(bootstrap = min_bootstrap) |>
         mutate(fold = as.character(f))
 
       colnames(res_assign_good_classification) <- colnames(assign_res$taxo)
       res_assign_good_classification <- res_assign_good_classification |>
         as_tibble() |>
-        mutate(bootstrap = min_bootstrap[[i]]) |>
+        mutate(bootstrap = min_bootstrap) |>
         mutate(fold = as.character(f))
 
       colnames(res_assign_bad_classification) <- colnames(assign_res$taxo)
       res_assign_bad_classification <- res_assign_bad_classification |>
         as_tibble() |>
-        mutate(bootstrap = min_bootstrap[[i]]) |>
+        mutate(bootstrap = min_bootstrap) |>
         mutate(fold = as.character(f))
 
       if (compute_by_tax_level) {
@@ -393,7 +526,7 @@ cross_val <- function(ref_fasta,
       if (compute_by_tax_level) {
         tib_by_tax_level <- tibble(.rows = 5)
       }
-      tax_tib <- as_tibble(as.matrix(unclass(fake_pq@tax_table)))
+      tax_tib <- tidypq::tax_table_to_df(fake_pq, convert = FALSE) |> select(-taxon)
 
       if (!is.null(patterns_NA)) {
         for (pat in patterns_NA) {

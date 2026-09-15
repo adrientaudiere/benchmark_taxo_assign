@@ -54,6 +54,7 @@ fig_m2_cost_allranks <- accuracy_vs_cost |>
   filter(!is.na(wall_time_s)) |>
   ggplot(aes(x = wall_time_s / 3600, y = values, color = algo, shape = db)) +
   geom_point(size = 2.5, alpha = 0.8) +
+  scale_shape_manual(values = db_shapes) +
   facet_wrap(~tax_level, nrow = 1) +
   labs(x = "Wall time (hours)", y = "F1 score", color = "Method", shape = "Database") +
   theme_bw() +
@@ -66,15 +67,19 @@ save_fig(fig_m2_cost_allranks, "fig_m2_cost_allranks", width = 18, height = 5)
 
 Carbon footprint (gCO2eq) estimated via `greenAlgoR::ga_footprint()` from
 `wall_time_s`. Hardware parameters default to the machine's detected RAM and
-WORLD carbon intensity; `n_cores` is `n_threads` from `config.R`.
+WORLD carbon intensity; `n_cores` is the thread count of the computation
+(`assign_threads_dada2` for dada2, `assign_threads_fast` otherwise, `config.R`).
 
 ```{r m2-2-co2}
+# Targets shorter than the 1 s autometric sampling interval have NA costs
+# (e.g. sintax on mini_* databases); ga_footprint() cannot take NA.
 benchmark_costs <- benchmark_costs |>
+  filter(!is.na(wall_time_s)) |>
   rowwise() |>
   mutate(
     co2eq_gCO2 = greenAlgoR::ga_footprint(
       runtime_h      = wall_time_s / 3600,
-      n_cores        = n_threads,
+      n_cores        = if (method == "dada2") assign_threads_dada2 else assign_threads_fast,
       add_ref_values = FALSE
     )$carbon_footprint_total_gCO2
   ) |>
@@ -108,6 +113,7 @@ fig_m2_co2_allranks <- accuracy_vs_co2 |>
   filter(!is.na(co2eq_gCO2)) |>
   ggplot(aes(x = co2eq_gCO2, y = values, color = algo, shape = db)) +
   geom_point(size = 2.5, alpha = 0.8) +
+  scale_shape_manual(values = db_shapes) +
   facet_wrap(~tax_level, nrow = 1) +
   labs(
     x = expression(CO[2]*"eq (gCO2)"),
@@ -127,10 +133,16 @@ Cost of the denoising step, attributable separately from the assignments
 (`benchmark_costs_dada2` in `store_dada2`).
 
 ```{r m2-3}
-tar_read(benchmark_costs_dada2, store = here("store_dada2")) |>
-  arrange(desc(wall_time_s)) |>
-  knitr::kable(
-    digits = 1,
-    caption = "DADA2 phases: wall time (s), peak resident memory (MB), mean CPU (%)"
-  )
+# benchmark_costs_dada2 only exists once the dada2 project has been rebuilt
+# with the per-phase autometric logging (store_dada2 predates it).
+if (targets::tar_exist_objects("benchmark_costs_dada2", store = here("store_dada2"))) {
+  tar_read(benchmark_costs_dada2, store = here("store_dada2")) |>
+    arrange(desc(wall_time_s)) |>
+    knitr::kable(
+      digits = 1,
+      caption = "DADA2 phases: wall time (s), peak resident memory (MB), mean CPU (%)"
+    )
+} else {
+  message("benchmark_costs_dada2 not built yet: run the dada2 targets project first.")
+}
 ```

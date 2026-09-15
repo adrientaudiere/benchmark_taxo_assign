@@ -12,12 +12,17 @@ Q2 are still to be finalised (ROADMAP, D1a).
 ```{r setup}
 here::i_am("analysis/06_cross_validation.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
+cv_ranks <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+
 cv_res <- tar_read(cv_results, store = store_cross_val) |>
   filter(!startsWith(db, "mini_")) |>
   mutate(
-    tax_level = factor(tax_level, levels = intersect(tax_order, unique(tax_level))),
+    # Stores built before the lca fix of R/cross_val.R carry "<rank>_sintax"
+    # rank names for lca (ROADMAP S1.4); normalise them.
+    tax_level = factor(sub("_sintax$", "", tax_level), levels = cv_ranks),
     variant   = ifelse(remove_tested, "standard", "leaked")
   )
+stopifnot(!anyNA(cv_res$tax_level))
 ```
 
 ## Good classifications per rank, method and database

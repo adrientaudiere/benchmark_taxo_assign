@@ -48,8 +48,8 @@ DADA2 + assignment pipeline on the resulting fastqs.
 ## Step 1 — Prepare input fasta
 
 Select a curated set of Fungi sequences (50–200 species, spanning ≥ 4 phyla) from
-`mini_Unite_Fungi.fasta`. Using the mini DB keeps InSilicoSeq runs fast during
-development; switch to the full `Unite_Fungi.fasta` for the publication run.
+the dada2-format file of `seed_taxonomy_db` (`config.R`), or its `mini_*` subset
+when `mini_db` is TRUE (see docs/reference_databases.md).
 
 ```{r prepare-iss-input}
 # Output path for the curated input fasta
@@ -59,7 +59,7 @@ dir.create(dirname(iss_input_fasta), showWarnings = FALSE, recursive = TRUE)
 if (!file.exists(iss_input_fasta)) {
   db_path <- here(
     "data/data_raw/refseq/dada2_format",
-    ifelse(mini_db, "mini_Unite_Fungi.fasta", "Unite_Fungi.fasta")
+    paste0(if (mini_db) "mini_" else "", seed_taxonomy_db, ".fasta")
   )
   all_seqs <- Biostrings::readDNAStringSet(db_path)
   set.seed(targets_seed)
@@ -119,7 +119,7 @@ each simulated time-step is treated as a perfectly denoised sample.
 ## Helper — parse UNITE taxonomy from header
 
 ```{r parse-taxonomy-fn}
-# Extracts the k__/p__/.../s__ taxonomy string from UNITE dada2-format headers.
+# Extracts the k__/p__/.../s__ taxonomy string from UNITE general-release headers.
 # Headers: "ID|acc|SH|type|k__Kingdom;p__Phylum;...;s__Species"
 parse_unite_taxonomy <- function(headers) {
   tax_str <- sub(".*\\|", "", headers)
@@ -145,11 +145,11 @@ parse_unite_taxonomy <- function(headers) {
 ## 1. Sample species from UNITE Fungi
 
 ```{r sample-species}
-db_path <- here(
-  "data/data_raw/refseq/dada2_format",
-  ifelse(mini_db, "mini_Unite_Fungi.fasta", "Unite_Fungi.fasta")
-)
+# General UNITE release (k__/p__ headers, see docs/reference_databases.md),
+# restricted to the records whose kingdom is Fungi.
+db_path <- here("data/data_raw/refseq/sources", paste0(fake_ref_source, ".fasta"))
 all_fungi <- Biostrings::readDNAStringSet(db_path)
+all_fungi <- all_fungi[grepl("k__Fungi;", names(all_fungi), fixed = TRUE)]
 
 # Keep only sequences with ≥ genus-level annotation.
 has_genus <- !grepl("g__.*Incertae_sedis|g__[^;]+_gen_", names(all_fungi))
@@ -231,11 +231,12 @@ files are used (mini_* for smoke-testing, full for publication).
 ```{r assign-taxonomy}
 sim_values_map <- tibble::tibble(
   method = c("sintax", "sintax", "dada2"),
-  db     = c("Unite_Fungi", "EUK_ITS_v2_Fungi", "Unite_Fungi"),
+  db     = c(seed_taxonomy_db, paste0(preference_db, "_Fungi"), seed_taxonomy_db),
   min_bootstrap = 0.5
 ) |>
   dplyr::mutate(
-    db_name   = ifelse(mini_db, paste0("mini_", db), db),
+    # `if`, not ifelse(): a scalar ifelse() recycles its first value (S6.1).
+    db_name   = if (mini_db) paste0("mini_", db) else db,
     db_path   = paste0(
       ifelse(method == "dada2",
              "data/data_raw/refseq/dada2_format/",

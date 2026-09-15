@@ -7,8 +7,9 @@ Work in progress (ROADMAP: "Finalize distance-to-true-community metric").
 Moved from the "En chantier" section of the former `benchmark.qmd`; not part
 of the project render. Builds, per sample, a presence/absence matrix of the
 `Gen_sp_*` calls of every method against the mock truth, then compares them
-with Jaccard / Bray-Curtis distances and UpSet plots. Candidate for
-`tidypq::pq_to_tidy()` (ROADMAP S5.1).
+with Jaccard / Bray-Curtis distances and UpSet plots. Uses
+`tidypq::pq_to_tidy()` (decision 13), which reports unassigned ranks as
+`"Unknown"` rather than `NA`.
 
 ```{r setup}
 here::i_am("analysis/sandbox/distance_to_true_community.qmd")  # _quarto.yml would otherwise make here() root = analysis/
@@ -22,10 +23,11 @@ taxo_mock  <- cache_read("taxo_mock")
 ```{r mat-com}
 distinct_species_taxo_mock <- distinct(taxo_mock, Gen_sp)
 
+gen_sp_ranks <- grep("^Gen_sp_", names(tax_table_to_df(d_all_taxo)), value = TRUE)
+
 mat_com_interm <- d_all_taxo |>
-  psmelt() |>
-  select(OTU, Sample, Abundance, contains("Gen_sp")) |>
-  filter(Abundance > 0) |>
+  pq_to_tidy(ranks = gen_sp_ranks, verbose = FALSE) |>   # filter_zero = TRUE drops abundance == 0
+  select(OTU = taxon_id, Sample = sample_id, Abundance = abundance, contains("Gen_sp")) |>
   full_join(tibble(
     "Sample"      = rep("TRUE_sample", nrow(distinct_species_taxo_mock)),
     "Abundance"   = rep(1, nrow(distinct_species_taxo_mock)),
@@ -34,7 +36,7 @@ mat_com_interm <- d_all_taxo |>
 
 mat_com <- mat_com_interm |>
   pivot_longer(contains("Gen_sp")) |>
-  filter(!is.na(value)) |>
+  filter(!is.na(value), value != "Unknown") |>
   pivot_wider(names_from = name, values_from = Abundance) |>
   mutate(across(contains("Gen_sp"), ~ tidyr::replace_na(., 0))) |>
   group_by(Sample, value) |>

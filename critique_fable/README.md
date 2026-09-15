@@ -19,6 +19,7 @@ the evidence and the proposed fix so the ROADMAP bullets can stay short.
 | [04_pipeline_code.md](04_pipeline_code.md) | Duplication (`values_map` in three places), naming, store hygiene, test coverage. |
 | [05_analysis_and_docs.md](05_analysis_and_docs.md) | `benchmark.qmd` split plan, Quarto project setup, and a table of statements in README/CLAUDE/CONTEXT/ROADMAP that no longer match the code. |
 | [06_tidypq_adoption.md](06_tidypq_adoption.md) | Every hand-written phyloseq slot manipulation and the tidypq verb that replaces it (decision 13, items S5.1–S5.2). |
+| [07_results_validity.md](07_results_validity.md) | **Read before using any stored result.** Four defects that invalidate every figure computed from `store_assign_taxo` and `store_cross_val` since 2026-05-26 (all targets on the first database, UNITE sintax ranks shifted, empty dada2 truth and mislabelled lca ranks in cross-validation), the fixes, and the validation plan (items S6.x). |
 
 ## How the evidence was gathered
 

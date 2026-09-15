@@ -40,11 +40,24 @@ Also in scope while touching the notebook:
 
 | File / function | Today | Replacement | Impact |
 |---|---|---|---|
-| `R/combine_taxo_assignments.R` | `as.matrix(unclass(pq@tax_table))`, `setdiff()` of column names, `cbind`, then `base_pq@tax_table <- tax_table(...)` | `tax_table_to_df()` on base and on each assignment, `dplyr::bind_cols()` of the new columns, one `mutate_taxa_pq()` (or a tidypq constructor if one exists) to write back | `tests/test_combine_taxo_assignments.R` pins the column order and values; it must stay green unchanged. Rebuilds `d_all_taxo`. |
-| `R/functions.R::create_fake_pq_from_refseq()` | builds `tax_table()` / `otu_table()` by hand from the sintax headers | keep the construction (no tidypq verb builds a phyloseq from a fasta), but replace `taxa_names(x) <- ...` triple with one `rename_taxa_pq()` after `phyloseq()` | Used by every CV fold; rebuilds `store_cross_val`. |
-| `R/cross_val.R` lines 151, 160, 173–177, 192, 243, 394 | `fake_pq@tax_table`, `as_tibble(as.matrix(unclass(...)))` | `tax_table_to_df(fake_pq)` | Six sites, same expression; a one-line helper is enough. |
-| `script_dada2.R` lines 166–186 | `rename_samples(sample_data(...))`, `rename_samples(otu_table(seqtab[...]))` with a duplicated de-duplication predicate | build `d_asv` first, then `rename_samples_pq(d_asv, new_names = ...)` once; drop duplicated samples with `filter_samples_pq()` before renaming | Rebuilds `store_dada2` from `sam_tab`; already invalidated by S0.3, so no extra cost if done in the same rerun. |
-| `script_assign_taxo_parallel.R` | `read.csv(...) |> select(...) |> magrittr::set_rownames(...)` for `taxo_mock` | not a phyloseq operation; leave | – |
+| `R/combine_taxo_assignments.R` | `as.matrix(unclass(pq@tax_table))`, `setdiff()` of column names, `cbind`, then `base_pq@tax_table <- tax_table(...)` | `tax_table_to_df()` on base and on each assignment, rows aligned on `taxon`, `dplyr::bind_cols()` of the new columns, one `mutate_taxa_pq()` to write back | `tests/test_combine_taxo_assignments.R` pins the column order and values. Rebuilds `d_all_taxo` only. |
+| `R/cross_val.R` (blastn branch, two `tax_tib` sites, three `colnames(fake_pq@tax_table)`) | `fake_pq@tax_table`, `as_tibble(as.matrix(unclass(...)))` | `tax_table_to_df(fake_pq, convert = FALSE) |> select(-taxon)`; `phyloseq::rank_names()` for the rank names | Workers of `pipelines/cross_val.R` must load tidypq; rebuilds `store_cross_val` (already required). |
+| `R/create_fake_pq_from_refseq.R` | builds `tax_table()` / `otu_table()` by hand, sets `taxa_names()` on each component | **no replacement.** Correction 2026-09-10: `rename_taxa_pq()` renames tax_table *columns* (`dplyr::rename()`), not taxa names, and no tidypq verb builds a phyloseq from a fasta. Leave as is. | – |
+| `pipelines/dada2.R` sample renaming (`sam_tab`, `asv_tab`) | `rename_samples(sample_data(...))`, `rename_samples(otu_table(seqtab[...]))` with a duplicated de-duplication predicate | **no replacement.** Correction 2026-09-10: `rename_samples_pq()` renames sample_data *columns*, not sample names. Possible later simplification: compute the kept-sample predicate once in its own target. | – |
+| `pipelines/assign_taxo.R` | `read.csv(...) |> select(...) |> magrittr::set_rownames(...)` for `taxo_mock` | not a phyloseq operation; leave | – |
+
+## Status (2026-09-10)
+
+S5.1 done: `Gen_sp_*` construction (`tax_table_to_df()` + `mutate_taxa_pq()`),
+NA proportions, `ranks_df` check and the sandbox `pq_to_tidy()` rewrite are
+in place and were verified identical (values and taxa order) against the
+2026-05 store. Kept as is: the fake-taxa proportion (`grepl()` on
+`taxa_names()` reads better than a `filter_taxa_pq()` with
+`clean_phyloseq_object = FALSE`, which would otherwise drop the zero-count
+external sequences). Two behaviours of `pq_to_tidy()` to remember when
+porting more code: unassigned ranks come back as `"Unknown"`, not `NA`, and
+`filter_zero = TRUE` drops zero-abundance rows by default. S5.2 waits for the
+production rerun.
 
 ## Sequencing with the other items
 

@@ -8,6 +8,8 @@ library("testthat")
 library("here")
 
 here::i_am("tests/test_combine_taxo_assignments.R")
+source(here("R/load_pqverse.R"))
+load_pqverse(c("MiscMetabar", "tidypq"))
 source(here("R/combine_taxo_assignments.R"))
 
 # Build a tiny phyloseq with three ASVs and three base ranks.

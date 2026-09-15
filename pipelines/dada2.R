@@ -36,7 +36,7 @@ tar_plan(
   ),
   tar_target(
     name = file_refseq_taxo,
-    command = here("data/data_raw/refseq/dada2_format", refseq_file_name),
+    command = here("data/data_raw/refseq/dada2_format", paste0(seed_taxonomy_db, ".fasta")),
     format = "file"
   ),
   tar_target(

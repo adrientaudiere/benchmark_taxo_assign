@@ -27,10 +27,14 @@ with_autometric <- function(phase, expr, dir, seconds = 1) {
 
 # Read every log file of `dir` into one tibble (autometric defaults: time in
 # seconds, memory in megabytes). Adds `log_file` so runs can be told apart.
+# Empty files are skipped: a target that ends before the first sampling
+# interval (e.g. sintax on a mini_* database, ~1-3 s) writes no row, and
+# autometric::log_read() errors on an empty file.
 read_autometric_dir <- function(dir) {
   files <- list.files(dir, pattern = "\\.txt$", full.names = TRUE)
+  files <- files[file.size(files) > 0]
   if (length(files) == 0) {
-    stop("No autometric log file found in ", dir)
+    stop("No non-empty autometric log file found in ", dir)
   }
   rows <- lapply(files, function(f) {
     df <- autometric::log_read(f)

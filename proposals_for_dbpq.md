@@ -9,6 +9,64 @@ Ordered roughly by usefulness × ease of porting.
 
 ---
 
+## 0. Defects found while rebuilding the databases (2026-09-11)
+
+These are bugs in dbpq, worked around locally in `make_databases.R`.
+
+**`format2sintax()` / `format2dada2()` drop the UNITE kingdom.** The `unite`
+branch of `.parse_tax_header()` splits the header on `;` and takes the first
+field as the identifier. UNITE general-release headers are
+`Name|Acc|SH|type|k__Kingdom;p__…`, so the identifier becomes
+`…|k__Kingdom` and the kingdom is lost: the sintax output starts at `p:` and
+the positional dada2 output starts at the phylum. Local workaround:
+`general_headers_fixed()` rewrites `|k__` into `;k__` before conversion.
+Suggested fix: in the `unite` branch, split identifier and taxonomy at the
+first `k__` (or at the last `|` before it) rather than at the first `;`, and
+add a test with a real general-release header.
+
+**EUKARYOME name qualifiers pass through `format2sintax()` /
+`format2dada2()`.** EUKARYOME general headers carry `g__Lactarius(Fungi)`,
+`g__(Candida)` (sometimes `g__(Candida]`), `f__Gonostomatidae(Sporadotrichida)`,
+`g__Mortierella.s.str` or `f__Xxx.nom.prov` (v2.1: 11 413 ITS and 5 586 SSU
+headers with parentheses). dbpq copies them into both outputs, where they
+break the consumers: vsearch prints `g:Lactarius(Fungi)(0.97)`, whose
+bootstrap `MiscMetabar::assign_sintax()` reads as NA (so `min_bootstrap`
+never filters that genus), and dada2 or lca return names that never match a
+curated taxonomy. This belongs to dbpq (the database is malformed for the
+sintax and dada2 formats), not to the assignment functions. Local workaround:
+`general_headers_fixed()` (sed rules, tested on real headers). Suggested
+addition: a qualifier clean-up in the `eukaryome` branch of
+`.parse_tax_header()` (keep the name, unwrap `(Name)`, drop `.s.str` and
+`.nom.prov`), plus a warning when a converted rank value still contains `(`,
+`)`, `[` or `]`.
+
+**`filter_db()` matches the pattern anywhere in the header.** Filtering on
+`"Fungi"` keeps `f:Fungiidae` corals, `k:cf.Fungi` and names such as
+`fungiformis` (965 non-Fungi records in EUKARYOME ITS v2). Local workaround:
+`derive_kingdom_only()` builds a kingdom-anchored pattern per header format.
+Suggested addition: `filter_db(..., rank = "k", value = "Fungi")`, parsing the
+header with `.parse_tax_header()` so the match is on the rank value.
+
+**`download_file(timeout = Inf)` warns on every download.** `options(timeout =
+Inf)` is coerced to an integer by `utils::download.file()`, which emits
+"NAs introduits lors de la conversion automatique en 'integer'" and leaves the
+effective timeout undefined. Suggested fix: translate `Inf` into a large
+finite value (e.g. `.Machine$integer.max`) before setting the option.
+
+**EUKARYOME v2.1 archives are nested.** `General_EUK_<marker>_v2.1.zip`
+contains a `.7z` archive, not a FASTA, so `download_eukaryome_db()` returns a
+file that still needs two extraction steps. Local workaround in
+`make_databases.R::extract_single_fasta()`. Suggested addition: an `extract`
+argument mirroring `download_unite_db()`.
+
+**`download_unite_db(doi = …)` saves an HTML page.** UNITE DOIs resolve to a
+PlutoF landing page. Fixed in dbpq on 2026-09-11 with the new `url` and
+`extract` arguments; the `doi` argument could query
+`https://api.plutof.ut.ee/v1/public/dois/?identifier=<doi>` to find the
+archive URL automatically.
+
+---
+
 ## 1. `filter_db(..., invert = TRUE)`
 
 Extend the existing [`filter_db()`](../pqverse_pkg/dbpq/R/modify.R) so the
@@ -103,8 +161,9 @@ short circuit.
 
 Take the first `n` *records* from a fasta — not the first `n` lines, which
 silently truncates the last record when sequences span multiple lines. The
-local `derive_mini()` uses `head -n 10000` and tolerates the truncation
-because the inputs are all two-line-per-record.
+local `derive_mini()` now counts records with awk
+(`awk '/^>/{count++} count > n {exit} {print}'`, tested in
+`tests/test_make_databases_helpers.R`), so a dbpq port can start from that.
 
 **Local call site** — `make_databases.R::derive_mini()`.
 
@@ -126,6 +185,10 @@ EUKARYOME v1.9.3 release ships taxonomy strings like
 `Genus_name (synonym_name)` that confuse downstream parsers.
 
 **Local call site** — `make_databases.R::derive_no_parens()`.
+
+**Superseded on 2026-09-11** by the EUKARYOME qualifier item of §0: a blind
+`s/([^)]*)//g` empties `g__(Candida)`, misses `g__(Candida]`, `.s.str` and
+`.nom.prov`, and the orchestration never called it.
 
 **Suggested signature**
 ```r

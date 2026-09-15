@@ -42,8 +42,9 @@ save_fig(fig_q2_db, "fig_q2_db", width = 18, height = 14)
 
 ## Q2.2 — Simplification effect (paired Δ F1/MCC)
 
-Three paired comparisons available under decision 7 (only one SSU variant is
-benchmarked): (a) Unite → Fungi, (b) EUK_ITS → Fungi, (c) EUK_ITS_Fungi → cut.
+Paired comparisons within each source release: full → Fungi and
+Fungi → Fungi+cut, derived from `db_meta` in `config.R`, so they follow the
+databases actually benchmarked.
 
 ```{r q2-2-table}
 # Signed delta (simplified − full) for one pair of databases.
@@ -59,13 +60,18 @@ db_pair_delta <- function(data, db_full, db_simp, label) {
     select(algo, tax_level, metrics, comparison, delta)
 }
 
-db_pairs <- tibble::tribble(
-  ~db_full,           ~db_simp,               ~label,
-  "Unite",            "Unite_Fungi",          "(a) Unite → Fungi",
-  "EUK_ITS_v2",       "EUK_ITS_v2_Fungi",     "(b) EUK_ITS → Fungi",
-  "EUK_ITS_v2_Fungi", "EUK_ITS_v2_Fungi_cut", "(c) EUK_ITS_Fungi → cut"
-) |>
-  filter(db_full %in% db_list, db_simp %in% db_list)
+# Pairs (from -> to) of simplification steps within the same source.
+pair_steps <- function(from, to) {
+  inner_join(
+    filter(db_meta, simplification == from),
+    filter(db_meta, simplification == to),
+    by = "db_base",
+    suffix = c("_full", "_simp")
+  ) |>
+    transmute(db_full, db_simp, label = paste0(db_base, ": ", from, " → ", to))
+}
+
+db_pairs <- bind_rows(pair_steps("full", "Fungi"), pair_steps("Fungi", "Fungi+cut"))
 
 tab_q2_simplif <- purrr::pmap(
   db_pairs,
