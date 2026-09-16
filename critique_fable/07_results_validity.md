@@ -313,6 +313,92 @@ the dada2 records with the sintax identifiers (`id_fasta`, `query_id_fasta`,
 headers for the truth table and the training fasta. Smoke test on the mini
 files: 366 usable dada2 queries of 400 drawn on `Unite_s_all_20250219_Fungi`.
 
+## B23 — sintax cross-validation compares shuffled rows [D1a]
+
+Found on 2026-09-15 on the first 40 targets of the production `cross_val`
+run: sintax reached 0.49–0.54 good classifications at genus in the leaked
+variant (query in its own training part), with 0 % NA, against 0.98–1.00 for
+lca and blastn. `cross_val()` compares the assignment table to the truth table
+row by row, and `assign_sintax(behavior = "return_matrix")` returns the rows
+in the order of the vsearch `--tabbedout` file. With `--threads` > 1, vsearch
+writes the queries in completion order.
+
+| `mini_Unite_all_20250219`, 2000 leaked queries | genus good, by position | genus good, joined on `taxa_names` |
+|---|---|---|
+| `nproc = 1` | 1.000 | 1.000 |
+| `nproc = 4` | 0.237 | 1.000 |
+
+Consequences: every sintax CV target run with `cv_threads` > 1 (S8.4, since
+2026-09-14) is invalid, standard and leaked, including the `cross_val_mini`
+run of 2026-09-15 (leaked 0.80). The mock assignments are not affected:
+`derive_sintax_row()` joins on `taxa_names`. lca already joined; dada2
+(`assignTaxonomy()`) and blastn (`add_to_phyloseq`) keep the query order.
+
+Fix (2026-09-15): `cv_align_rows()` (`R/cv_queries.R`) puts the sintax values,
+the sintax bootstraps and the lca rows in the order of `taxa_names(fake_pq)`,
+and stops on unknown or duplicated names; `cross_val()` stops when a method
+returns another number of rows than queries. Smoke test on the same file
+through `cross_val()` (leaked, 2000 queries): sintax genus 1.00 with 1 and 4
+threads, lca 0.998. Confirmed on `cross_val_mini` (leaked genus 1.00 for the four
+methods on the seven databases) and on the production run of 2026-09-15
+(16:03–16:50, 56 targets, 0 error): leaked genus 0.999–1.000 for sintax.
+
+## B24 — the cross-validation reference is a 3 % subsample of the database [D1a, S1.3]
+
+Found on 2026-09-16 while explaining why blastn leaves 87–95 % of the standard
+CV queries without genus. `cross_val()` draws `oversample × max_seq` records,
+then keeps **only that pool** as the reference: `dna <- dna[match(kept$pool,
+names(dna))]`. This is the documented behaviour of `max_seq` ("size of the
+random subsample of the database"), but it means every CV target searches a
+reference of about 5 400 records whatever the database it names.
+
+| production settings, `Unite_all_20250219` | records |
+|---|---|
+| database file | 156 820 |
+| drawn pool (`cv_oversample = 2` × `cv_max_seq = 5000`) | 10 000 |
+| kept as reference | 5 413 (3.45 %) |
+| training part per fold, standard variant | ≈ 4 913 |
+
+Measured on the other databases with the same settings: 6 284 records kept on
+`EUK_ITS_v2.1` (0.33 % of its 1 877 003) and 5 295 on `EUK_ITS_v2.1_Fungi`
+(0.49 %). The pool grows until 5 000 of its records carry the ITS2 site, so a
+database with a lower site rate (80.9 % for `EUK_ITS_v2.1`, 93.8–95.4 % for
+the Fungi files) keeps *more* records, never more of its own content: the
+reference size is set by `cv_max_seq`, not by the database.
+
+Consequences. The CV database axis compares the taxonomic composition of
+seven databases sampled at equal size, not the databases as the mock uses
+them. The methods are affected unequally: blastn abstains when no hit passes
+its filters (87–95 % NA), while lca and sintax return the nearest available
+taxon and are wrong instead (lca 37–60 % wrong genus). Measured on 200 trimmed
+queries of `Unite_all_20250219`, query records removed:
+
+| reference | queries with a genus |
+|---|---|
+| full database, identity ≥ 90, cover ≥ 80 | 85 % |
+| full database, identity ≥ 95 (the `assign_blastn()` default), cover ≥ 80 | 58.5 % |
+| random 5 413-record subsample, identity ≥ 90, cover ≥ 80 | 26.5 % |
+| random 5 413-record subsample, identity ≥ 95, cover ≥ 80 | 9.0 % |
+| the CV pool (pipeline path, one fold) | 2 % |
+
+Reference size is therefore the **dominant** cause, not the whole story: at the
+`assign_blastn()` defaults it takes the assignment rate from 58.5 % to 9.0 %
+outside the pipeline, while the pipeline itself reaches 2 %. The residual gap
+(9 % against 2 %) is unexplained and worth one more measurement before the
+D1a figures; the innocence checks below rule out the obvious candidates.
+
+Not causes, each checked and cleared: `assign_blastn()` (29 of 50 queries get a
+genus against the full database, names matching 30 of 30), `blast_pq()` (asks
+BLAST for `qcovs`, median best-hit cover 100 %), and
+`resolve_vector_ranks(method = "rel_majority")` (assigns on a plurality, NA
+only on a tie). Secondary: the CV passes `min_cover` but leaves `min_id` at 95,
+which costs about 25 points even on the full database.
+
+Open (methods choice, developer): keep the subsample and document that D1a
+measures a fixed-size reference, or train on the full database minus the
+tested records and subsample the queries only (blastn and lca then search
+their real database, at a compute cost to measure).
+
 ## Validation plan before trusting a new production run
 
 1. Build the versioned reference files: `download_reference_sources()` then

@@ -48,6 +48,12 @@ cross_val_param <- function(..., min_bootstrap = c(0.4, 0.5, 0.6)) {
 #' @param verbose
 #' @param max_seq (int) Size of the random subsample of the database (NULL:
 #'   every record). With trimmed queries, the number of queries.
+#' @param reduce_reference (logical, default TRUE) TRUE reduces the reference
+#'   to the drawn pool, so a run searches about `oversample * max_seq` records
+#'   whatever the database (the behaviour of the runs made before 2026-09-16,
+#'   ROADMAP B24). FALSE keeps the whole database and removes only the tested
+#'   queries of each fold, as Bokulich et al. 2018; the queries are drawn the
+#'   same way in both cases.
 #' @param primer_fw,primer_rev (character) Primers of the amplicon. When both
 #'   are set, the queries are trimmed with trim_cv_queries() (R/cv_queries.R)
 #'   and the records without the reverse-primer site are never queried: they
@@ -90,6 +96,7 @@ cross_val <- function(ref_fasta,
                       nproc = 1,
                       max_seq = NULL,
                       min_seq_length = 50L,
+                      reduce_reference = TRUE,
                       primer_fw = NULL,
                       primer_rev = NULL,
                       primer_min_overlap = NULL,
@@ -194,11 +201,11 @@ cross_val <- function(ref_fasta,
       queries <- queries[as.character(queries) == as.character(paired)]
     }
     kept <- cv_select_queries(pool_names, names(queries), max_seq)
-    dna <- dna[match(kept$pool, names(dna))]
+    dna <- cv_reference_records(dna, kept$pool, reduce_reference)
     queries <- queries[match(kept$queries, names(queries))]
   } else {
-    dna <- source_dna
-    queries <- dna
+    dna <- cv_reference_records(dna, names(source_dna), reduce_reference)
+    queries <- source_dna
   }
 
   if (length(queries) < fold_number) {
@@ -257,6 +264,10 @@ cross_val <- function(ref_fasta,
         min_bootstrap = if (length(min_bootstrap) > 1) 0 else min_bootstrap,
         ...
       )
+      # vsearch --sintax with several threads does not keep the query order;
+      # the metrics below compare rows by position (ROADMAP B23).
+      assign_res$taxo_value <- cv_align_rows(assign_res$taxo_value, taxa_names(fake_pq))
+      assign_res$taxo_bootstrap <- cv_align_rows(assign_res$taxo_bootstrap, taxa_names(fake_pq))
 
     } else if (method == "lca") {
       assign_res <- list()
@@ -270,12 +281,8 @@ cross_val <- function(ref_fasta,
       if (is.null(lca_raw)) {
         stop("assign_vsearch_lca returned NULL — no LCA output produced.")
       }
-      # left-join so unmatched sequences appear as NA rows, not missing rows
-      assign_res$taxo_value <- dplyr::left_join(
-        tibble::tibble(taxa_names = taxa_names(fake_pq)),
-        lca_raw,
-        by = "taxa_names"
-      ) |>
+      # Query order, unmatched sequences as NA rows (not missing rows).
+      assign_res$taxo_value <- cv_align_rows(lca_raw, taxa_names(fake_pq)) |>
         # assign_vsearch_lca() names its ranks "<rank>_sintax"; use the plain
         # rank names so lca rows line up with the other methods (ROADMAP S1.4).
         dplyr::rename_with(\(x) sub("_sintax$", "", x), -taxa_names)
@@ -344,6 +351,13 @@ cross_val <- function(ref_fasta,
         tibble::as_tibble() |>
         # assignTaxonomy() bootstraps are 0-100, min_bootstrap is 0-1.
         dplyr::mutate(dplyr::across(-taxa_names, \(x) x / 100))
+    }
+
+    if (nrow(assign_res$taxo_value) != n_tested) {
+      stop(
+        method, " returned ", nrow(assign_res$taxo_value), " rows for ",
+        n_tested, " queries."
+      )
     }
 
     if (length(min_bootstrap) > 1) {

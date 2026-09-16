@@ -45,7 +45,8 @@ run_cv <- function(method, db_path, fold_number, fold_tested, min_bootstrap,
                    max_seq = NULL, min_cover = NULL, nproc = 1,
                    primer_fw = NULL, primer_rev = NULL, primer_min_overlap = NULL,
                    oversample = 2, cutadapt_prelude = NULL, query_fasta = NULL,
-                   id_fasta = NULL, query_id_fasta = NULL) {
+                   id_fasta = NULL, query_id_fasta = NULL,
+                   reduce_reference = TRUE) {
   extra_args <- list()
   if (!is.null(vote_algorithm) && !is.na(vote_algorithm)) {
     extra_args$vote_algorithm <- vote_algorithm
@@ -73,7 +74,8 @@ run_cv <- function(method, db_path, fold_number, fold_tested, min_bootstrap,
       cutadapt_prelude = cutadapt_prelude,
       query_fasta = query_fasta,
       id_fasta = id_fasta,
-      query_id_fasta = query_id_fasta
+      query_id_fasta = query_id_fasta,
+      reduce_reference = reduce_reference
     ),
     extra_args
   ))
@@ -105,7 +107,8 @@ cv_targets <- tarchetypes::tar_eval(
           cutadapt_prelude = cutadapt_conda_prelude,
           query_fasta = query_ref_file_sym,
           id_fasta = id_ref_file_sym,
-          query_id_fasta = query_id_ref_file_sym
+          query_id_fasta = query_id_ref_file_sym,
+          reduce_reference = cv_reduce_reference
         ),
         method = method,
         db = db,

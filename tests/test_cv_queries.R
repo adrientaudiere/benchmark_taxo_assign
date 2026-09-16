@@ -44,6 +44,30 @@ test_that("cv_select_queries keeps the pool up to the max_seq-th query", {
   expect_equal(few$queries, c("r1", "r4"))
 })
 
+test_that("cv_align_rows puts the assignments in the query order", {
+  tbl <- tibble::tibble(
+    taxa_names = c("q3", "q1"),
+    Genus = c("C", "A")
+  )
+  out <- cv_align_rows(tbl, c("q1", "q2", "q3"))
+  expect_equal(out$taxa_names, c("q1", "q2", "q3"))
+  expect_equal(out$Genus, c("A", NA, "C"))
+  expect_error(cv_align_rows(tbl, c("q1", "q2")), "not among the queries")
+  expect_error(
+    cv_align_rows(rbind(tbl, tbl), c("q1", "q3")),
+    "Duplicated"
+  )
+})
+
+test_that("cv_reference_records keeps the whole database unless asked to reduce", {
+  dna <- Biostrings::DNAStringSet(c(r1 = "ACGT", r2 = "ACGTA", r3 = "ACG"))
+  expect_equal(names(cv_reference_records(dna, c("r3", "r1"))), c("r3", "r1"))
+  expect_equal(
+    names(cv_reference_records(dna, c("r3", "r1"), reduce = FALSE)),
+    c("r1", "r2", "r3")
+  )
+})
+
 test_that("trim_cv_queries cuts to the amplicon and drops records without the ITS2 site", {
   cutadapt_ok <- system2(
     "bash",

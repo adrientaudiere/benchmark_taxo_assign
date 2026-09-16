@@ -87,3 +87,35 @@ cv_select_queries <- function(pool_names, query_names, max_seq = NULL) {
   pool <- pool_names[seq_len(last)]
   list(pool = pool, queries = pool[is_query[seq_len(last)]])
 }
+
+# Rows of an assignment table (column `taxa_names`) put in the order of
+# `taxa`, queries without a row becoming NA rows. cross_val() compares the
+# assignments to the truth by position, and vsearch --sintax run with several
+# threads writes its results in completion order (ROADMAP B23).
+cv_align_rows <- function(tbl, taxa) {
+  unknown <- setdiff(tbl$taxa_names, taxa)
+  if (length(unknown) > 0) {
+    stop(
+      length(unknown),
+      " assigned taxa are not among the queries, e.g. ",
+      unknown[1],
+      "."
+    )
+  }
+  if (anyDuplicated(tbl$taxa_names) > 0) {
+    stop("Duplicated taxa_names in the assignment table.")
+  }
+  dplyr::left_join(tibble::tibble(taxa_names = taxa), tbl, by = "taxa_names")
+}
+
+# Records that form the reference of a cross-validation run. `reduce = FALSE`
+# keeps the whole database, so a fold trains on the database minus its tested
+# queries (Bokulich et al. 2018, decision 2026-09-16); `reduce = TRUE` is the
+# historical behaviour, where the reference was the drawn pool itself and a
+# target searched about 5 400 records whatever the database (ROADMAP B24).
+cv_reference_records <- function(dna, pool_names, reduce = TRUE) {
+  if (!reduce) {
+    return(dna)
+  }
+  dna[match(pool_names, names(dna))]
+}
