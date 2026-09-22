@@ -1,6 +1,6 @@
 # Taxonomic assignment: one computation per (method x database x input) runs
 # in parallel, every (parameter) row of the benchmark is derived from it, then
-# `d_all_taxo` stacks the rows (ROADMAP S8.2, docs/compute_budget.md).
+# `d_all_taxo` stacks the rows (ROADMAP S8.2, docs/experimental_design.md §8).
 #
 # Run with:
 #   Sys.setenv(TAR_PROJECT = "assign_taxo"); targets::tar_make()
@@ -24,7 +24,7 @@ source(here("R/autometric_helpers.R"))
 source(here("R/itsx.R"))
 source(here("R/assign_compute.R"))
 source(here("R/otu_taxonomy.R"))
-load_pqverse(c("MiscMetabar", "comparpq", "tidypq"))  # tidypq: combine_taxo_assignments() in the main process
+load_pqverse(c("MiscMetabar", "comparpq", "tidypq")) # tidypq: combine_taxo_assignments() in the main process
 
 tar_option_set(
   seed = targets_seed,
@@ -32,8 +32,16 @@ tar_option_set(
   # each target with load_pqverse() (they are not installed packages).
   packages = c("here", "phyloseq", "dplyr", "tidyr", "tibble"),
   controller = crew::crew_controller_group(
-    crew::crew_controller_local(name = "dada2_ctrl", workers = 1,         seconds_idle = 60),
-    crew::crew_controller_local(name = "fast_ctrl",  workers = n_workers, seconds_idle = 60)
+    crew::crew_controller_local(
+      name = "dada2_ctrl",
+      workers = 1,
+      seconds_idle = 60
+    ),
+    crew::crew_controller_local(
+      name = "fast_ctrl",
+      workers = n_workers,
+      seconds_idle = 60
+    )
   )
 )
 
@@ -42,11 +50,19 @@ values_map <- build_values_map(dbs = db_list, mini_db = mini_db)
 # One autometric log file per target and per run (see R/autometric_helpers.R).
 autometric_dir_assign <- here("data/data_final/autometric/assign_taxo")
 
-# One computation per method × database × input (R/assign_compute.R): 44
-# computations for the 132 assignments. dada2 runs on its own worker with
+# One computation per method × database × input (R/assign_compute.R): with the
+# 9 databases of config.R, 96 computations (ASV 36, OTU 36, ITSx 24) for 504
+# assignment rows (21 per database × input). dada2 runs on its own worker with
 # assign_threads_dada2 threads, sintax / lca / blastn on fast_ctrl.
 compute_map <- dplyr::distinct(
-  values_map, compute_name, method, db, preprocess, input_pq, ref_file, controller
+  values_map,
+  compute_name,
+  method,
+  db,
+  preprocess,
+  input_pq,
+  ref_file,
+  controller
 )
 
 compute_targets <- tarchetypes::tar_eval(
@@ -60,7 +76,11 @@ compute_targets <- tarchetypes::tar_eval(
           input_pq_sym,
           method = method,
           ref_fasta = ref_file_sym,
-          nproc = if (method == "dada2") assign_threads_dada2 else assign_threads_fast
+          nproc = if (method == "dada2") {
+            assign_threads_dada2
+          } else {
+            assign_threads_fast
+          }
         ),
         dir = autometric_dir_assign
       )
@@ -76,28 +96,40 @@ compute_targets <- tarchetypes::tar_eval(
   )
 )
 
-# The 132 benchmark rows, with the target names used before S8.2: thresholds,
-# votes or lca copies applied to their computation, in the main process.
-assignment_targets <- tarchetypes::tar_eval(
-  tar_target(
-    full_name,
-    derive_assignment(
-      input_pq_sym,
-      compute_sym,
-      method = method,
-      suffix = paste0("_", full_name),
-      min_bootstrap = min_bootstrap,
-      vote_algorithm = vote_algorithm,
-      nb_voting = nb_voting,
-      min_cover = min_cover
+# The benchmark rows: thresholds, lca cutoffs or blastn filters and votes
+# applied to their computation, in the main process. The OTU rows are kept
+# apart because they carry other taxa than the ASV and ITSx inputs, and
+# combine_taxo_assignments() needs the taxa of its base phyloseq.
+assignment_targets_for <- function(map) {
+  tarchetypes::tar_eval(
+    tar_target(
+      full_name,
+      derive_assignment(
+        input_pq_sym,
+        compute_sym,
+        method = method,
+        suffix = paste0("_", full_name),
+        min_bootstrap = min_bootstrap,
+        vote_algorithm = vote_algorithm,
+        nb_voting = nb_voting,
+        min_cover = min_cover,
+        min_id = min_id,
+        lca_cutoff = lca_cutoff
+      ),
+      deployment = "main"
     ),
-    deployment = "main"
-  ),
-  dplyr::mutate(
-    values_map,
-    input_pq_sym = rlang::syms(input_pq),
-    compute_sym = rlang::syms(compute_name)
+    dplyr::mutate(
+      map,
+      input_pq_sym = rlang::syms(input_pq),
+      compute_sym = rlang::syms(compute_name)
+    )
   )
+}
+assignment_targets <- assignment_targets_for(
+  dplyr::filter(values_map, preprocess != "otu")
+)
+assignment_targets_otu <- assignment_targets_for(
+  dplyr::filter(values_map, preprocess == "otu")
 )
 
 # One file target per reference fasta (ROADMAP S7.9): a database rebuilt in
@@ -107,27 +139,58 @@ ref_file_targets <- tarchetypes::tar_eval(
   dplyr::distinct(values_map, ref_file, db_path)
 )
 
+# Truth table of the community, only when there is one (config.R::taxo_mock_csv
+# is NA for a biological dataset with no known truth). Built outside tar_plan()
+# so that no target at all is created in that case, rather than a target holding
+# another dataset's truth table (ROADMAP D1c).
+taxo_mock_targets <- if (is.na(taxo_mock_csv)) {
+  list()
+} else {
+  list(
+    tar_target(
+      file_taxo_mock,
+      here(taxo_mock_csv),
+      format = "file",
+      deployment = "main"
+    ),
+    tar_target(
+      taxo_mock,
+      read.csv(file_taxo_mock) |>
+        select(any_of(c(
+          "Kingdom",
+          "Phylum",
+          "Class",
+          "Order",
+          "Family",
+          "Genus",
+          "Species"
+        ))) |>
+        magrittr::set_rownames(read.csv(file_taxo_mock)$MockStrain),
+      deployment = "main"
+    )
+  )
+}
+
 tar_plan(
   # File dependency on the DADA2 store so a rebuilt d_asv invalidates
   # everything downstream (ROADMAP S1.2).
-  tar_target(d_asv_file, here("store_dada2/objects/d_asv"), format = "file",
-             deployment = "main"),
-  tar_target(d_asv, readRDS(d_asv_file), deployment = "main"),
   tar_target(
-    file_taxo_mock,
-    here(taxo_mock_csv),
+    d_asv_file,
+    here(dada2_store, "objects/d_asv"),
     format = "file",
     deployment = "main"
   ),
+  tar_target(d_asv, readRDS(d_asv_file), deployment = "main"),
+  # 97 % vsearch OTUs of the same DADA2 store (asv2otu(), no MUMU), assigned
+  # directly (objectives_design decisions 4 and 19).
   tar_target(
-    taxo_mock,
-    read.csv(file_taxo_mock) |>
-      select(any_of(c(
-        "Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"
-      ))) |>
-      magrittr::set_rownames(read.csv(file_taxo_mock)$MockStrain),
+    d_vs_file,
+    here(dada2_store, "objects/d_vs"),
+    format = "file",
     deployment = "main"
   ),
+  tar_target(d_vs, readRDS(d_vs_file), deployment = "main"),
+  taxo_mock_targets,
   # ITS1 of every ASV with ITSx (ROADMAP Q4, R/itsx.R), used only to trim the
   # flanking regions. An ASV whose ITS1 equals the ITS1 of a more abundant ASV
   # is removed from both inputs (decision 20), so the raw and ITSx inputs keep
@@ -144,16 +207,27 @@ tar_plan(
     ),
     deployment = "main"
   ),
-  tar_target(itsx_dropped_taxa, itsx_duplicated_taxa(d_asv, itsx_asv), deployment = "main"),
   tar_target(
-    d_asv_common,
-    phyloseq::prune_taxa(setdiff(phyloseq::taxa_names(d_asv), itsx_dropped_taxa), d_asv),
+    itsx_dropped_taxa,
+    itsx_duplicated_taxa(d_asv, itsx_asv),
     deployment = "main"
   ),
-  tar_target(d_asv_itsx, itsx_replace_refseq(d_asv_common, itsx_asv), deployment = "main"),
+  tar_target(
+    d_asv_common,
+    phyloseq::prune_taxa(
+      setdiff(phyloseq::taxa_names(d_asv), itsx_dropped_taxa),
+      d_asv
+    ),
+    deployment = "main"
+  ),
+  tar_target(
+    d_asv_itsx,
+    itsx_replace_refseq(d_asv_common, itsx_asv),
+    deployment = "main"
+  ),
   # Post-clustering (ROADMAP Q5): membership of the ASVs of both inputs in
-  # 97 % vsearch clusters. No assignment is rerun on OTUs: chapter 01 builds
-  # each OTU's taxonomy from its member ASVs with resolve_otu_taxonomy().
+  # 97 % vsearch clusters, read by chapter 01 (resolve_otu_taxonomy()) until
+  # it reads the direct OTU assignments (d_all_taxo_otu, ROADMAP 0.8).
   tar_target(otu_clusters, otu_membership(d_asv_common), deployment = "main"),
   # Negative controls: shuffled ASVs (fake_*) then external non-Fungi
   # sequences (external_*); both feed the TN denominator of tc_metrics_mock().
@@ -161,11 +235,18 @@ tar_plan(
   # (make_databases.R::derive_fake_ref()) invalidates every assignment.
   # with_seed(): both inputs shuffle the same ASVs, so they carry the same
   # fake_1..n and external_* taxa (combine_taxo_assignments() requires it).
-  tar_target(fake_ref_file, here(fake_ref_fasta), format = "file",
-             deployment = "main"),
+  tar_target(
+    fake_ref_file,
+    here(fake_ref_fasta),
+    format = "file",
+    deployment = "main"
+  ),
   tar_target(
     d_asv_shuffled,
-    withr::with_seed(targets_seed, add_shuffle_seq_pq(d_asv_common, prop_fake = prop_fake)),
+    withr::with_seed(
+      targets_seed,
+      add_shuffle_seq_pq(d_asv_common, prop_fake = prop_fake)
+    ),
     deployment = "main"
   ),
   tar_target(
@@ -178,7 +259,10 @@ tar_plan(
   ),
   tar_target(
     d_asv_itsx_shuffled,
-    withr::with_seed(targets_seed, add_shuffle_seq_pq(d_asv_itsx, prop_fake = prop_fake)),
+    withr::with_seed(
+      targets_seed,
+      add_shuffle_seq_pq(d_asv_itsx, prop_fake = prop_fake)
+    ),
     deployment = "main"
   ),
   tar_target(
@@ -189,22 +273,55 @@ tar_plan(
     ),
     deployment = "main"
   ),
+  # Same controls on the OTUs: prop_fake of their own sequences shuffled, and
+  # the same external sequences.
+  tar_target(
+    d_vs_shuffled,
+    withr::with_seed(
+      targets_seed,
+      add_shuffle_seq_pq(d_vs, prop_fake = prop_fake)
+    ),
+    deployment = "main"
+  ),
+  tar_target(
+    d_vs_for_assignation,
+    add_external_seq_pq(
+      d_vs_shuffled,
+      Biostrings::readDNAStringSet(fake_ref_file)
+    ),
+    deployment = "main"
+  ),
   ref_file_targets,
   compute_targets,
   assignment_targets,
+  assignment_targets_otu,
   # Production refuses an assignment that added no column (ROADMAP S1.3);
   # smoke tests on the mini_* databases tolerate it (blastn often has no hit).
   tarchetypes::tar_combine(
     d_all_taxo,
     assignment_targets,
-    command = combine_taxo_assignments(d_asv_for_assignation, !!!.x,
-                                       allow_empty = mini_db),
+    command = combine_taxo_assignments(
+      d_asv_for_assignation,
+      !!!.x,
+      allow_empty = mini_db
+    ),
+    deployment = "main"
+  ),
+  tarchetypes::tar_combine(
+    d_all_taxo_otu,
+    assignment_targets_otu,
+    command = combine_taxo_assignments(
+      d_vs_for_assignation,
+      !!!.x,
+      allow_empty = mini_db
+    ),
     deployment = "main"
   ),
   tar_target(
     benchmark_costs,
     {
       d_all_taxo # aggregate only once every assignment has run
+      d_all_taxo_otu
       # Costs are logged per computation (compute_name). right_join keeps one
       # row per benchmark row: the rows derived from one computation share its
       # cost, and `phase` carries the full_name the chapters join on.
@@ -221,6 +338,7 @@ tar_plan(
     session_info,
     {
       d_all_taxo
+      d_all_taxo_otu
       list(
         pqverse = pqverse_versions(),
         session = sessioninfo::session_info()

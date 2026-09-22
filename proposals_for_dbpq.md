@@ -5,7 +5,13 @@ them. Each is a thin operation that fits dbpq's scope ("download, format,
 summarize, and modify FASTA reference databases") and would let
 `make_databases.R` and `R/create_fake_pq_from_refseq.R` collapse to pure dbpq calls.
 
-Ordered roughly by usefulness × ease of porting.
+Ordered roughly by usefulness × ease of porting. **Four live proposals**
+(§1, §2, §4, §6), two withdrawn (§3, §5) and the dbpq defects of §0.
+
+**Rule (2026-09-22, ROADMAP C22-S2): do not upstream dead code.** A proposal is
+live only while its local call site is reachable from `derive_all_variants()`.
+The numbering is kept stable — a withdrawn item keeps its number and says why,
+because other documents cite these sections.
 
 ---
 
@@ -128,13 +134,23 @@ written via `Biostrings::writeXStringSet()`.
 
 ---
 
-## 3. `cluster_db(ref_fasta, output, identity)`
+## 3. `cluster_db(ref_fasta, output, identity)` — **WITHDRAWN 2026-09-22**
 
-vsearch `--cluster_fast` wrapper that returns the centroid fasta. dbpq
-already exports `find_vsearch()` and `is_vsearch_installed()` for the
-machinery; only the wrapper is missing.
+**Its local call site is dead code.** `make_databases.R::derive_clustered()` is
+defined and never called: the only other occurrences of its name in the project
+are its own `stop()` message and the comment at `make_databases.R:31` saying the
+orchestration does not call it. Clustered databases left the grid with the
+2026-09-17 design (`config.R::benchmark_dbs` has no clustered level), so there is
+no local user to port. Verified by grep on 2026-09-22.
 
-**Local call site** — `make_databases.R::derive_clustered()`.
+Withdrawn rather than deleted because the idea is sound and cheap if a clustered
+reference ever returns to the design: dbpq already exports `find_vsearch()` and
+`is_vsearch_installed()`, so only the wrapper below would be missing. **Do not
+propose it upstream in this state** — write the caller first.
+
+**Former local call site** — `make_databases.R::derive_clustered()`, **deleted
+on 2026-09-22** (ROADMAP C22-S2). The body is in the git history and the sketch
+below is enough to rewrite it.
 
 **Suggested signature**
 ```r
@@ -178,26 +194,24 @@ files; for the smoke-test use case this is fine.
 
 ---
 
-## 5. `remove_parens_db(ref_fasta, output)`
+## 5. `remove_parens_db(ref_fasta, output)` — **WITHDRAWN 2026-09-22**
 
-Strip parenthesized synonyms from headers, i.e. `sed 's/([^)]*)//g'`. The
-EUKARYOME v1.9.3 release ships taxonomy strings like
-`Genus_name (synonym_name)` that confuse downstream parsers.
+Would have stripped parenthesized synonyms from headers, i.e.
+`sed 's/([^)]*)//g'`, for EUKARYOME taxonomy strings like
+`Genus_name (synonym_name)`.
 
-**Local call site** — `make_databases.R::derive_no_parens()`.
+**Withdrawn for two independent reasons.** (i) **Superseded on 2026-09-11** by
+the EUKARYOME qualifier item of §0, which is the correct fix: a blind
+`s/([^)]*)//g` empties `g__(Candida)` and misses `g__(Candida]`, `.s.str` and
+`.nom.prov`, whereas `general_headers_fixed()` handles all four. (ii) **Its local
+call site is dead code**: `make_databases.R::derive_no_parens()` is defined,
+never called and never tested (verified by grep on 2026-09-22).
 
-**Superseded on 2026-09-11** by the EUKARYOME qualifier item of §0: a blind
-`s/([^)]*)//g` empties `g__(Candida)`, misses `g__(Candida]`, `.s.str` and
-`.nom.prov`, and the orchestration never called it.
+What should reach dbpq is the §0 qualifier clean-up in the `eukaryome` branch of
+`.parse_tax_header()`, not this function.
 
-**Suggested signature**
-```r
-remove_parens_db(ref_fasta, output)
-```
-
-This is narrow but it is the kind of database-specific quirk dbpq's
-download/format functions already absorb for other releases — better to
-keep the fix close to the format-detection logic.
+**Former local call site** — `make_databases.R::derive_no_parens()`, **deleted
+on 2026-09-22** (ROADMAP C22-S2).
 
 ---
 

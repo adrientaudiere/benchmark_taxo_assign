@@ -7,12 +7,12 @@ fw_primer_sequences <- "CTTGGTCATTTAGAGGAAGTAA"
 rev_primer_sequences <- "GCTGCGTTCTTCATCGATGC"
 
 # Glomeromycota primers — kept for reference, not used by the main pipeline.
-fw_primer_AM  <- "AAGCTCGTAGTTGAATTTCG"    # AMV4.5NF, Sato et al. 2005
-rev_primer_AM <- "CCCAACTATCCCTATTAATCAT"  # AMDGR,    Sato et al. 2005
+fw_primer_AM <- "AAGCTCGTAGTTGAATTTCG" # AMV4.5NF, Sato et al. 2005
+rev_primer_AM <- "CCCAACTATCCCTATTAATCAT" # AMDGR,    Sato et al. 2005
 
-n_threads   <- 4
+n_threads <- 4
 seq_len_min <- 200
-prop_fake   <- 0.5
+prop_fake <- 0.5
 
 # Minimum BLAST query cover (%) for blastn assignments and cross-validation
 # (decision 18). The ASVs start with 30-45 bp of the 18S end that ITS
@@ -35,38 +35,59 @@ blastn_min_cover <- 80
 #   (https://api.plutof.ut.ee/v1/public/dois/?identifier=<doi>).
 #   EUKARYOME urls are listed on https://eukaryome.org/generalfasta/.
 reference_sources <- tibble::tribble(
-  ~source,                ~provider,   ~release,     ~doi,                   ~url,
-  "Unite_s_all_20250219", "unite",     "19.02.2025", "10.15156/BIO/3301232", "https://s3.hpc.ut.ee/plutof-public/original/b02db549-5f04-43fc-afb6-02888b594d10.tgz",
-  "Unite_all_20250219",   "unite",     "19.02.2025", "10.15156/BIO/3301231", "https://s3.hpc.ut.ee/plutof-public/original/e861a3d6-54f4-42dc-882a-5f129beac39a.tgz",
-  "EUK_ITS_v2.1",         "eukaryome", "2.1",        NA_character_,          "https://sisu.ut.ee/wp-content/uploads/sites/643/General_EUK_ITS_v2.1.zip"
+  ~source                , ~provider   , ~release     , ~doi                   , ~url                                                                                   ,
+  "Unite_s_all_20250219" , "unite"     , "19.02.2025" , "10.15156/BIO/3301232" , "https://s3.hpc.ut.ee/plutof-public/original/b02db549-5f04-43fc-afb6-02888b594d10.tgz" ,
+  "Unite_all_20250219"   , "unite"     , "19.02.2025" , "10.15156/BIO/3301231" , "https://s3.hpc.ut.ee/plutof-public/original/e861a3d6-54f4-42dc-882a-5f129beac39a.tgz" ,
+  "EUK_ITS_v2.1"         , "eukaryome" , "2.1"        , NA_character_          , "https://sisu.ut.ee/wp-content/uploads/sites/643/General_EUK_ITS_v2.1.zip"
 )
 
-# Databases benchmarked: one source and one simplification each.
+# Databases benchmarked: one source and one simplification each
+# (docs/objectives_design.md §1.3, decisions 1, 3, 13, 14, 21, 24, 25).
 #   "full"      = the whole release;
 #   "Fungi"     = records whose kingdom is exactly Fungi;
+#   "Fungi+rep" = "Fungi" plus non-fungal representative records drawn from
+#                 the "full" release of the same source (rep_share of the
+#                 fungal record count, spread over the retained kingdoms);
 #   "Fungi+cut" = "Fungi", then trimmed to the amplicon region with cutadapt
 #                 (config primers; records without primer sites kept whole).
+#                 Not in the grid since 2026-09-17: see zoom_dbs.
 # Decision 7 (revised 2026-09-15): no SSU database. ITS1 is not part of the
 # 18S gene, so an SSU record only holds the 18S start of the ASVs.
-benchmark_dbs <- tibble::tribble(
-  ~source,                ~simplification,
-  "Unite_s_all_20250219", "full",
-  "Unite_s_all_20250219", "Fungi",
-  "Unite_all_20250219",   "full",
-  "Unite_all_20250219",   "Fungi",
-  "EUK_ITS_v2.1",         "full",
-  "EUK_ITS_v2.1",         "Fungi",
-  "EUK_ITS_v2.1",         "Fungi+cut"
+benchmark_dbs <- tidyr::expand_grid(
+  source = c("Unite_s_all_20250219", "Unite_all_20250219", "EUK_ITS_v2.1"),
+  simplification = c("full", "Fungi", "Fungi+rep")
 )
-db_suffix <- c(full = "", Fungi = "_Fungi", "Fungi+cut" = "_Fungi_cut")
-benchmark_dbs$db <- paste0(benchmark_dbs$source, db_suffix[benchmark_dbs$simplification])
+# Databases built for the final zoom only (trimmed references on the best
+# database x method combinations, Pauvert mock only; decisions 24, 25).
+# derive_all_variants() builds them, but they are in no assignment grid.
+zoom_dbs <- tibble::tribble(
+  ~source        , ~simplification ,
+  "EUK_ITS_v2.1" , "Fungi+cut"
+)
+db_suffix <- c(
+  full = "",
+  Fungi = "_Fungi",
+  "Fungi+rep" = "_Fungi_rep",
+  "Fungi+cut" = "_Fungi_cut"
+)
+benchmark_dbs$db <- paste0(
+  benchmark_dbs$source,
+  db_suffix[benchmark_dbs$simplification]
+)
+zoom_dbs$db <- paste0(zoom_dbs$source, db_suffix[zoom_dbs$simplification])
 
-# Used by R/values_map.R (assignment and cross-validation grids) and by the
-# Q2 figures (which simplification step each database represents).
+# Used by R/values_map.R (assignment grid) and by the Q2 figures (which
+# simplification step each database represents).
 db_list <- benchmark_dbs$db
+# Cross-validation grid: unchanged until its databases are chosen from the mock
+# results (objectives_design decision 27), so the CV store keeps its targets.
+cv_db_list <- c(
+  benchmark_dbs$db[benchmark_dbs$simplification %in% c("full", "Fungi")],
+  zoom_dbs$db
+)
 db_meta <- tibble::tibble(
-  db             = benchmark_dbs$db,
-  db_base        = benchmark_dbs$source,
+  db = benchmark_dbs$db,
+  db_base = benchmark_dbs$source,
   simplification = benchmark_dbs$simplification
 )
 
@@ -74,13 +95,127 @@ db_meta <- tibble::tibble(
 seed_taxonomy_db <- "Unite_s_all_20250219_Fungi"
 # Release whose non-Fungi records feed the external negative controls.
 fake_ref_source <- "Unite_s_all_20250219"
+# Release the in silico reads of D1b are generated from (objectives_design
+# decision 5). Same release as `fake_ref_source` today, but for another reason:
+# read from `sources/` so its k__/p__ headers still carry the lineage that is
+# the ground truth (analysis/in_silico_simulation.qmd).
+insilico_source <- "Unite_s_all_20250219"
+# Non-fungal kingdoms retained as groups of representative sequences in the
+# `fungi + rep` databases (docs/objectives_design.md §1.3, decisions 13 and
+# 21): at least this many records in the release, once the labels matching
+# `rep_kingdom_exclude` are removed. The external negative controls are drawn
+# only from the kingdoms retained in every release listed here, so that each
+# control can be named at Kingdom on every `fungi + rep` database.
+rep_kingdom_min_records <- c(
+  Unite_all_20250219 = 10L,
+  Unite_s_all_20250219 = 10L,
+  EUK_ITS_v2.1 = 100L
+)
+rep_kingdom_exclude <- "^Fungi$|^cf\\.|\\.reg|^_|spike|Incertae_sedis|^Tartumycota$"
+# Number of representative records of a `fungi + rep` database, as a share of
+# its fungal records (decision 3), rounded up.
+rep_share <- 0.05
+# A record whose identity with one of the external negative controls reaches
+# this value is never drawn as a representative (developer, 2026-09-22): a
+# control must not have a close relative in a database whose composition we
+# choose. Measured on the first build: 6, 7 and 10 of the 100 controls had a
+# representative at >= 97 % identity in the UNITE, UNITE_sh and EUKARYOME
+# `fungi + rep` databases. The whole releases keep the controls (they come from
+# `fake_ref_source`, so `ext_correct` stays computable there) and the `_Fungi`
+# databases hold none.
+rep_max_identity_to_external <- 0.97
+# EUKARYOME kingdom names mapped to their UNITE spelling before comparing.
+kingdom_aliases <- c(Straminipila = "Stramenopila")
 # (method, database) preferred by the `preference` consensus strategy (Q3).
 preference_method <- "sintax"
-preference_db     <- "EUK_ITS_v2.1"
+preference_db <- "EUK_ITS_v2.1"
 sam_data_file_name <- "sam_data.csv"
-sample_col_name    <- "Sample_names"
-fake_ref_fasta     <- "data/data_raw/fake_ref/fake_ref_asv_100.fasta"
-taxo_mock_csv      <- "data/data_raw/metadata/taxo_mock.csv"
+sample_col_name <- "Sample_names"
+
+# Sanger sequences of the strains of each mock community, from which every ASV
+# and OTU gets its own truth (ROADMAP 0.6, R/mock_truth.R): the table of the
+# authors, its separator, the columns holding the strain identifier, the taxon
+# name and the sequence, and the cache of GBIF lineages written by
+# refresh_gna_lineage_cache(). `dataset` is "pauvert" for the production
+# projects, otherwise the key of `bio_datasets`.
+mock_sanger_tables <- tibble::tribble(
+  ~dataset            , ~path                                                         , ~sep , ~unit_col     , ~name_col        , ~seq_col          , ~lineage_cache                                             ,
+  "pauvert"           , "data/data_raw/metadata/pauvert2019_table_s1_mock_sanger.csv" , ";"  , "Mock_Strain" , "Species"        , "Sanger_Sequence" , "data/data_raw/metadata/pauvert_gna_lineage.csv"           ,
+  "tedersoo_illumina" , "data/data_raw/metadata/tedersoo_mock_table_s1_sanger.csv"    , ","  , "Specimen"    , "Identification" , "Sanger_read"     , "data/data_raw/metadata/tedersoo_illumina_gna_lineage.csv"
+)
+
+# ---- Biological-community datasets (D1c) ------------------------------------
+# One {targets} project pair per dataset (developer decision 2026-09-16):
+# `dada2_<dataset>` builds the phyloseq from fastq, `assign_taxo_<dataset>`
+# assigns it. The dataset key is derived from TAR_PROJECT exactly as mini_db
+# is, so the production projects are untouched and each dataset owns its store.
+#
+# Primers VERIFIED 2026-09-16 against `primers.fas` of the study's own
+# repository (Mycology-Microbiology-Center/fullITS-multiplatform-eval), whose
+# 62 bytes read exactly:
+#     >ITS9mun_ITS4ngsUni
+#     GTACACACCGCCCGTCG...GCATATHANTAAGSGSAGGcg
+# That is cutadapt's linked-adapter form, FORWARD...revcomp(REVERSE), so the
+# reverse primer is stored here in its own reading sense (the reverse
+# complement of `GCATATHANTAAGSGSAGGcg`), as `rev_primer_sequences` above holds
+# the ITS2 of White 1990 in its reading sense. The NextITS defaults quoted in
+# its documentation drop the leading G of ITS9mun and the leading CG of
+# ITS4ngsUni: do not copy them from there.
+#
+# File patterns are per-dataset because naming is not uniform. The ENA serves
+# these runs as `<run>_1.fastq.gz` / `_2.fastq.gz`, but the local copies were
+# renamed to `_R1` / `_R2` to match the mock-community convention, and the
+# columns below describe WHAT IS ON DISK, not what the ENA serves. Check the
+# folder before changing them: both `cutadapt_remove_primers()` and
+# `list_fastq_files()` take these patterns, and a mismatch stops the pipeline
+# on its first target with "None file in the folder ... match the pattern_R1".
+bio_datasets <- tibble::tribble(
+  ~dataset            , ~raw_dir                                 , ~sam_data                        , ~fw_primer          , ~rev_primer             , ~pattern_r1 , ~pattern_r2 , ~name_strip        , ~taxo_mock    , ~cut_suffix   , ~itsx_region ,
+  "tedersoo_illumina" , "data/data_raw/rawseq_tedersoo_illumina" , "sam_data_tedersoo_illumina.csv" , "GTACACACCGCCCGTCG" , "CGCCTSCSCTTANTDATATGC" , "_R1"       , "_R2"       , "_R[12]\\.fastq.*" , NA_character_ , NA_character_ , "full"
+)
+# cut_suffix: suffix of an amplicon-specific trimmed reference built by
+# derive_all_variants() for the dataset (e.g. "_Fungi_cut_full_ITS"), NA for
+# none. Trimmed references are out of the grid (decisions 24, 25), and the
+# Tedersoo primers have almost no site in an ITS reference anyway
+# (docs/experimental_design.md §5.5).
+# itsx_region: region of the ITSx input of the dataset (ROADMAP 0.5), "ITS1",
+# "ITS2" or "full" (ITS1 + 5.8S + ITS2).
+
+# Dataset of the running project, NULL for the production projects.
+bio_dataset <- sub(
+  "^(dada2|assign_taxo)_",
+  "",
+  Sys.getenv("TAR_PROJECT", unset = "")
+)
+bio_cfg <- if (bio_dataset %in% bio_datasets$dataset) {
+  as.list(bio_datasets[match(bio_dataset, bio_datasets$dataset), ])
+} else {
+  NULL
+}
+if (!is.null(bio_cfg)) {
+  message("config.R: biological dataset = ", bio_dataset)
+}
+
+# DADA2 store that assign_taxo reads its `d_asv` from. The production project
+# keeps store_dada2; a dataset project reads its own store.
+dada2_store <- if (is.null(bio_cfg)) {
+  "store_dada2"
+} else {
+  paste0("store_dada2_", bio_dataset)
+}
+fake_ref_fasta <- "data/data_raw/fake_ref/fake_ref_asv_100.fasta"
+# Truth table of the community being assigned. Per dataset since 2026-09-16:
+# `pipelines/assign_taxo.R` used to build this target from a single global
+# constant pointing at the Pauvert mock, so a biological-dataset run stored
+# *that* truth table in its own store, where a later reader would take it for
+# the dataset's own (ROADMAP D1c). NA means "no known truth": the targets are
+# then not created at all. Tedersoo's own truth (103 species) is still to be
+# fetched from the paper's Table S1 / UNITE.
+taxo_mock_csv <- if (is.null(bio_cfg)) {
+  "data/data_raw/metadata/taxo_mock.csv"
+} else {
+  bio_cfg$taxo_mock
+}
 
 # Prelude that activates the cutadapt conda env. Override per-machine if your
 # conda lives elsewhere.
@@ -93,13 +228,13 @@ cutadapt_conda_prelude <-
 # of ITS2, so a few bases at the end of a record are not taken for a primer.
 # The _Fungi_cut databases keep the records without primer sites
 # (cut_discard_untrimmed = FALSE; the dbpq default discards them).
-primer_min_overlap    <- nchar(rev_primer_sequences)
+primer_min_overlap <- nchar(rev_primer_sequences)
 cut_discard_untrimmed <- FALSE
 # Records shorter than cut_min_length after trimming are dropped from the
 # _Fungi_cut databases: ITS2-only records starting at the 5.8S site are left
 # empty or nearly (317 empty, 1530 < 50 bp in EUK_ITS_v2.1_Fungi_cut; ROADMAP
 # S6.9). Same value as the query length filter of cross_val().
-cut_min_length        <- 50L
+cut_min_length <- 50L
 
 # ITS extraction of the ASVs with ITSx (ROADMAP Q4). ITSx 1.1.3 lives in the
 # `itsxenv` conda env (bioconda). Only ITS1 is kept (the ASVs start with 45 bp
@@ -108,10 +243,15 @@ cut_min_length        <- 50L
 # ASVs are trimmed too, and undetected ASVs keep their full sequence.
 itsx_conda_prelude <-
   "source ~/miniforge3/etc/profile.d/conda.sh && conda activate itsxenv && "
-itsx_region          <- "ITS1"
+# Region kept by ITSx, per dataset (ROADMAP 0.5): ITS1 for the ITS1F / ITS2
+# amplicon of the Pauvert mock, the region of `bio_datasets$itsx_region` for a
+# dataset project (the full ITS for Tedersoo, whose ASVs carry 154 bp of 18S
+# and 39 bp of 28S around it; docs/experimental_design.md §5.1).
+itsx_region <- if (is.null(bio_cfg)) "ITS1" else bio_cfg$itsx_region
 itsx_organism_groups <- "all"
-# Databases assigned from the ITSx input too (ROADMAP S8.5, lever L7): the
-# Fungi-filtered ones (_Fungi, _Fungi_cut); the full releases get the raw ASVs only.
+# Databases assigned from the ITSx input too (ROADMAP S8.5 and 0.1): the
+# Fungi-filtered ones (_Fungi, _Fungi_rep); the full releases get the raw ASVs
+# and the OTUs only.
 itsx_db_list <- benchmark_dbs$db[benchmark_dbs$simplification != "full"]
 
 # Number of crew workers for parallel assignments. Lower this if your machine
@@ -122,12 +262,23 @@ n_workers <- 3
 # crew worker, sintax / lca / blastn on the n_workers workers. Keep
 # assign_threads_dada2 + n_workers * assign_threads_fast <= the cores (6 here).
 assign_threads_dada2 <- 3
-assign_threads_fast  <- 1
+assign_threads_fast <- 1
 
 # Threads of each cross-validation target (ROADMAP S8.4), passed as nproc to
 # sintax / lca / blastn and as multithread to dada2. The CV pipeline runs
-# n_workers targets at once: keep n_workers * cv_threads <= the cores.
+# cv_n_workers_fast targets at once: keep cv_n_workers_fast * cv_threads
+# within the cores.
 cv_threads <- 2
+
+# Fast workers of the cross-validation pipeline only (decision 2026-09-16).
+# Kept separate from n_workers, which assign_taxo shares, because the CV is
+# memory-bound and assign_taxo is not: since cv_reduce_reference is FALSE, a CV
+# target holds a whole EUKARYOME reference. Peaks measured on EUK_ITS_v2.1:
+# dada2 >= 45 GB (run killed before the end), lca 6.2, sintax 5.9, blastn 3.5.
+# The single dada2 worker is resident almost continuously, so 3 fast workers
+# would reach 60.6 GB on a 62 GB machine, against 57.1 GB for 2.
+# See docs/diagnostics_cv_and_databases.md section 7.
+cv_n_workers_fast <- 2
 
 targets_seed <- 22
 
@@ -137,8 +288,11 @@ targets_seed <- 22
 # test can never overwrite a production store. Target names do not change.
 #   Sys.setenv(TAR_PROJECT = "assign_taxo_mini"); targets::tar_make()
 mini_db <- grepl("_mini$", Sys.getenv("TAR_PROJECT", unset = ""))
-message("config.R: mini_db = ", mini_db,
-        if (mini_db) " (smoke-test databases mini_*)" else " (full databases)")
+message(
+  "config.R: mini_db = ",
+  mini_db,
+  if (mini_db) " (smoke-test databases mini_*)" else " (full databases)"
+)
 
 cv_fold_number <- 3L
 # Publication values (ROADMAP S8.4, revised 2026-09-16): every fold of a 3-fold
@@ -149,7 +303,7 @@ cv_fold_number <- 3L
 # diagnostics_cv_and_databases.md section 7). The *_mini projects test 2 folds
 # of 200 sequences.
 cv_fold_tested <- if (mini_db) 2L else cv_fold_number
-cv_max_seq     <- if (mini_db) 200L else 5000L
+cv_max_seq <- if (mini_db) 200L else 5000L
 # Reference of a CV target (ROADMAP B24, decision 2026-09-16): FALSE keeps the
 # whole database and removes only the tested queries, as Bokulich et al. 2018,
 # instead of reducing the reference to the drawn pool. The queries are drawn

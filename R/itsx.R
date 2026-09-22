@@ -5,13 +5,18 @@
 # MiscMetabar, next to cutadapt_remove_primers().
 
 # Run ITSx on `seqs` (a named DNAStringSet) and return the extracted `region`
-# (named like `seqs`) and the ITSx positions table. `prelude` activates the
+# (named like `seqs`) and the ITSx positions table. `region` is one of the
+# `--save_regions` values (e.g. "ITS1", "ITS2") or "full", the ITS1 + 5.8S +
+# ITS2 span that ITSx always writes to `<prefix>.full.fasta` (ROADMAP 0.5; ITSx
+# has no `--save_regions full`, so "none" is passed). `prelude` activates the
 # conda env holding ITSx (config.R::itsx_conda_prelude).
-run_itsx <- function(seqs,
-                     region = "ITS1",
-                     organism_groups = "F",
-                     cpu = 1,
-                     prelude = "") {
+run_itsx <- function(
+  seqs,
+  region = "ITS1",
+  organism_groups = "F",
+  cpu = 1,
+  prelude = ""
+) {
   work_dir <- tempfile("itsx_")
   dir.create(work_dir)
   on.exit(unlink(work_dir, recursive = TRUE), add = TRUE)
@@ -19,11 +24,22 @@ run_itsx <- function(seqs,
   prefix <- file.path(work_dir, "itsx")
   Biostrings::writeXStringSet(seqs, input, width = 20000)
 
+  save_regions <- if (region == "full") "none" else region
   cmd <- sprintf(
     "%sITSx -i %s -o %s -t %s --cpu %d --preserve T --save_regions %s --graphical F --silent T",
-    prelude, shQuote(input), shQuote(prefix), organism_groups, as.integer(cpu), region
+    prelude,
+    shQuote(input),
+    shQuote(prefix),
+    organism_groups,
+    as.integer(cpu),
+    save_regions
   )
-  status <- system2("bash", c("-c", shQuote(cmd)), stdout = FALSE, stderr = FALSE)
+  status <- system2(
+    "bash",
+    c("-c", shQuote(cmd)),
+    stdout = FALSE,
+    stderr = FALSE
+  )
   if (status != 0) {
     stop("ITSx failed (exit ", status, "): ", cmd)
   }
@@ -37,13 +53,24 @@ run_itsx <- function(seqs,
   names(extracted) <- sub("\\s.*$", "", names(extracted))
 
   positions_file <- paste0(prefix, ".positions.txt")
-  positions <- if (file.exists(positions_file) && file.size(positions_file) > 0) {
+  positions <- if (
+    file.exists(positions_file) && file.size(positions_file) > 0
+  ) {
     utils::read.delim(
       positions_file,
       header = FALSE,
       quote = "",
       fill = TRUE,
-      col.names = c("taxon", "length", "SSU", "ITS1", "5.8S", "ITS2", "LSU", "comment"),
+      col.names = c(
+        "taxon",
+        "length",
+        "SSU",
+        "ITS1",
+        "5.8S",
+        "ITS2",
+        "LSU",
+        "comment"
+      ),
       check.names = FALSE
     ) |>
       tibble::as_tibble()
@@ -63,7 +90,11 @@ itsx_replace_refseq <- function(physeq, itsx, keep_undetected = TRUE) {
   detected <- names(seqs) %in% names(itsx$sequences)
   if (any(!detected)) {
     message(
-      sum(!detected), " of ", length(seqs), " taxa without ", itsx$region,
+      sum(!detected),
+      " of ",
+      length(seqs),
+      " taxa without ",
+      itsx$region,
       " detected by ITSx: ",
       if (keep_undetected) "kept with their full sequence" else "removed"
     )
@@ -75,7 +106,10 @@ itsx_replace_refseq <- function(physeq, itsx, keep_undetected = TRUE) {
   }
   new_seqs <- as.character(seqs)
   new_seqs[detected] <- as.character(itsx$sequences[names(seqs)[detected]])
-  physeq@refseq <- Biostrings::DNAStringSet(stats::setNames(new_seqs, names(seqs)))
+  physeq@refseq <- Biostrings::DNAStringSet(stats::setNames(
+    new_seqs,
+    names(seqs)
+  ))
 
   # Two ASVs differing only outside `itsx$region` (e.g. in the 18S/5.8S flank)
   # become identical once trimmed, and verify_pq() (run by every assign_*())
@@ -83,7 +117,10 @@ itsx_replace_refseq <- function(physeq, itsx, keep_undetected = TRUE) {
   # both inputs, with itsx_duplicated_taxa() (ROADMAP decision 20).
   if (anyDuplicated(new_seqs)) {
     stop(
-      sum(duplicated(new_seqs)), " taxa share their ", itsx$region, " sequence ",
+      sum(duplicated(new_seqs)),
+      " taxa share their ",
+      itsx$region,
+      " sequence ",
       "with another taxon: drop itsx_duplicated_taxa() from `physeq` first."
     )
   }
@@ -106,8 +143,11 @@ itsx_duplicated_taxa <- function(physeq, itsx) {
   dropped <- names(seqs)[by_abundance][duplicated(trimmed[by_abundance])]
   if (length(dropped) > 0) {
     message(
-      length(dropped), " taxa removed from both inputs (same ", itsx$region,
-      " as a more abundant taxon): ", paste(dropped, collapse = ", ")
+      length(dropped),
+      " taxa removed from both inputs (same ",
+      itsx$region,
+      " as a more abundant taxon): ",
+      paste(dropped, collapse = ", ")
     )
   }
   dropped

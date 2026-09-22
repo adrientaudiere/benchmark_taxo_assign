@@ -10,8 +10,20 @@ simplification effect), Q2.5 (DB size vs compute cost and accuracy).
 ```{r setup}
 here::i_am("analysis/03_q2_databases.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
-res_comp_tax    <- cache_read("res_comp_tax")
+res_comp_tax <- cache_read("res_comp_tax") |> default_view()
 benchmark_costs <- tar_read(benchmark_costs, store = store_assign_taxo)
+
+# benchmark_costs joins res_comp_tax on the assignment names. A store built
+# before the 2026-09-17 grid holds other names, and the join would come back
+# empty without any error: stop instead.
+matched <- sum(benchmark_costs$phase %in% res_comp_tax$method_db)
+if (matched == 0) {
+  stop(
+    "No assignment of benchmark_costs matches res_comp_tax: ",
+    basename(store_assign_taxo),
+    " predates the current grid. Rerun the assign_taxo project."
+  )
+}
 ```
 
 ## Q2.1 — Per-DB accuracy

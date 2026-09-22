@@ -1,5 +1,5 @@
 # One computation per method × database × input, and the benchmark rows
-# derived from it (ROADMAP S8.2, docs/compute_budget.md). The derived rows are
+# derived from it (ROADMAP S8.2, docs/experimental_design.md §8). The rows are
 # the ones add_new_taxonomy_pq() used to compute one by one:
 #
 # - dada2: one assignTaxonomy(minBoot = 0, outputBootstraps = TRUE); a row
@@ -8,16 +8,17 @@
 # - sintax: one assign_sintax(min_bootstrap = 0, behavior = "return_matrix");
 #   a row sets the values whose bootstrap is < min_bootstrap to NA, as
 #   assign_sintax() does.
-# - lca: one assignment; lca has no bootstrap, so the rows are copies.
+# - lca: one vsearch search whose hits are kept
+#   (assign_vsearch_lca(behavior = "return_hits")); a row computes the LCA at
+#   its lca_cutoff from these hits (assign_vsearch_lca(hits_table = )), which
+#   gives what vsearch --lcaout gives at that cutoff (ROADMAP 0.3).
 # - blastn: one raw blast table (no score filter); a row applies the score
-#   filters and its vote with assign_blastn(blast_table = ).
+#   filters (min_id, min_cover) and its vote with assign_blastn(blast_table = ).
 #
 # The negative controls (fake_*, external_*) have no reads. assign_sintax()
 # and assign_vsearch_lca() drop empty taxa before querying unless
 # clean_pq = FALSE, so the controls were never assigned by these two methods
 # (critique 07, B19).
-
-lca_compute_suffix <- "_lca_compute"
 
 compute_assignment <- function(physeq, method, ref_fasta, nproc = 1) {
   switch(
@@ -37,13 +38,13 @@ compute_assignment <- function(physeq, method, ref_fasta, nproc = 1) {
       clean_pq = FALSE,
       nproc = nproc
     ),
-    lca = MiscMetabar::add_new_taxonomy_pq(
+    lca = MiscMetabar::assign_vsearch_lca(
       physeq,
       ref_fasta = ref_fasta,
-      method = "lca",
-      suffix = lca_compute_suffix,
+      behavior = "return_hits",
       clean_pq = FALSE,
-      nproc = nproc
+      nproc = nproc,
+      verbose = FALSE
     ),
     blastn = MiscMetabar::blast_pq(
       physeq,
@@ -58,14 +59,18 @@ compute_assignment <- function(physeq, method, ref_fasta, nproc = 1) {
 
 # Returns `physeq` with the columns of one benchmark row (suffix
 # "_<full_name>"), or `physeq` unchanged when the computation found nothing.
-derive_assignment <- function(physeq,
-                              computed,
-                              method,
-                              suffix,
-                              min_bootstrap = NA,
-                              vote_algorithm = NA,
-                              nb_voting = NA,
-                              min_cover = NA) {
+derive_assignment <- function(
+  physeq,
+  computed,
+  method,
+  suffix,
+  min_bootstrap = NA,
+  vote_algorithm = NA,
+  nb_voting = NA,
+  min_cover = NA,
+  min_id = NA,
+  lca_cutoff = NA
+) {
   if (is.null(computed)) {
     return(physeq)
   }
@@ -73,7 +78,14 @@ derive_assignment <- function(physeq,
     method,
     dada2 = derive_dada2_row(physeq, computed, min_bootstrap, suffix),
     sintax = derive_sintax_row(physeq, computed, min_bootstrap, suffix),
-    lca = derive_lca_row(physeq, computed, suffix),
+    lca = MiscMetabar::assign_vsearch_lca(
+      physeq,
+      hits_table = computed,
+      behavior = "add_to_phyloseq",
+      lca_cutoff = lca_cutoff,
+      suffix = suffix,
+      verbose = FALSE
+    ),
     blastn = MiscMetabar::assign_blastn(
       physeq,
       blast_table = computed,
@@ -81,6 +93,7 @@ derive_assignment <- function(physeq,
       suffix = suffix,
       vote_algorithm = vote_algorithm,
       nb_voting = nb_voting,
+      min_id = min_id,
       min_cover = min_cover
     ),
     stop("Unknown method: ", method)
@@ -90,7 +103,12 @@ derive_assignment <- function(physeq,
 # Same columns as add_new_taxonomy_pq(method = "dada2", min_bootstrap = ).
 derive_dada2_row <- function(physeq, computed, min_bootstrap, suffix) {
   full <- computed$tax
-  tax_tab <- matrix(NA_character_, nrow(full), ncol(full), dimnames = dimnames(full))
+  tax_tab <- matrix(
+    NA_character_,
+    nrow(full),
+    ncol(full),
+    dimnames = dimnames(full)
+  )
   for (i in seq_len(nrow(full))) {
     kept <- full[i, computed$boot[i, ] >= 100 * min_bootstrap]
     if (length(kept) > 0) {
@@ -99,7 +117,10 @@ derive_dada2_row <- function(physeq, computed, min_bootstrap, suffix) {
   }
   colnames(tax_tab) <- make.unique(paste0(colnames(tax_tab), suffix))
   new_physeq <- physeq
-  phyloseq::tax_table(new_physeq) <- phyloseq::tax_table(cbind(physeq@tax_table, tax_tab))
+  phyloseq::tax_table(new_physeq) <- phyloseq::tax_table(cbind(
+    physeq@tax_table,
+    tax_tab
+  ))
   new_physeq
 }
 
@@ -119,17 +140,4 @@ derive_sintax_row <- function(physeq, computed, min_bootstrap, suffix) {
   new_physeq@tax_table <- phyloseq::tax_table(new_tax_tab)
   phyloseq::taxa_names(new_physeq@tax_table) <- phyloseq::taxa_names(physeq)
   new_physeq
-}
-
-# The lca columns of the computation, renamed to the row suffix.
-derive_lca_row <- function(physeq, computed, suffix) {
-  computed_df <- tidypq::tax_table_to_df(computed, convert = FALSE)
-  compute_cols <- grep(paste0(lca_compute_suffix, "$"), names(computed_df), value = TRUE)
-  new_cols <- computed_df[
-    match(phyloseq::taxa_names(physeq), computed_df$taxon),
-    compute_cols,
-    drop = FALSE
-  ]
-  names(new_cols) <- sub(paste0(lca_compute_suffix, "$"), suffix, compute_cols)
-  do.call(tidypq::mutate_taxa_pq, c(list(physeq = physeq), as.list(new_cols)))
 }

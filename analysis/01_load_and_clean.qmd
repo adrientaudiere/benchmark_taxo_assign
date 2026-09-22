@@ -1,68 +1,90 @@
 ---
-title: "01 — Load, clean, compute metrics"
+title: "01 — Load, clean, score against the per-unit truth"
 author: "Adrien Taudière"
 ---
 
-Reads `d_all_taxo` from `store_assign_taxo`, cleans the taxonomy strings,
-builds the `Gen_sp_*` columns and the consensus columns (Q3.1, Q3.3), then
-computes the mock-community metrics (`res_comp_tax`, M1.1). Every later
-chapter reads its inputs from `analysis/_cache/`, written at the end of this
-file.
+Reads the assignments of every dataset that has a store, cleans the taxonomy
+strings, builds the `Gen_sp_*` and the consensus columns (Q3.1, Q3.3), gives
+every unit its own truth (`R/mock_truth.R`, ROADMAP 0.6) and scores the
+columns with `comparpq::tc_metrics_unit()` (ROADMAP 0.7). Every later chapter
+reads `res_comp_tax` from `analysis/_cache/`, written at the end of this file.
+
+Three inputs are scored side by side, told apart by the `unit` column:
+
+| `unit` | Object | What it is |
+|---|---|---|
+| `ASV` | `d_all_taxo` | the ASVs, raw and ITSx-trimmed (`itsx_*` columns), plus the consensus columns |
+| `OTU` | `d_all_taxo_otu` | the 97 % OTUs (`d_vs`) assigned directly (`otu_*` columns, OD 4) |
+| `OTU_derived` | `d_otu_taxo` | the same clusters, but their taxonomy resolved from the member ASVs (decision 25) |
+
+`OTU` against `OTU_derived` is the "cluster then assign" versus "assign then
+cluster" comparison of Q5; both are kept on the developer's decision of
+2026-09-22.
 
 ```{r setup}
 here::i_am("analysis/01_load_and_clean.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
+source(here("R/mock_truth.R"))
+source(here("R/otu_taxonomy.R"))
+source(here("R/score_assignments.R"))
 ```
 
-# Import from store_assign_taxo
+# Datasets
 
-```{r load}
-d_all_taxo <- tar_read(d_all_taxo, store = store_assign_taxo)
-taxo_mock  <- tar_read(taxo_mock,  store = store_assign_taxo) |>
-  rename(Gen_sp = Species)
+One row per dataset whose assignment store exists (`analysis_datasets` in
+`00_setup.R`). The truth is built from the DADA2 store of the dataset, never
+from the assignment inputs: the ITSx input carries the same taxa as the raw
+ASVs but trimmed sequences, which must not be re-matched against the Sanger
+reads.
+
+```{r datasets}
+analysis_datasets
 ```
 
-## Clean taxonomy strings
+# Helpers
 
-```{r clean}
-d_all_taxo <- d_all_taxo |>
-  taxtab_replace_pattern_by_NA(
-    patterns = ".*_sp$",
-    progress_bar = TRUE,
-    taxonomic_ranks =
-      colnames(d_all_taxo@tax_table)[grep("^Species_", colnames(d_all_taxo@tax_table))]
+```{r helpers-clean}
+# Same cleaning for every object: "<Genus>_sp" species, the incertae sedis and
+# unclassified labels and the empty strings become NA.
+clean_taxo <- function(physeq) {
+  species_cols <- grep(
+    "^Species_",
+    colnames(physeq@tax_table),
+    value = TRUE
+  )
+  physeq |>
+    taxtab_replace_pattern_by_NA(
+      patterns = ".*_sp$",
+      progress_bar = FALSE,
+      taxonomic_ranks = species_cols
+    ) |>
+    taxtab_replace_pattern_by_NA(
+      patterns = c(
+        ".*_incertae_sedis",
+        ".*_Incertae_sedis",
+        "unclassified.*",
+        "^$"
+      ),
+      progress_bar = FALSE
+    ) |>
+    simplify_taxo()
+}
+```
+
+```{r helpers-gen-sp}
+# Genus + Species concatenated per assignment column. The tax_table is read
+# with `tidypq::tax_table_to_df()` and the new columns are written back in one
+# `tidypq::mutate_taxa_pq()` call (decision 13).
+assignment_labels <- function(taxtab_df) {
+  labels <- gsub(
+    "Kingdom|Phylum|Phyla|Class|Order|Family|Genus|Species", NA,
+    unique(gsub("Kingdom_|Phyla_|Phylum_|Class_|Order_|Family_|Genus_|Species_", "",
+                setdiff(names(taxtab_df), "taxon")))
   ) |>
-  taxtab_replace_pattern_by_NA(
-    patterns = c(
-      ".*_incertae_sedis",
-      ".*_Incertae_sedis",
-      "unclassified.*",
-      "^$"
-    ),
-    progress_bar = TRUE
-  ) |>
-  simplify_taxo()
-```
-
-## Build `Gen_sp_<method_db>` columns
-
-Genus + Species concatenated per assignment column. The tax_table is read
-with `tidypq::tax_table_to_df()` and the new columns are written back in one
-`tidypq::mutate_taxa_pq()` call (decision 13); verified identical to the
-former `as.matrix()` round trip on the 2026-05 store.
-
-```{r gen-sp}
-taxtab_df <- tax_table_to_df(d_all_taxo, convert = FALSE)
-
-# One label per assignment column set: "<method>__<db>___<params>".
-cl_names <- gsub(
-  "Kingdom|Phylum|Phyla|Class|Order|Family|Genus|Species", NA,
-  unique(gsub("Kingdom_|Phyla_|Phylum_|Class_|Order_|Family_|Genus_|Species_", "",
-              setdiff(names(taxtab_df), "taxon")))
-) |>
-  na.omit() |>
-  as.vector()
-cl_names <- grep("Taxa_name_", cl_names, invert = TRUE, value = TRUE)
+    na.omit() |>
+    as.vector()
+  grep("Taxa_name_", labels, invert = TRUE, value = TRUE)
+}
 
 # Species when it already carries the genus (Genus_species), else Genus_Species;
 # any "NA" left by the paste becomes a real NA.
@@ -74,28 +96,46 @@ gen_sp_for <- function(tt, cl) {
   out
 }
 
-gen_sp_cols <- setNames(
-  lapply(cl_names, \(cl) gen_sp_for(taxtab_df, cl)),
-  paste0("Gen_sp_", cl_names)
-)
-d_all_taxo <- do.call(mutate_taxa_pq, c(list(physeq = d_all_taxo), gen_sp_cols))
+add_gen_sp <- function(physeq) {
+  taxtab_df <- tax_table_to_df(physeq, convert = FALSE)
+  cl_names <- assignment_labels(taxtab_df)
+  gen_sp_cols <- setNames(
+    lapply(cl_names, \(cl) gen_sp_for(taxtab_df, cl)),
+    paste0("Gen_sp_", cl_names)
+  )
+  do.call(mutate_taxa_pq, c(list(physeq = physeq), gen_sp_cols))
+}
 ```
 
-# OTU taxonomy from the member ASVs (Q5)
-
-The ASVs are clustered at 97 % with vsearch (`otu_clusters` in
-`store_assign_taxo`). Each assignment column of an OTU keeps a value only when
-all its member ASVs assigned at that rank agree (`unanimity`, NA ignored); the
-negative controls are not clustered. No assignment is recomputed (ROADMAP Q5).
-
-```{r otu-taxonomy}
-source(here("R/otu_taxonomy.R"))
-otu_clusters <- tar_read(otu_clusters, store = store_assign_taxo)
-d_otu_taxo <- resolve_otu_taxonomy(d_all_taxo, otu_clusters, method = "unanimity")
-message(
-  ntaxa(d_all_taxo), " taxa (ASVs and controls) merged into ",
-  ntaxa(d_otu_taxo), " (OTUs and controls)"
-)
+```{r helpers-ranks-df}
+# The `ranks_df` that tc_metrics_unit() takes: one row per rank of
+# `truth_ranks` (its Species row is the `Gen_sp_*` column, because the truth
+# holds the underscored binomial and EUKARYOME stores the epithet alone), one
+# column per assignment. Assignments with no column at all are dropped on the
+# mini stores, where blastn can find no hit in a mini_* database and
+# combine_taxo_assignments(allow_empty = TRUE) adds no column; in production an
+# empty assignment is a failure.
+build_ranks_df <- function(physeq, assignments, ranks = tax_order) {
+  ranks_df <- as.data.frame(setNames(
+    lapply(assignments, \(a) paste0(ranks, "_", a)),
+    assignments
+  ))
+  present <- names(tax_table_to_df(physeq, convert = FALSE))
+  missing_cols <- setdiff(as.vector(unlist(ranks_df)), present)
+  empty <- names(ranks_df)[vapply(ranks_df, \(cols) all(cols %in% missing_cols), logical(1))]
+  if (analysis_mini && all(missing_cols %in% unlist(ranks_df[empty]))) {
+    if (length(empty) > 0) {
+      message("mini stores: ", length(empty), " empty assignments dropped: ",
+              paste(head(empty, 5), collapse = ", "),
+              if (length(empty) > 5) ", ...")
+    }
+    ranks_df <- ranks_df[setdiff(names(ranks_df), empty)]
+  } else if (length(missing_cols) > 0) {
+    print(head(missing_cols, 20))
+    stop("Columns expected from values_map / consensus suffixes are missing.")
+  }
+  ranks_df
+}
 ```
 
 # Consensus columns
@@ -104,42 +144,15 @@ Three base strategies, then (Q3.1) `consensus` + `abs_majority`, the
 `strict = TRUE` variants of all five, and (Q3.3) `rel_majority` with
 `nb_agree_threshold` 2 and 3. `preference_pattern` is set in `00_setup.R`.
 
-```{r consensus-base}
-ranks_base <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Gen_sp")
+Q3 votes over one column per method × database, at the default settings
+(developer, 2026-09-22): 4 × 9 = 36 columns of equal weight. Since the grid of
+2026-09-17 a method contributes as many columns as it has parameter rows, so
+the 12 blastn rows per database would carry 57 % of the vote and count the same
+BLAST search four times. Every other column — the other parameter values, and
+the ITSx rows of Q4, which `preference_pattern` would match too — is set aside
+before the vote and added back after.
 
-# The ITSx assignments (itsx_<method>, ROADMAP Q4) stay out of the Q3
-# consensus strategies: resolve_taxo_conflict() selects columns with
-# matches(), and preference_pattern would also match itsx_sintax__...
-# Their columns are set aside here and added back after the consensus.
-itsx_cols <- grep("_itsx_", colnames(d_all_taxo@tax_table), value = TRUE)
-itsx_taxtab <- tax_table_to_df(d_all_taxo, convert = FALSE)[, c("taxon", itsx_cols)]
-if (length(itsx_cols) > 0) {
-  d_all_taxo <- select_taxa_pq(d_all_taxo, !dplyr::all_of(itsx_cols))
-}
-
-d_all_taxo <- d_all_taxo |>
-  resolve_taxo_conflict(
-    pattern_tax_ranks = ranks_base,
-    method = "rel_majority",
-    new_names = paste0(ranks_base, "_rel_majority_consensus"),
-    replace_collapsed_rank_by_NA = TRUE
-  ) |>
-  resolve_taxo_conflict(
-    pattern_tax_ranks = ranks_base,
-    method = "preference",
-    new_names = paste0(ranks_base, "_preference_consensus"),
-    preference_pattern = preference_pattern,
-    replace_collapsed_rank_by_NA = TRUE
-  ) |>
-  resolve_taxo_conflict(
-    pattern_tax_ranks = ranks_base,
-    method = "unanimity",
-    new_names = paste0(ranks_base, "_unanimity_consensus"),
-    replace_collapsed_rank_by_NA = TRUE
-  )
-```
-
-```{r consensus-extra}
+```{r helpers-consensus}
 extra_consensus_configs <- list(
   list(method = "consensus",    strict = FALSE, nb = 1L, suffix = "consensus_consensus"),
   list(method = "abs_majority", strict = FALSE, nb = 1L, suffix = "abs_majority_consensus"),
@@ -152,22 +165,6 @@ extra_consensus_configs <- list(
   list(method = "rel_majority", strict = FALSE, nb = 3L, suffix = "rel_majority_nb3_consensus")
 )
 
-for (cfg in extra_consensus_configs) {
-  args <- list(
-    physeq              = d_all_taxo,
-    pattern_tax_ranks   = ranks_base,
-    method              = cfg$method,
-    strict              = cfg$strict,
-    nb_agree_threshold  = cfg$nb,
-    new_names           = paste0(ranks_base, "_", cfg$suffix),
-    replace_collapsed_rank_by_NA = TRUE
-  )
-  if (cfg$method == "preference") {
-    args$preference_pattern <- preference_pattern
-  }
-  d_all_taxo <- do.call(resolve_taxo_conflict, args)
-}
-
 all_consensus_suffixes <- c(
   "rel_majority_consensus",
   "preference_consensus",
@@ -175,21 +172,319 @@ all_consensus_suffixes <- c(
   vapply(extra_consensus_configs, \(cfg) cfg$suffix, character(1))
 )
 
-if (length(itsx_cols) > 0) {
-  itsx_rows <- match(taxa_names(d_all_taxo), itsx_taxtab$taxon)
-  d_all_taxo <- do.call(
-    mutate_taxa_pq,
-    c(list(physeq = d_all_taxo), as.list(itsx_taxtab[itsx_rows, itsx_cols, drop = FALSE]))
+# The default settings of filter_default_settings() (00_setup.R), as the
+# `full_name` of one input: one column per method and database.
+default_names_for <- function(input = "none") {
+  values_map |>
+    filter(preprocess == input) |>
+    filter(
+      (method %in% c("dada2", "sintax") & min_bootstrap == 0.5) |
+        (method == "lca" & lca_cutoff == 1) |
+        (method == "blastn" & vote_algorithm == "rel_majority" & min_id == 95)
+    ) |>
+    pull(full_name)
+}
+
+# Columns the Q3 consensus votes over.
+consensus_names <- default_names_for("none")
+
+add_consensus_columns <- function(physeq, ranks = tax_order) {
+  consensus_cols <- as.vector(outer(ranks, consensus_names, paste, sep = "_"))
+  assignment_cols <- grep(
+    paste0("^(", paste(ranks, collapse = "|"), ")_"),
+    colnames(physeq@tax_table),
+    value = TRUE
   )
+  missing_consensus <- setdiff(consensus_cols, assignment_cols)
+  if (length(missing_consensus) > 0 && !analysis_mini) {
+    print(missing_consensus)
+    stop("Default-settings columns expected by the Q3 consensus are missing.")
+  }
+  consensus_cols <- intersect(consensus_cols, assignment_cols)
+  aside_cols <- setdiff(assignment_cols, consensus_cols)
+  aside_taxtab <- tax_table_to_df(physeq, convert = FALSE)[, c("taxon", aside_cols)]
+  message(
+    "Q3 consensus over ", length(consensus_cols) / length(ranks),
+    " assignment columns per rank; ", length(aside_cols), " columns set aside"
+  )
+  if (length(aside_cols) > 0) {
+    physeq <- select_taxa_pq(physeq, !dplyr::all_of(aside_cols))
+  }
+
+  base_configs <- list(
+    list(method = "rel_majority", strict = FALSE, nb = 1L, suffix = "rel_majority_consensus"),
+    list(method = "preference",   strict = FALSE, nb = 1L, suffix = "preference_consensus"),
+    list(method = "unanimity",    strict = FALSE, nb = 1L, suffix = "unanimity_consensus")
+  )
+  for (cfg in c(base_configs, extra_consensus_configs)) {
+    args <- list(
+      physeq              = physeq,
+      pattern_tax_ranks   = ranks,
+      method              = cfg$method,
+      strict              = cfg$strict,
+      nb_agree_threshold  = cfg$nb,
+      new_names           = paste0(ranks, "_", cfg$suffix),
+      replace_collapsed_rank_by_NA = TRUE
+    )
+    if (cfg$method == "preference") {
+      args$preference_pattern <- preference_pattern
+    }
+    physeq <- do.call(resolve_taxo_conflict, args)
+  }
+
+  if (length(aside_cols) > 0) {
+    aside_rows <- match(taxa_names(physeq), aside_taxtab$taxon)
+    physeq <- do.call(
+      mutate_taxa_pq,
+      c(list(physeq = physeq), as.list(aside_taxtab[aside_rows, aside_cols, drop = FALSE]))
+    )
+  }
+  physeq
 }
 ```
 
-# Performance metrics
+# One dataset at a time
 
-## Proportion of NA per rank (exploratory)
+```{r prepare}
+# Everything one dataset needs to be scored: the three objects, their truths
+# and the lineage of the external controls.
+prepare_dataset <- function(ds) {
+  message("\n== ", ds$dataset, " ==")
+  d_all_taxo <- tar_read(d_all_taxo, store = ds$store) |>
+    clean_taxo() |>
+    add_gen_sp()
+  d_all_taxo_otu <- tar_read(d_all_taxo_otu, store = ds$store) |>
+    clean_taxo() |>
+    add_gen_sp()
+
+  # Taxonomy of the clusters resolved from the member ASVs (Q5, decision 25):
+  # no assignment is recomputed, an OTU keeps the value all its assigned member
+  # ASVs agree on. Built before the consensus columns, which are an ASV object.
+  otu_clusters <- tar_read(otu_clusters, store = ds$store)
+  d_otu_taxo <- resolve_otu_taxonomy(d_all_taxo, otu_clusters, method = "unanimity")
+  message(
+    ntaxa(d_all_taxo), " taxa (ASVs and controls) merged into ",
+    ntaxa(d_otu_taxo), " (OTUs and controls)"
+  )
+
+  d_all_taxo <- add_consensus_columns(d_all_taxo)
+
+  cfg <- mock_sanger_tables[mock_sanger_tables$dataset == ds$dataset, ]
+  truth_asv <- build_mock_truth(tar_read(d_asv, store = ds$dada2_store), cfg)
+  truth_otu <- build_mock_truth(tar_read(d_vs, store = ds$dada2_store), cfg)
+  message(
+    sum(!is.na(truth_asv$truth_depth)), " of ", nrow(truth_asv),
+    " ASVs and ", sum(!is.na(truth_otu$truth_depth)), " of ", nrow(truth_otu),
+    " OTUs have a truth"
+  )
+
+  list(
+    dataset = ds$dataset,
+    d_all_taxo = d_all_taxo,
+    d_all_taxo_otu = d_all_taxo_otu,
+    d_otu_taxo = d_otu_taxo,
+    truth_asv = truth_asv,
+    truth_otu = truth_otu,
+    external_truth = external_control_truth(taxa_names(d_all_taxo))
+  )
+}
+
+prepared <- setNames(
+  lapply(seq_len(nrow(analysis_datasets)), \(i) prepare_dataset(analysis_datasets[i, ])),
+  analysis_datasets$dataset
+)
+```
+
+# Scoring
+
+`score_assignments()` (`R/score_assignments.R`) groups the columns by the
+treatment their database imposes on the `external_` controls — in the matrix on
+the three `_Fungi` databases, aside on the whole releases and on the three
+`_Fungi_rep` (with `ext_correct` at the kingdom only, OD 6, 15, 22) — and calls
+`comparpq::tc_metrics_unit()` once per group. The consensus columns have no
+database and are scored both ways; the `external_scoring` column tells the two
+readings apart.
+
+```{r score}
+asv_names <- values_map$full_name[values_map$preprocess %in% c("none", "itsx")]
+otu_names <- values_map$full_name[values_map$preprocess == "otu"]
+
+score_dataset <- function(prep) {
+  asv <- build_ranks_df(prep$d_all_taxo, c(all_consensus_suffixes, asv_names))
+  otu <- build_ranks_df(prep$d_all_taxo_otu, otu_names)
+  derived <- build_ranks_df(prep$d_otu_taxo, asv_names)
+
+  bind_rows(
+    score_assignments(
+      prep$d_all_taxo, asv, prep$truth_asv, db_meta,
+      external_truth = prep$external_truth, truth_ranks = truth_ranks
+    ) |>
+      mutate(unit = "ASV"),
+    score_assignments(
+      prep$d_all_taxo_otu, otu, prep$truth_otu, db_meta,
+      external_truth = prep$external_truth, truth_ranks = truth_ranks
+    ) |>
+      mutate(unit = "OTU"),
+    score_assignments(
+      prep$d_otu_taxo, derived, prep$truth_asv, db_meta,
+      external_truth = prep$external_truth, truth_ranks = truth_ranks
+    ) |>
+      mutate(unit = "OTU_derived")
+  ) |>
+    mutate(dataset = prep$dataset)
+}
+
+res_comp_tax <- bind_rows(lapply(prepared, score_dataset)) |>
+  # tc_metrics_unit() labels the last rank after the truth table ("Species");
+  # the columns it read are the `Gen_sp_*` ones, and every chapter filters on
+  # "Gen_sp" (tax_order).
+  mutate(tax_level = ifelse(tax_level == "Species", "Gen_sp", tax_level)) |>
+  enrich_metrics()
+
+res_comp_tax |>
+  count(dataset, unit, external_scoring) |>
+  arrange(dataset, unit)
+```
+
+# M1.5 — abundance filter
+
+Hleap et al. 2021 dropped the ASVs below 8 reads before assigning them. Here
+the filter is applied afterwards, as a sweep: the metrics are recomputed on the
+units carrying at least *n* reads, *n* running from 1 (no filter) to 100. It
+answers whether the ranking of the methods and databases survives the filter,
+and how much of each score rests on units nobody would keep.
+
+The sweep runs on the default settings only (the four methods × the nine
+databases, `consensus_names`) and on the ASV and OTU inputs: it multiplies the
+scoring by the number of thresholds, and the parameter sweeps of Q1 are read at
+one threshold.
+
+**The filter applies to the real units only.** The negative controls are
+injected sequences and carry no reads at all (`add_shuffle_seq_pq()` and
+`add_external_seq_pq()` add them to the tax_table and the refseq, with a zero
+count), so filtering them with the rest would remove every one of them at the
+first threshold and empty the TN column — TNR would jump from its real value to
+0/0 between *n* = 1 and *n* = 2 and read as an effect of the filter.
+
+```{r abundance-sweep}
+# 1 is the unfiltered baseline, added to M1.5's list. On the Pauvert mock it
+# gives the same counts as 2, because no ASV carries a single read (the
+# DADA2 minimum there is 2); on another dataset the two will differ.
+abundance_thresholds <- c(1:10, 12, 15, 20, 30, 40, 50, 100)
+
+sweep_abundance <- function(prep, thresholds = abundance_thresholds) {
+  inputs <- list(
+    ASV = list(
+      physeq = prep$d_all_taxo,
+      truth = prep$truth_asv,
+      names = default_names_for("none")
+    ),
+    OTU = list(
+      physeq = prep$d_all_taxo_otu,
+      truth = prep$truth_otu,
+      names = default_names_for("otu")
+    )
+  )
+  bind_rows(lapply(names(inputs), function(unit) {
+    input <- inputs[[unit]]
+    ranks_df <- build_ranks_df(input$physeq, input$names)
+    is_control <- grepl(control_pattern, taxa_names(input$physeq))
+    bind_rows(lapply(thresholds, function(n) {
+      kept <- prune_taxa(taxa_sums(input$physeq) >= n | is_control, input$physeq)
+      score_assignments(
+        kept, ranks_df, input$truth, db_meta,
+        external_truth = prep$external_truth, truth_ranks = truth_ranks
+      ) |>
+        mutate(
+          unit = unit,
+          min_reads = n,
+          n_units_kept = sum(taxa_sums(input$physeq) >= n & !is_control)
+        )
+    }))
+  })) |>
+    mutate(dataset = prep$dataset)
+}
+
+res_abundance <- bind_rows(lapply(prepared, sweep_abundance)) |>
+  mutate(tax_level = ifelse(tax_level == "Species", "Gen_sp", tax_level)) |>
+  enrich_metrics()
+
+res_abundance |>
+  distinct(dataset, unit, min_reads, n_units_kept) |>
+  tidyr::pivot_wider(names_from = unit, values_from = n_units_kept)
+```
+
+```{r abundance-figure}
+res_abundance |>
+  filter(dataset == analysis_datasets$dataset[[1]]) |>
+  filter(metrics %in% c("F1_score", "TPR", "NA_real")) |>
+  filter(tax_level %in% c("Genus", "Gen_sp")) |>
+  mutate(algo = sub("^otu_", "", algo)) |>
+  left_join(select(db_meta, db, simplification), by = "db") |>
+  ggplot(aes(x = min_reads, y = values, colour = algo, linetype = unit)) +
+  geom_line(aes(group = interaction(method_db, unit)), alpha = 0.8) +
+  scale_x_log10() +
+  facet_grid(metrics ~ tax_level + simplification) +
+  labs(x = "Minimum reads per unit (log scale)", y = NULL)
+```
+
+# Hand over to the next chapters
+
+```{r cache}
+cache_write(res_comp_tax, "res_comp_tax")
+cache_write(res_abundance, "res_abundance")
+# `prepared` (the cleaned objects and their truths) is NOT cached: nothing
+# outside this file reads it, and on the production stores its three
+# phyloseq objects per dataset carry about 1 200 columns each.
+```
+
+# Checks
+
+The species row is the one that fails silently: `truth$Species` is the
+underscored binomial of `binomial_name()` and the scored column is
+`Gen_sp_*`, built from `Genus_*` and `Species_*`. If the two spellings
+disagreed, every unit would be an FP and read as a result.
+
+```{r check-species}
+first <- prepared[[1]]
+best_gen_sp <- res_comp_tax |>
+  filter(dataset == first$dataset, unit == "ASV", tax_level == "Gen_sp",
+         metrics == "TP", algo %in% single_methods) |>
+  slice_max(values, n = 3)
+best_gen_sp |> select(method_db, values)
+stopifnot(max(best_gen_sp$values) > 0)
+
+# A handful of matching spellings, to read with the eye.
+tt_first <- tax_table_to_df(first$d_all_taxo, convert = FALSE)
+gen_sp_col <- paste0("Gen_sp_", best_gen_sp$method_db[[1]])
+tibble(
+  taxon = tt_first$taxon,
+  truth = first$truth_asv$Species[match(tt_first$taxon, first$truth_asv$taxon)],
+  assigned = tt_first[[gen_sp_col]]
+) |>
+  filter(!is.na(truth), !is.na(assigned)) |>
+  head(8)
+```
+
+Every scored unit falls in exactly one cell of the confusion matrix, so the
+four cells sum to the number of scored units — constant across the columns of
+one scoring group.
+
+```{r check-cells}
+res_comp_tax |>
+  filter(metrics %in% c("TP", "FP", "FN", "TN")) |>
+  group_by(dataset, unit, external_scoring, tax_level, method_db) |>
+  summarise(n_units = sum(values), .groups = "drop") |>
+  count(dataset, unit, external_scoring, tax_level, n_units) |>
+  filter(tax_level %in% c("Genus", "Gen_sp"))
+```
+
+# Exploratory views (not in the manuscript)
+
+Everything below reads the first dataset only.
 
 ```{r na-prop}
-df_na <- tax_table_to_df(d_all_taxo, convert = FALSE) |>
+df_na <- tax_table_to_df(first$d_all_taxo, convert = FALSE) |>
   select(-taxon) |>
   summarise(across(everything(), ~ mean(is.na(.x)))) |>
   pivot_longer(everything(), names_to = "method_db", values_to = "prop_na") |>
@@ -217,7 +512,8 @@ df_na <- tax_table_to_df(d_all_taxo, convert = FALSE) |>
     bootstrap = ifelse(grepl("consensus", algo), NA, bootstrap)
   )
 
-prop_fake_taxa <- sum(grepl("external|fake", taxa_names(d_all_taxo))) / ntaxa(d_all_taxo)
+prop_fake_taxa <- sum(grepl("external|fake", taxa_names(first$d_all_taxo))) /
+  ntaxa(first$d_all_taxo)
 
 df_na |>
   filter(algo %in% c("unanimity_consensus", "preference_consensus", "rel_majority_consensus")) |>
@@ -236,182 +532,59 @@ df_na |>
   xlim(c(0, 1)) + no_legend()
 ```
 
-## Rank columns of interest
-
-```{r ranks-df}
-ranks_df_list <- list()
-for (db_name in c(all_consensus_suffixes, values_map$full_name)) {
-  ranks_df_list[[db_name]] <- paste0(ranks_base, "_", db_name)
-}
-ranks_df <- do.call(data.frame, ranks_df_list)
-
-missing_cols <- setdiff(as.vector(unlist(ranks_df)), names(tax_table_to_df(d_all_taxo)))
-# On the mini stores, blastn finds no hit in some mini_* databases and the
-# assignment adds no column (combine_taxo_assignments(allow_empty = mini_db)):
-# those rows are dropped. In production an empty assignment is a failure.
-empty_rows <- names(ranks_df)[vapply(ranks_df, \(cols) all(cols %in% missing_cols), logical(1))]
-if (analysis_mini && all(missing_cols %in% unlist(ranks_df[empty_rows]))) {
-  if (length(empty_rows) > 0) {
-    message("mini stores: ", length(empty_rows), " empty assignments dropped: ",
-            paste(empty_rows, collapse = ", "))
-  }
-  ranks_df <- ranks_df[setdiff(names(ranks_df), empty_rows)]
-} else if (length(missing_cols) > 0) {
-  print(missing_cols)
-  stop("Columns expected from values_map / consensus suffixes are missing in d_all_taxo.")
-}
-```
-
-## `tc_metrics_mock()` and M1.1 enrichment
-
-```{r metrics}
-# Parses method_db, then M1.1 (vote_algorithm, bootstrap_num, TAR/TDR aliases:
-# TAR = PPV = TP/(TP+FP); TDR = TPR = TP/(TP+FN)) and the consensus metadata.
-enrich_metrics <- function(res) {
-  res <- res |>
-    mutate(bootstrap = gsub(".*__", "", method_db)) |>
-    mutate(algo = gsub("__.*", "", method_db)) |>
-    mutate(db = gsub(".*__", "", gsub("___.*", "", method_db))) |>
-    mutate(
-      vote_algorithm = ifelse(
-        algo %in% c("blastn", "itsx_blastn"),
-        stringr::str_extract(method_db, "(?<=\\.\\.\\.)[a-z_]+(?=\\.\\.\\.)"),
-        NA_character_
-      ),
-      bootstrap_num = suppressWarnings(
-        as.numeric(stringr::str_extract(bootstrap, "^[0-9.]+"))
-      )
-    )
-
-  res <- dplyr::bind_rows(
-    res,
-    res |> filter(metrics == "PPV") |> mutate(metrics = "TAR"),
-    res |> filter(metrics == "TPR") |> mutate(metrics = "TDR")
-  )
-
-  res |>
-    mutate(
-      # itsx_<method> rows (ROADMAP Q4) are single methods on ITSx-extracted ASVs.
-      is_consensus     = !algo %in% c(single_methods, paste0("itsx_", single_methods)),
-      consensus_strict = is_consensus & grepl("_strict_", method_db),
-      nb_agree         = dplyr::case_when(
-        grepl("_nb2_", method_db) ~ 2L,
-        grepl("_nb3_", method_db) ~ 3L,
-        TRUE ~ 1L
-      )
-    )
-}
-
-res_comp_tax <- tc_metrics_mock(
-  d_all_taxo,
-  ranks_df = ranks_df,
-  true_values_df = taxo_mock
-) |>
-  enrich_metrics()
-```
-
-## OTU metrics (Q5)
-
-Single-method assignments only: the Q3 consensus columns are built on the ASVs.
-`unit` tells the two tables apart when they are bound.
-
-```{r metrics-otu}
-otu_ranks_df <- ranks_df[intersect(names(ranks_df), values_map$full_name)]
-res_comp_tax_otu <- tc_metrics_mock(
-  d_otu_taxo,
-  ranks_df = otu_ranks_df,
-  true_values_df = taxo_mock
-) |>
-  enrich_metrics() |>
-  mutate(unit = "OTU")
-```
-
-# Hand over to the next chapters
-
-```{r cache}
-cache_write(d_all_taxo,   "d_all_taxo")
-cache_write(taxo_mock,    "taxo_mock")
-cache_write(res_comp_tax, "res_comp_tax")
-cache_write(ranks_df,     "ranks_df")
-cache_write(d_otu_taxo,       "d_otu_taxo")
-cache_write(res_comp_tax_otu, "res_comp_tax_otu")
-```
-
-# Exploratory views (not in the manuscript)
-
 ```{r explore-metrics}
-plot_tc_metrics_mock(res_comp_tax, metric = "ACC", modality_x = "tax_level") + no_legend()
+res_first <- filter(res_comp_tax, dataset == first$dataset, unit == "ASV")
 
-plot_tc_metrics_mock(res_comp_tax, modality_x = "algo", modality_line = "metrics",
-                     modality_column = "tax_level", modality_fill = "db")
+plot_tc_metrics_mock(res_first, metric = "ACC", modality_x = "tax_level") + no_legend()
 
-for (m in c("FP", "MCC", "F1_score", "ACC")) {
+for (m in c("FP", "MCC", "F1_score", "NA_real")) {
   print(
-    plot_tc_metrics_mock(res_comp_tax, metric = m, modality_x = "db", modality_line = "algo",
-                         modality_column = "tax_level", modality_fill = "bootstrap") +
+    res_first |>
+      filter_default_settings() |>
+      plot_tc_metrics_mock(metric = m, modality_x = "db", modality_line = "algo",
+                           modality_column = "tax_level", modality_fill = "algo") +
       coord_flip() + geom_hline(yintercept = 1) + geom_hline(yintercept = 0, linewidth = 0.2)
   )
 }
 ```
 
-```{r explore-per-db}
+```{r explore-units}
+# ASV vs OTU vs OTU_derived, at the default settings (Q5).
 res_comp_tax |>
-  filter(metrics %in% c("ACC", "F1_score", "MCC")) |>
-  filter(bootstrap == 0.5 | grepl("consensus", algo) | algo == "blastn") |>
-  filter(tax_level %in% c("Class", "Order", "Family", "Genus", "Gen_sp")) |>
-  plot_tc_metrics_mock(modality_x = "tax_level", modality_line = "metrics",
-                       modality_column = "algo", modality_fill = "db")
+  filter(dataset == first$dataset, metrics %in% c("F1_score", "TPR")) |>
+  mutate(algo = sub("^(itsx|otu)_", "", algo)) |>
+  filter_default_settings() |>
+  filter(tax_level %in% c("Family", "Genus", "Gen_sp")) |>
+  ggplot(aes(x = unit, y = values, fill = algo)) +
+  geom_boxplot(alpha = 0.7) +
+  facet_grid(metrics ~ factor(tax_level, levels = tax_order)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
 
-for (one_db in head(db_list, 3)) {
-  print(
-    res_comp_tax |>
-      filter(metrics %in% c("ACC", "F1_score", "MCC", "FP", "FN")) |>
-      filter(tax_level %in% c("Class", "Order", "Family", "Genus", "Gen_sp")) |>
-      filter(db == one_db) |>
-      plot_tc_metrics_mock(modality_x = "bootstrap", modality_line = "metrics",
-                           modality_column = "tax_level", modality_fill = "algo") +
-      ggtitle(one_db)
-  )
-}
+```{r explore-controls}
+# The two control metrics the per-unit scoring adds (OD 7).
+res_comp_tax |>
+  filter(dataset == first$dataset, unit == "ASV",
+         metrics %in% c("ext_fungi", "ext_correct", "NA_fake")) |>
+  filter(tax_level %in% c("Kingdom", "Genus")) |>
+  filter_default_settings() |>
+  left_join(select(db_meta, db, simplification), by = "db") |>
+  ggplot(aes(x = values, y = db, fill = algo)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_grid(metrics ~ tax_level) +
+  xlim(c(0, 1))
 ```
 
 ```{r explore-tpr-tnr}
-res_comp_tax |>
+res_first |>
   filter(metrics %in% c("TPR", "TNR")) |>
-  mutate(db_unite = ifelse(grepl("Unite", method_db), "Unite", "Euk")) |>
-  filter(bootstrap == 0.5) |>
-  filter(!tax_level %in% c("Kingdom", "Phylum", "Class", "Gen_sp")) |>
+  filter_default_settings() |>
+  filter(!tax_level %in% c("Kingdom", "Phylum", "Class")) |>
   pivot_wider(names_from = metrics, values_from = values) |>
-  ggplot(aes(x = TPR, y = TNR, pch = algo, color = db)) +
+  left_join(select(db_meta, db, simplification), by = "db") |>
+  ggplot(aes(x = TPR, y = TNR, pch = algo, color = simplification)) +
   geom_point(size = 3, alpha = 0.8) +
-  xlim(c(0.4, 1)) + ylim(c(0.4, 1)) +
-  facet_wrap(db_unite ~ tax_level)
-
-p <- res_comp_tax |>
-  filter(metrics %in% c("TPR", "TNR")) |>
-  group_by(method_db) |>
-  pivot_wider(names_from = metrics, values_from = values) |>
-  summarise(
-    TPR_mean = mean(TPR),
-    TNR_mean = mean(TNR),
-    TPR_sd = var(TPR),
-    TNR_sd = var(TNR)
-  ) |>
-  mutate(bootstrap = gsub(".*__", "", method_db)) |>
-  mutate(algo = gsub("__.*", "", method_db)) |>
-  mutate(db = gsub(".*__", "", gsub("___.*", "", method_db))) |>
-  mutate(db_unite = ifelse(grepl("Unite", method_db), "Unite", "Euk")) |>
-  ggplot(aes(x = TPR_mean, y = TNR_mean, color = algo)) +
-  geom_point()
-
-p +
-  geom_segment(aes(x = TPR_mean, y = TNR_mean - TNR_sd, yend = TNR_mean + TNR_sd), alpha = 0.5) +
-  geom_segment(aes(y = TNR_mean, x = TPR_mean - TPR_sd, xend = TPR_mean + TPR_sd), alpha = 0.5) +
-  ggrepel::geom_label_repel(
-    data = subset(p$data, grepl("consensus", method_db) | TNR_mean > 0.85 | TPR_mean > 0.85),
-    aes(label = method_db), size = 2, max.overlaps = 10, force = 3
-  ) +
-  xlim(c(0.5, 1)) + ylim(c(0.5, 1)) + facet_wrap(db_unite ~ .)
+  facet_wrap(~ factor(tax_level, levels = tax_order))
 ```
 
 ```{r explore-tc-bar}
@@ -420,18 +593,17 @@ tc_cols <- c(sintax_seed_db, paste0(c("Family_", "Genus_"), preference_pattern))
 
 # psmelt() drops the all-NA rank columns, which happens with the mini_*
 # databases: skip the views instead of failing in tc_bar().
-tt_tc <- tax_table_to_df(d_all_taxo, convert = FALSE)
-empty_tc_cols <- tc_cols[vapply(tc_cols, \(col) all(is.na(tt_tc[[col]])), logical(1))]
+empty_tc_cols <- tc_cols[vapply(tc_cols, \(col) all(is.na(tt_first[[col]])), logical(1))]
 if (length(empty_tc_cols) > 0) {
   message("explore-tc-bar skipped, rank columns with no assignment: ",
           paste(empty_tc_cols, collapse = ", "))
 } else {
-  print(tc_bar(d_all_taxo,
+  print(tc_bar(first$d_all_taxo,
                rank_1 = paste0("Family_", preference_pattern),
                rank_2 = sintax_seed_db,
                color_rank = paste0("Genus_", preference_pattern)))
 
-  tc_circle(d_all_taxo,
+  tc_circle(first$d_all_taxo,
             sintax_seed_db,
             paste0("Family_", preference_pattern))
 }

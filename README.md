@@ -4,17 +4,40 @@ Benchmark of taxonomic-assignment methods × reference databases for ITS fungal
 metabarcoding, supporting a manuscript-in-preparation in the
 [pqverse](https://github.com/adrientaudiere/pqverse) ecosystem.
 
-Four assignment methods (`dada2`, `sintax`, `lca`, `blastn`) are run against
-seven reference databases (UNITE 19.02.2025 with and without singletons,
-EUKARYOME ITS v2.1, with `_Fungi`-filtered variants and one variant trimmed to
-the ITS1F–ITS2 amplicon; see `docs/reference_databases.md`) using a
-`{targets}` pipeline. A post-clustering question (97 % OTUs whose taxonomy
-comes from their member ASVs) is derived from the same assignments.
-Performance is evaluated against a mock community (Pauvert et al. 2019),
-cross-validation, in silico simulations (InSilicoSeq + miaSim), and tree
-endophyte data ([Taudière et al. 2018](https://doi.org/10.1016/j.funeco.2018.07.008)).
-Five consensus-voting strategies and their parameters are compared via
+The question: **which method × reference database (including database
+modifications) × parameter combinations give the best trade-off between
+assignment quality, compute time and compute power** for the taxonomic
+assignment of Fungi. The benchmark tests that one step and nothing else: no
+community ecology.
+
+## Design (decided 2026-09-17, being implemented)
+
+The full design, objective by objective, is in
+[`docs/objectives_design.md`](docs/objectives_design.md); the scoring in
+[`docs/hleap_2021_metrics.md`](docs/hleap_2021_metrics.md). In short:
+
+| Axis | Values |
+|---|---|
+| Methods | `dada2`, `sintax`, `lca`, `blastn` |
+| Parameters | dada2 / sintax bootstrap ∈ {0.4, 0.5, 0.6}; lca `lca_cutoff` ∈ {0.8, 0.9, 1}; blastn vote (relative, absolute majority, unanimity) × `min_id` ∈ {90, 92, 95, 97} — derived from one computation per method × database × input |
+| Databases | EUKARYOME ITS v2.1, UNITE 19.02.2025 without singletons, UNITE with singletons × {all, Fungi only, Fungi + 5 % non-fungal representatives} = 9 databases |
+| Inputs | ASVs; 97 % OTUs (`d_vs`) assigned directly; ASVs trimmed with ITSx to the amplicon's ITS region (ITS1 for Pauvert, full ITS for Tedersoo; Fungi databases only) — 96 computations per dataset |
+| Negative controls | shuffled sequences (`fake_`) and 100 non-fungal sequences (`external_`) added to every input |
+| Datasets | mock communities of Pauvert et al. 2019 (ITS1) and Tedersoo et al. 2026 (full ITS), scored per unit against the Sanger sequence of each strain as in Hleap et al. 2021; cross-validation (database subset to choose); in silico reads (InSilicoSeq); biological datasets read through their share of unassigned sequences and controls |
+| Cost | wall time, peak memory and CPU per computation (`autometric`), CO₂eq (`greenAlgoR`) |
+
+Trimming the references to the amplicon (cutadapt) is left out of the grid and
+will be tried at the end on the best combinations, on the Pauvert mock only.
+Consensus voting across columns is compared with
 `comparpq::resolve_taxo_conflict()`.
+
+**Status.** Built: the nine databases, the three inputs (96 computations,
+504 assignment rows per dataset), the parameter sweeps, the per-unit truth of
+the mocks, the Hleap-style scoring and the chapters that read them — including
+the abundance-filter sweep. **No production run has been made on this grid
+yet**: the stored results and every figure come from the former seven-database
+design and must be regenerated. What is left is listed in `ROADMAP.md`
+section 0 (0.9 to 0.11).
 
 ## Quick start
 
@@ -22,7 +45,7 @@ Five consensus-voting strategies and their parameters are compared via
 # Reference databases (idempotent; see docs/reference_databases.md)
 source("make_databases.R")
 download_reference_sources()   # general FASTA releases listed in config.R
-derive_all_variants()          # dada2 / sintax formats, Fungi and cut variants
+derive_all_variants()          # dada2 / sintax formats, Fungi, Fungi + rep and cut variants
 
 # Everything in order: databases, then the three production projects (hours)
 source("make.R")
@@ -35,36 +58,57 @@ run_project("assign_taxo")        # tar_make() + tar_prune() on that project
 run_project("assign_taxo_mini")
 run_project("cross_val_mini")     # lower the CV knobs of config.R first
 
-# Tests (six files, or one at a time with Rscript tests/test_<name>.R)
+# Tests (twelve files, or one at a time with Rscript tests/test_<name>.R)
 Rscript tests/run_all.R
 ```
 
 The analysis is a Quarto project in `analysis/` (`quarto render analysis`, or
 one chapter at a time starting with `01_load_and_clean.qmd`, which feeds the
 others through `analysis/_cache/`). Figures are written to `figures/`
-(not tracked).
+(not tracked). `BENCHMARK_ANALYSIS_MINI=TRUE` renders the chapters on the
+smoke-test stores, with their own cache and figures.
 
 ## Documentation
 
-- **`CLAUDE.md`** — architecture, pipeline layout, external dependencies.
-- **`ROADMAP.md`** — running todo list: structural debt (section 1), open
-  manuscript work (section 2), scope decisions of 2026-05-19, and the done
-  log.
-- **`critique_fable/`** — evidence files behind the structural items of the
+- **`docs/objectives_design.md`** — the decided design: for each objective,
+  the inputs, controls, databases, methods, parameters and metrics, with the
+  developer's decisions 1–27.
+- **`docs/hleap_2021_metrics.md`** — how Hleap et al. 2021 score an
+  assignment (paper and code), the per-unit truth of the two mocks, and the
+  scoring rules adopted here.
+- **`docs/experimental_design.md`** — the ITS-region constraints of each dataset
+  and the measured compute cost (updated to the nine-database grid on
+  2026-09-22, but its cost figures were read on the former 44-computation grid
+  and describe less than half the current work).
+- **`AGENTS.md`** — architecture, pipeline layout, external dependencies, and
+  the framing of the manuscript. `CLAUDE.md` points to it.
+- **`CONTEXT.md`** — glossary of the project's terms and key decisions.
+- **`ROADMAP.md`** — the todo, one line per open item: what blocks the first
+  production run, the manuscript framing, the open scientific work, the code
+  debt and the remaining structural work.
+- **`HISTORY.md`** — the archive: every ticked item with its dated narrative and
+  its measurements, and every past decision (sections 3 to 3d).
+- **`critique_2026-09-22.md`** and **`literature_2026-09-22.md`** — review of the
+  aims and of the code size, and the positioning against the six benchmarks this
+  project must cite. Their proposals are the `C22-…` items of the ROADMAP.
+- **`critique_fable/`** — evidence files behind the structural `S…` items of the
   ROADMAP (2026-09-10 review).
-- **`proposals_for_dbpq.md`** — six helpers still implemented locally that
-  could be upstreamed to [`dbpq`](https://github.com/adrientaudiere/dbpq).
+- **`proposals_for_dbpq.md`** — helpers still implemented locally that could be
+  upstreamed to [`dbpq`](https://github.com/adrientaudiere/dbpq): four live
+  proposals plus the dbpq defects worked around here (§0). Sections 3 and 5 were
+  withdrawn on 2026-09-22 because their call sites were dead code.
 - **`docs/reference_databases.md`** — where each reference database comes
   from (UNITE and EUKARYOME releases, URLs, DOIs), how it is converted, and
   what to change when a new release comes out.
-- **`docs/`** — also the design diagram and external reference documents.
+- **`docs/README.md`** — index of `docs/`: what each document holds and how current it is (also the cross-validation diagnostics, the database procedure, the design diagram and the external references).
 
 ## Layout
 
 ```
-_targets.yaml                 # named targets projects (dada2, assign_taxo, cross_val, *_mini)
-pipelines/dada2.R             # ASV pipeline -> store_dada2
-pipelines/assign_taxo.R       # 4 methods x 8 DBs in parallel -> store_assign_taxo
+_targets.yaml                 # named targets projects (dada2, assign_taxo, cross_val, *_mini, per-dataset pairs)
+pipelines/dada2.R             # ASV pipeline (Pauvert mock) -> store_dada2
+pipelines/dada2_bio.R         # ASV pipeline of the other datasets -> store_dada2_<dataset>
+pipelines/assign_taxo.R       # methods x DBs x inputs in parallel -> store_assign_taxo
 pipelines/cross_val.R         # k-fold CV pipeline -> store_cross_val
 make.R                        # sourcing it runs DB derivation + the three production projects
 R/run_project.R               # run_project(name): tar_make() + tar_prune() on one project
@@ -74,8 +118,8 @@ R/                            # load_pqverse, values_map, autometric helpers, co
 analysis/                     # Quarto project: 00_setup.R + chapters 01..06, sandbox/
 figures/                      # save_fig() output of the chapters (not tracked)
 tests/                        # Rscript-runnable testthat fixtures
-docs/                         # design diagram, external references
-critique_fable/               # structural review (evidence for ROADMAP section 1)
+docs/                         # design documents, database procedure, external references
+critique_fable/               # structural review (evidence for the S-items of the ROADMAP)
 Archives/                     # superseded scripts (kept for reference)
 ```
 
@@ -92,7 +136,7 @@ Archives/                     # superseded scripts (kept for reference)
 - `cutadapt` installed in a conda env named `cutadaptenv`
 - `7z` (p7zip) on `PATH`, to extract the EUKARYOME general FASTA archives
 - ITSx 1.1.3 in a conda env named `itsxenv`
-  (`conda create -n itsxenv -c conda-forge -c bioconda itsx`), for the ITS1
+  (`conda create -n itsxenv -c conda-forge -c bioconda itsx`), for the ITS
   extraction of the ASVs (ROADMAP Q4)
 - `vsearch` (>= 2.31) and BLAST+ (`blastn`, `makeblastdb`) on `PATH`; install
   them from your package manager or from source, they are not shipped in this

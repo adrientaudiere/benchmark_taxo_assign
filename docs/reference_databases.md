@@ -20,7 +20,8 @@ data/data_raw/refseq/sources/manifest.csv            provenance (url, doi, md5, 
         ├─► dada2_format/<source>.fasta              derive_dada2()   (dada2 methods)
         ├─► sintax_format/<source>.fasta             derive_sintax()  (sintax, lca, blastn)
         │        ├─► <source>_Fungi.fasta            derive_kingdom_only(), kingdom == Fungi
-        │        │        └─► <source>_Fungi_cut.fasta   derive_cutadapted(), config primers, untrimmed records kept
+        │        │        ├─► <source>_Fungi_cut.fasta   derive_cutadapted(), config primers, untrimmed records kept
+        │        │        └─► <source><cut_suffix>.fasta  derive_cutadapted(), primers of one bio_datasets row (§3)
         │        └─► mini_<db>.fasta                 derive_mini(), first 10 000 records
         └─► sources/<fake_ref_source>_wo_Fungi.fasta ─► data/data_raw/fake_ref/fake_ref_asv_100.fasta
 ```
@@ -81,6 +82,31 @@ or nearly (317 empty and 1530 shorter than 50 bp in `EUK_ITS_v2.1_Fungi_cut`). B
 2026-09-15 the reverse primer was not reverse-complemented and untrimmed
 records were discarded, which kept 4.8 % of the records (ROADMAP S6.9).
 
+### Amplicon-specific trimmed variants (2026-09-16)
+
+A trimmed reference only makes sense against queries covering the same region,
+so **a `_cut` reference is trimmed with exactly the primers of the dataset
+assigned against it**: ITS1F / ITS2 for the mock community (`_Fungi_cut` in the
+table above), ITS9mun / ITS4ngsUni for the Tedersoo full-ITS dataset
+(`_Fungi_cut_full_ITS`). Each row of `config.R::bio_datasets` carries its
+primers and a `cut_suffix`; `make_databases.R` step 2b-bis derives one variant
+per row and per source with those primers and `min_overlap = nchar(reverse
+primer)`, plus the matching `mini_`.
+
+These variants are **not extra rows of `benchmark_dbs`**. When a dataset
+project is active, `config.R` *substitutes* the cut entry in `db_list`,
+`itsx_db_list` and `db_meta$db`, so the grid keeps its shape and size, every
+other target name is unchanged, and neither the mock grid nor the
+cross-validation pays anything. The production projects (`bio_cfg` NULL) see
+the table above unchanged.
+
+Beyond correctness, this is the main lever on the cost side of the benchmark's
+question (method × database × parameters against accuracy, time and memory):
+dada2 needs at least 45 GB on the full `EUK_ITS_v2.1`, where the trimmed
+variant holds 1 075 023 records. Trimming per amplicon also removes a
+confound — a database was being penalised for a region its queries never
+cover.
+
 `db_list` and `db_meta` (used by `R/values_map.R`, the pipelines and the
 chapters) are computed from this table. The seed taxonomy of the DADA2
 pipeline (`seed_taxonomy_db`), the release feeding the negative controls
@@ -88,7 +114,9 @@ pipeline (`seed_taxonomy_db`), the release feeding the negative controls
 (`preference_db`) are set right below it.
 
 Names: `<source>` carries the release; `_Fungi` and `_Fungi_cut` mark the
-simplification; `mini_` prefixes the smoke-test subsets. Target names are
+simplification, a further suffix naming the amplicon when the trimming follows
+a dataset's own primers (`_Fungi_cut_full_ITS`); `mini_` prefixes the
+smoke-test subsets. Target names are
 `<method>__<db>___<parameters>`, so a new release produces new targets and
 new store objects, and results of two releases can be compared.
 
@@ -189,14 +217,29 @@ tests read `config.R`.
   source("make_databases.R")
   derive_fake_ref(
     file.path(sources_dir, paste0(fake_ref_source, "_wo_Fungi.fasta")),
-    here(fake_ref_fasta), seed = targets_seed, force = TRUE
+    here(fake_ref_fasta), seed = targets_seed,
+    kingdoms = external_control_kingdoms(), force = TRUE
   )
   ```
+  `kingdoms` restricts the draw to the non-fungal kingdoms retained in every
+  release of `config.R::rep_kingdom_min_records` (at least 10 records in both
+  UNITE releases, 100 in EUKARYOME, placeholder labels excluded by
+  `rep_kingdom_exclude`, EUKARYOME names mapped by `kingdom_aliases`), so that
+  every control can be named at Kingdom on every `fungi + rep` database
+  (`docs/objectives_design.md` §1.3). `external_control_kingdoms()` reads the
+  headers of the three sintax files (about 10 s).
   `pipelines/assign_taxo.R` tracks it as the file target `fake_ref_file`, so
   the next `tar_make()` rebuilds `d_asv_for_assignation` and every assignment.
   Regenerated on 2026-09-11 from `Unite_s_all_20250219_wo_Fungi.fasta`
   (100 records, 73 phyla, no Fungi; 80 sequences shared with the May 2026
-  file, which came from the legacy `Fungi` pattern).
+  file, which came from the legacy `Fungi` pattern). Regenerated again on
+  2026-09-17 with the kingdom filter: 13 kingdoms retained (Alveolata,
+  Amoebozoa, Cryptista, Euglenozoa, Haptista, Heterolobosa, Ichthyosporia,
+  Metazoa, Parabasalia, Rhizaria, Rhodoplantae, Stramenopila, Viridiplantae);
+  100 records, 65 phyla (Viridiplantae 38, Metazoa 24, Stramenopila 11,
+  Alveolata 9, Amoebozoa 5, Rhizaria 5, Cryptista 2, one each of the others).
+  The previous file held 9 records from kingdoms now excluded, plus Protista
+  and Glaucocystoplantae.
 - **UNITE DOIs** resolve to an HTML page; `dbpq::download_unite_db()` takes a
   direct `url` instead (added to dbpq on 2026-09-11).
 - **Long steps.** Converting the EUKARYOME ITS release (≈1.6 M records) with

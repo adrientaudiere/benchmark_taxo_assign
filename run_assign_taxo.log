@@ -1,0 +1,1286 @@
+== targets project: assign_taxo (store: store_assign_taxo)
+here() starts at /home/adrien/Nextcloud/IdEst/Projets/pqverse/arround_MiscMetabar/benchmar_assign_taxo
+here() starts at /home/adrien/Nextcloud/IdEst/Projets/pqverse/arround_MiscMetabar/benchmar_assign_taxo
+config.R: mini_db = FALSE (full databases)
++ otu_compute_lca__EUK_ITS_v2.1_Fungi_rep dispatched
++ otu_compute_sintax__EUK_ITS_v2.1_Fungi dispatched
++ otu_compute_dada2__Unite_s_all_20250219_Fungi dispatched
++ otu_compute_lca__EUK_ITS_v2.1 dispatched
+✔ otu_compute_sintax__EUK_ITS_v2.1_Fungi completed [5m 29.4s, 17.30 kB]
++ otu_sintax__EUK_ITS_v2.1_Fungi___0.4 dispatched
+✔ otu_sintax__EUK_ITS_v2.1_Fungi___0.4 completed [79ms, 64.95 kB]
++ otu_sintax__EUK_ITS_v2.1_Fungi___0.5 dispatched
+✔ otu_sintax__EUK_ITS_v2.1_Fungi___0.5 completed [44ms, 64.91 kB]
++ otu_sintax__EUK_ITS_v2.1_Fungi___0.6 dispatched
+✔ otu_sintax__EUK_ITS_v2.1_Fungi___0.6 completed [27ms, 64.84 kB]
++ otu_compute_blastn__Unite_all_20250219_Fungi_rep dispatched
+✔ otu_compute_dada2__Unite_s_all_20250219_Fungi completed [5m 49.5s, 89.07 kB]
++ otu_dada2__Unite_s_all_20250219_Fungi___0.4 dispatched
+✔ otu_dada2__Unite_s_all_20250219_Fungi___0.4 completed [82ms, 65.89 kB]
++ otu_dada2__Unite_s_all_20250219_Fungi___0.5 dispatched
+✔ otu_dada2__Unite_s_all_20250219_Fungi___0.5 completed [17ms, 65.73 kB]
++ otu_dada2__Unite_s_all_20250219_Fungi___0.6 dispatched
+✔ otu_dada2__Unite_s_all_20250219_Fungi___0.6 completed [17ms, 65.43 kB]
++ otu_compute_dada2__EUK_ITS_v2.1 dispatched
+✔ otu_compute_blastn__Unite_all_20250219_Fungi_rep completed [38.4s, 4.22 MB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...90
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...90 completed [1.2s, 64.62 kB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...92
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...92 completed [1.1s, 64.54 kB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...95
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...95 completed [378ms, 64.40 kB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...97
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...97 completed [305ms, 64.59 kB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...90
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...90 completed [270ms, 64.66 kB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...92
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...92 completed [218ms, 64.61 kB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...95
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...95 completed [163ms, 64.51 kB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...97
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...97 completed [172ms, 64.60 kB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...90
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...90 completed [952ms, 65.03 kB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...92
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...92 completed [829ms, 64.89 kB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...95
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...95 completed [701ms, 64.58 kB]
++ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...97
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...97 completed [629ms, 64.68 kB]
++ otu_compute_sintax__EUK_ITS_v2.1_Fungi_rep dispatched
+✔ otu_compute_lca__EUK_ITS_v2.1_Fungi_rep completed [7m 9.7s, 43.07 kB]
++ otu_lca__EUK_ITS_v2.1_Fungi_rep___1 dispatched
+✔ otu_lca__EUK_ITS_v2.1_Fungi_rep___1 completed [302ms, 66.79 kB]
++ otu_lca__EUK_ITS_v2.1_Fungi_rep___0.8 dispatched
+✔ otu_lca__EUK_ITS_v2.1_Fungi_rep___0.8 completed [448ms, 67.12 kB]
++ otu_lca__EUK_ITS_v2.1_Fungi_rep___0.9 dispatched
+✔ otu_lca__EUK_ITS_v2.1_Fungi_rep___0.9 completed [291ms, 67.08 kB]
++ otu_compute_blastn__Unite_all_20250219 dispatched
+✔ otu_compute_blastn__Unite_all_20250219 completed [45.3s, 4.50 MB]
++ otu_blastn__Unite_all_20250219___0.5...unanimity...100...90 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...unanimity...100...90 completed [345ms, 65.92 kB]
++ otu_blastn__Unite_all_20250219___0.5...unanimity...100...92 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...unanimity...100...92 completed [281ms, 65.96 kB]
++ otu_blastn__Unite_all_20250219___0.5...unanimity...100...95 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...unanimity...100...95 completed [235ms, 66.36 kB]
++ otu_blastn__Unite_all_20250219___0.5...unanimity...100...97 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...unanimity...100...97 completed [225ms, 66.97 kB]
++ otu_blastn__Unite_all_20250219___0.5...rel_majority...100...90 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...rel_majority...100...90 completed [1.3s, 67.85 kB]
++ otu_blastn__Unite_all_20250219___0.5...rel_majority...100...92 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...rel_majority...100...92 completed [1.1s, 67.53 kB]
++ otu_blastn__Unite_all_20250219___0.5...rel_majority...100...95 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...rel_majority...100...95 completed [993ms, 67.75 kB]
++ otu_blastn__Unite_all_20250219___0.5...rel_majority...100...97 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...rel_majority...100...97 completed [903ms, 67.85 kB]
++ otu_blastn__Unite_all_20250219___0.5...abs_majority...100...90 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...abs_majority...100...90 completed [647ms, 67.14 kB]
++ otu_blastn__Unite_all_20250219___0.5...abs_majority...100...92 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...abs_majority...100...92 completed [558ms, 66.92 kB]
++ otu_blastn__Unite_all_20250219___0.5...abs_majority...100...95 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...abs_majority...100...95 completed [485ms, 67.36 kB]
++ otu_blastn__Unite_all_20250219___0.5...abs_majority...100...97 dispatched
+✔ otu_blastn__Unite_all_20250219___0.5...abs_majority...100...97 completed [449ms, 67.67 kB]
++ otu_compute_blastn__EUK_ITS_v2.1_Fungi dispatched
+✔ otu_compute_sintax__EUK_ITS_v2.1_Fungi_rep completed [2m 25.8s, 19.04 kB]
++ otu_sintax__EUK_ITS_v2.1_Fungi_rep___0.4 dispatched
+✔ otu_sintax__EUK_ITS_v2.1_Fungi_rep___0.4 completed [213ms, 67.02 kB]
++ otu_sintax__EUK_ITS_v2.1_Fungi_rep___0.5 dispatched
+✔ otu_sintax__EUK_ITS_v2.1_Fungi_rep___0.5 completed [26ms, 66.90 kB]
++ otu_sintax__EUK_ITS_v2.1_Fungi_rep___0.6 dispatched
+✔ otu_sintax__EUK_ITS_v2.1_Fungi_rep___0.6 completed [16ms, 66.59 kB]
++ otu_compute_lca__Unite_s_all_20250219_Fungi dispatched
+✔ otu_compute_lca__Unite_s_all_20250219_Fungi completed [1m 18.6s, 16.01 kB]
++ otu_lca__Unite_s_all_20250219_Fungi___0.8 dispatched
+✔ otu_lca__Unite_s_all_20250219_Fungi___0.8 completed [2.6s, 66.68 kB]
++ otu_lca__Unite_s_all_20250219_Fungi___0.9 dispatched
+✔ otu_lca__Unite_s_all_20250219_Fungi___0.9 completed [894ms, 66.68 kB]
++ otu_lca__Unite_s_all_20250219_Fungi___1 dispatched
+✔ otu_lca__Unite_s_all_20250219_Fungi___1 completed [275ms, 66.68 kB]
++ otu_compute_sintax__Unite_all_20250219_Fungi_rep dispatched
+✔ otu_compute_sintax__Unite_all_20250219_Fungi_rep completed [12.4s, 22.21 kB]
++ otu_sintax__Unite_all_20250219_Fungi_rep___0.4 dispatched
+✔ otu_sintax__Unite_all_20250219_Fungi_rep___0.4 completed [16ms, 68.13 kB]
++ otu_sintax__Unite_all_20250219_Fungi_rep___0.5 dispatched
+✔ otu_sintax__Unite_all_20250219_Fungi_rep___0.5 completed [19ms, 67.58 kB]
++ otu_sintax__Unite_all_20250219_Fungi_rep___0.6 dispatched
+✔ otu_sintax__Unite_all_20250219_Fungi_rep___0.6 completed [16ms, 67.33 kB]
++ otu_compute_lca__Unite_s_all_20250219_Fungi_rep dispatched
+✔ otu_compute_lca__Unite_s_all_20250219_Fungi_rep completed [1m 24.5s, 19.02 kB]
++ otu_lca__Unite_s_all_20250219_Fungi_rep___0.8 dispatched
+✔ otu_lca__Unite_s_all_20250219_Fungi_rep___0.8 completed [308ms, 68.79 kB]
++ otu_lca__Unite_s_all_20250219_Fungi_rep___0.9 dispatched
+✔ otu_lca__Unite_s_all_20250219_Fungi_rep___0.9 completed [12.9s, 68.79 kB]
++ otu_lca__Unite_s_all_20250219_Fungi_rep___1 dispatched
+✔ otu_lca__Unite_s_all_20250219_Fungi_rep___1 completed [298ms, 68.79 kB]
++ otu_compute_sintax__Unite_all_20250219_Fungi dispatched
+✔ otu_compute_blastn__EUK_ITS_v2.1_Fungi completed [3m 57.1s, 2.22 MB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...90 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...90 completed [2.8s, 62.97 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...92 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...92 completed [1s, 62.95 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...95 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...95 completed [900ms, 63.09 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...97 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...97 completed [778ms, 63.23 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...90 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...90 completed [1.9s, 63.37 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...92 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...92 completed [1.9s, 63.34 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...95 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...95 completed [1.5s, 63.44 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...97 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...97 completed [1.3s, 63.53 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...90 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...90 completed [972ms, 63.02 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...92 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...92 completed [1.1s, 62.95 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...95 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...95 completed [692ms, 63.04 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...97 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...97 completed [498ms, 63.10 kB]
++ otu_compute_sintax__Unite_all_20250219 dispatched
+✔ otu_compute_sintax__Unite_all_20250219_Fungi completed [33.7s, 20.68 kB]
++ otu_sintax__Unite_all_20250219_Fungi___0.4 dispatched
+✔ otu_sintax__Unite_all_20250219_Fungi___0.4 completed [22ms, 65.02 kB]
++ otu_sintax__Unite_all_20250219_Fungi___0.5 dispatched
+✔ otu_sintax__Unite_all_20250219_Fungi___0.5 completed [23ms, 63.15 kB]
++ otu_sintax__Unite_all_20250219_Fungi___0.6 dispatched
+✔ otu_sintax__Unite_all_20250219_Fungi___0.6 completed [23ms, 63.07 kB]
++ otu_compute_blastn__Unite_s_all_20250219 dispatched
+✔ otu_compute_sintax__Unite_all_20250219 completed [50.8s, 21.92 kB]
++ otu_sintax__Unite_all_20250219___0.4 dispatched
+✔ otu_sintax__Unite_all_20250219___0.4 completed [22ms, 68.30 kB]
++ otu_sintax__Unite_all_20250219___0.5 dispatched
+✔ otu_sintax__Unite_all_20250219___0.5 completed [20ms, 68.10 kB]
++ otu_sintax__Unite_all_20250219___0.6 dispatched
+✔ otu_sintax__Unite_all_20250219___0.6 completed [32ms, 67.81 kB]
++ otu_compute_blastn__Unite_all_20250219_Fungi dispatched
+✔ otu_compute_blastn__Unite_s_all_20250219 completed [1m 11.8s, 4.57 MB]
++ otu_blastn__Unite_s_all_20250219___0.5...rel_majority...100...90 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...rel_majority...100...90 completed [1.9s, 68.41 kB]
++ otu_blastn__Unite_s_all_20250219___0.5...rel_majority...100...92 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...rel_majority...100...92 completed [1.8s, 68.28 kB]
++ otu_blastn__Unite_s_all_20250219___0.5...rel_majority...100...95 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...rel_majority...100...95 completed [2.6s, 68.69 kB]
++ otu_blastn__Unite_s_all_20250219___0.5...rel_majority...100...97 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...rel_majority...100...97 completed [1.3s, 69.33 kB]
+✔ otu_compute_blastn__Unite_all_20250219_Fungi completed [39.9s, 3.42 MB]
++ otu_blastn__Unite_s_all_20250219___0.5...abs_majority...100...90 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...abs_majority...100...90 completed [906ms, 67.39 kB]
++ otu_blastn__Unite_s_all_20250219___0.5...abs_majority...100...92 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...abs_majority...100...92 completed [721ms, 67.49 kB]
++ otu_blastn__Unite_s_all_20250219___0.5...abs_majority...100...95 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...abs_majority...100...95 completed [659ms, 68.26 kB]
++ otu_blastn__Unite_s_all_20250219___0.5...abs_majority...100...97 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...abs_majority...100...97 completed [567ms, 69.14 kB]
++ otu_blastn__Unite_s_all_20250219___0.5...unanimity...100...90 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...unanimity...100...90 completed [504ms, 65.94 kB]
++ otu_blastn__Unite_s_all_20250219___0.5...unanimity...100...92 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...unanimity...100...92 completed [423ms, 66.27 kB]
++ otu_blastn__Unite_s_all_20250219___0.5...unanimity...100...95 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...unanimity...100...95 completed [319ms, 67.54 kB]
++ otu_blastn__Unite_s_all_20250219___0.5...unanimity...100...97 dispatched
+✔ otu_blastn__Unite_s_all_20250219___0.5...unanimity...100...97 completed [300ms, 68.71 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...90 dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...90 completed [360ms, 63.43 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...92 dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...92 completed [315ms, 63.50 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...95 dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...95 completed [186ms, 63.82 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...97 dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...97 completed [186ms, 64.38 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...90
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...90 completed [548ms, 63.21 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...92
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...92 completed [491ms, 63.28 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...95
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...95 completed [403ms, 63.69 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...97
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...97 completed [390ms, 64.38 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...90
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...90 completed [1s, 63.67 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...92
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...92 completed [2.1s, 63.70 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...95
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...95 completed [796ms, 63.88 kB]
++ otu_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...97
+dispatched
+✔ otu_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...97 completed [735ms, 64.47 kB]
++ otu_compute_lca__EUK_ITS_v2.1_Fungi dispatched
++ otu_compute_lca__Unite_all_20250219_Fungi dispatched
+✔ otu_compute_lca__Unite_all_20250219_Fungi completed [1m 9s, 16.06 kB]
++ otu_lca__Unite_all_20250219_Fungi___0.8 dispatched
+✔ otu_lca__Unite_all_20250219_Fungi___0.8 completed [249ms, 67.49 kB]
++ otu_lca__Unite_all_20250219_Fungi___0.9 dispatched
+✔ otu_lca__Unite_all_20250219_Fungi___0.9 completed [247ms, 67.50 kB]
++ otu_lca__Unite_all_20250219_Fungi___1 dispatched
+✔ otu_lca__Unite_all_20250219_Fungi___1 completed [333ms, 67.50 kB]
++ otu_compute_lca__Unite_s_all_20250219 dispatched
+✔ otu_compute_lca__Unite_s_all_20250219 completed [4m 48.5s, 19.31 kB]
++ otu_lca__Unite_s_all_20250219___0.8 dispatched
+✔ otu_lca__Unite_s_all_20250219___0.8 completed [616ms, 68.71 kB]
++ otu_lca__Unite_s_all_20250219___0.9 dispatched
+✔ otu_lca__Unite_s_all_20250219___0.9 completed [299ms, 68.69 kB]
++ otu_lca__Unite_s_all_20250219___1 dispatched
+✔ otu_lca__Unite_s_all_20250219___1 completed [328ms, 68.69 kB]
++ otu_compute_lca__Unite_all_20250219 dispatched
+✔ otu_compute_lca__EUK_ITS_v2.1_Fungi completed [7m 0.9s, 40.66 kB]
++ otu_lca__EUK_ITS_v2.1_Fungi___1 dispatched
+✔ otu_lca__EUK_ITS_v2.1_Fungi___1 completed [555ms, 64.56 kB]
++ otu_lca__EUK_ITS_v2.1_Fungi___0.8 dispatched
+✔ otu_lca__EUK_ITS_v2.1_Fungi___0.8 completed [445ms, 64.96 kB]
++ otu_lca__EUK_ITS_v2.1_Fungi___0.9 dispatched
+✔ otu_lca__EUK_ITS_v2.1_Fungi___0.9 completed [389ms, 64.92 kB]
++ otu_compute_blastn__EUK_ITS_v2.1_Fungi_rep dispatched
+✔ otu_compute_lca__Unite_all_20250219 completed [3m 13.4s, 18.15 kB]
++ otu_lca__Unite_all_20250219___1 dispatched
+✔ otu_lca__Unite_all_20250219___1 completed [433ms, 69.01 kB]
++ otu_lca__Unite_all_20250219___0.8 dispatched
+✔ otu_lca__Unite_all_20250219___0.8 completed [340ms, 69.02 kB]
++ otu_lca__Unite_all_20250219___0.9 dispatched
+✔ otu_lca__Unite_all_20250219___0.9 completed [344ms, 69.02 kB]
++ otu_compute_sintax__Unite_s_all_20250219 dispatched
+✔ otu_compute_sintax__Unite_s_all_20250219 completed [1m 32.4s, 21.67 kB]
++ otu_sintax__Unite_s_all_20250219___0.4 dispatched
+✔ otu_sintax__Unite_s_all_20250219___0.4 completed [45ms, 68.36 kB]
++ otu_sintax__Unite_s_all_20250219___0.5 dispatched
+✔ otu_sintax__Unite_s_all_20250219___0.5 completed [22ms, 68.26 kB]
++ otu_sintax__Unite_s_all_20250219___0.6 dispatched
+✔ otu_sintax__Unite_s_all_20250219___0.6 completed [21ms, 68.11 kB]
++ otu_compute_blastn__Unite_s_all_20250219_Fungi dispatched
+✔ otu_compute_blastn__EUK_ITS_v2.1_Fungi_rep completed [4m 2.3s, 2.99 MB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...90 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...90 completed [1.4s, 64.09 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...92 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...92 completed [1.2s, 64.00 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...95 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...95 completed [904ms, 63.81 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...97 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...97 completed [630ms, 63.29 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...90 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...90 completed [1.1s, 64.08 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...92 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...92 completed [1s, 63.94 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...95 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...95 completed [849ms, 63.76 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...97 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...97 completed [610ms, 63.17 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...90 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...90 completed [2.1s, 64.43 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...92 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...92 completed [2.9s, 64.31 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...95 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...95 completed [1.4s, 64.12 kB]
++ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...97 dispatched
+✔ otu_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...97 completed [1.2s, 63.59 kB]
++ otu_compute_sintax__Unite_s_all_20250219_Fungi dispatched
+✔ otu_compute_blastn__Unite_s_all_20250219_Fungi completed [53s, 3.42 MB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...90
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...90 completed [716ms, 63.20 kB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...92
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...92 completed [608ms, 63.19 kB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...95
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...95 completed [583ms, 63.57 kB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...97
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...97 completed [582ms, 64.33 kB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...90
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...90 completed [1.5s, 63.75 kB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...92
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...92 completed [1.1s, 63.67 kB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...95
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...95 completed [1.2s, 63.75 kB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...97
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...97 completed [986ms, 64.46 kB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...90
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...90 completed [510ms, 63.34 kB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...92
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...92 completed [424ms, 63.32 kB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...95
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...95 completed [297ms, 63.66 kB]
++ otu_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...97
+dispatched
+✔ otu_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...97 completed [302ms, 64.25 kB]
++ otu_compute_lca__Unite_all_20250219_Fungi_rep dispatched
+✔ otu_compute_sintax__Unite_s_all_20250219_Fungi completed [1m 0.2s, 20.51 kB]
++ otu_sintax__Unite_s_all_20250219_Fungi___0.4 dispatched
+✔ otu_sintax__Unite_s_all_20250219_Fungi___0.4 completed [20ms, 65.19 kB]
++ otu_sintax__Unite_s_all_20250219_Fungi___0.5 dispatched
+✔ otu_sintax__Unite_s_all_20250219_Fungi___0.5 completed [16ms, 64.42 kB]
++ otu_sintax__Unite_s_all_20250219_Fungi___0.6 dispatched
+✔ otu_sintax__Unite_s_all_20250219_Fungi___0.6 completed [17ms, 63.11 kB]
++ otu_compute_blastn__EUK_ITS_v2.1 dispatched
+✔ otu_compute_lca__Unite_all_20250219_Fungi_rep completed [1m 15.8s, 17.72 kB]
++ otu_lca__Unite_all_20250219_Fungi_rep___1 dispatched
+✔ otu_lca__Unite_all_20250219_Fungi_rep___1 completed [338ms, 68.83 kB]
++ otu_lca__Unite_all_20250219_Fungi_rep___0.8 dispatched
+✔ otu_lca__Unite_all_20250219_Fungi_rep___0.8 completed [361ms, 68.86 kB]
++ otu_lca__Unite_all_20250219_Fungi_rep___0.9 dispatched
+✔ otu_lca__Unite_all_20250219_Fungi_rep___0.9 completed [359ms, 68.84 kB]
++ otu_compute_sintax__EUK_ITS_v2.1 dispatched
+✔ otu_compute_lca__EUK_ITS_v2.1 completed [30m 44.7s, 41.89 kB]
++ otu_lca__EUK_ITS_v2.1___0.8 dispatched
+✔ otu_lca__EUK_ITS_v2.1___0.8 completed [539ms, 67.48 kB]
++ otu_lca__EUK_ITS_v2.1___0.9 dispatched
+✔ otu_lca__EUK_ITS_v2.1___0.9 completed [609ms, 67.41 kB]
++ otu_lca__EUK_ITS_v2.1___1 dispatched
+✔ otu_lca__EUK_ITS_v2.1___1 completed [414ms, 67.27 kB]
++ compute_lca__Unite_s_all_20250219_Fungi dispatched
+✔ otu_compute_blastn__EUK_ITS_v2.1 completed [5m 58.1s, 3.12 MB]
++ otu_blastn__EUK_ITS_v2.1___0.5...abs_majority...100...90 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...abs_majority...100...90 completed [2.1s, 66.44 kB]
++ otu_blastn__EUK_ITS_v2.1___0.5...abs_majority...100...92 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...abs_majority...100...92 completed [3.5s, 66.39 kB]
++ otu_blastn__EUK_ITS_v2.1___0.5...abs_majority...100...95 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...abs_majority...100...95 completed [1.4s, 66.56 kB]
++ otu_blastn__EUK_ITS_v2.1___0.5...abs_majority...100...97 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...abs_majority...100...97 completed [1.2s, 66.62 kB]
+✔ compute_lca__Unite_s_all_20250219_Fungi completed [1m 55.3s, 17.15 kB]
++ otu_blastn__EUK_ITS_v2.1___0.5...rel_majority...100...90 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...rel_majority...100...90 completed [2.6s, 67.12 kB]
++ otu_blastn__EUK_ITS_v2.1___0.5...rel_majority...100...92 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...rel_majority...100...92 completed [2.4s, 67.17 kB]
++ otu_blastn__EUK_ITS_v2.1___0.5...rel_majority...100...95 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...rel_majority...100...95 completed [2.3s, 67.00 kB]
++ otu_blastn__EUK_ITS_v2.1___0.5...rel_majority...100...97 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...rel_majority...100...97 completed [1.8s, 67.00 kB]
++ otu_blastn__EUK_ITS_v2.1___0.5...unanimity...100...90 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...unanimity...100...90 completed [1.4s, 65.25 kB]
++ otu_blastn__EUK_ITS_v2.1___0.5...unanimity...100...92 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...unanimity...100...92 completed [1.2s, 65.48 kB]
++ otu_blastn__EUK_ITS_v2.1___0.5...unanimity...100...95 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...unanimity...100...95 completed [2.5s, 65.69 kB]
++ otu_blastn__EUK_ITS_v2.1___0.5...unanimity...100...97 dispatched
+✔ otu_blastn__EUK_ITS_v2.1___0.5...unanimity...100...97 completed [507ms, 65.60 kB]
++ lca__Unite_s_all_20250219_Fungi___1 dispatched
+✔ lca__Unite_s_all_20250219_Fungi___1 completed [398ms, 71.55 kB]
++ lca__Unite_s_all_20250219_Fungi___0.8 dispatched
+✔ lca__Unite_s_all_20250219_Fungi___0.8 completed [354ms, 71.55 kB]
++ lca__Unite_s_all_20250219_Fungi___0.9 dispatched
+✔ lca__Unite_s_all_20250219_Fungi___0.9 completed [409ms, 71.55 kB]
++ compute_sintax__Unite_all_20250219_Fungi dispatched
++ compute_lca__Unite_all_20250219_Fungi_rep dispatched
+✔ compute_sintax__Unite_all_20250219_Fungi completed [51.2s, 22.52 kB]
++ sintax__Unite_all_20250219_Fungi___0.4 dispatched
+✔ sintax__Unite_all_20250219_Fungi___0.4 completed [26ms, 70.23 kB]
++ sintax__Unite_all_20250219_Fungi___0.5 dispatched
+✔ sintax__Unite_all_20250219_Fungi___0.5 completed [24ms, 70.04 kB]
++ sintax__Unite_all_20250219_Fungi___0.6 dispatched
+✔ sintax__Unite_all_20250219_Fungi___0.6 completed [27ms, 69.78 kB]
++ compute_sintax__EUK_ITS_v2.1_Fungi_rep dispatched
+✔ otu_compute_dada2__EUK_ITS_v2.1 completed [28m 47.5s, 92.86 kB]
++ otu_dada2__EUK_ITS_v2.1___0.4 dispatched
+✔ otu_dada2__EUK_ITS_v2.1___0.4 completed [26ms, 62.75 kB]
++ otu_dada2__EUK_ITS_v2.1___0.5 dispatched
+✔ otu_dada2__EUK_ITS_v2.1___0.5 completed [49ms, 62.46 kB]
++ otu_dada2__EUK_ITS_v2.1___0.6 dispatched
+✔ otu_dada2__EUK_ITS_v2.1___0.6 completed [20ms, 62.36 kB]
++ otu_compute_dada2__EUK_ITS_v2.1_Fungi dispatched
+✔ compute_lca__Unite_all_20250219_Fungi_rep completed [1m 42.3s, 18.74 kB]
++ lca__Unite_all_20250219_Fungi_rep___0.8 dispatched
+✔ lca__Unite_all_20250219_Fungi_rep___0.8 completed [282ms, 73.65 kB]
++ lca__Unite_all_20250219_Fungi_rep___0.9 dispatched
+✔ lca__Unite_all_20250219_Fungi_rep___0.9 completed [314ms, 73.64 kB]
++ lca__Unite_all_20250219_Fungi_rep___1 dispatched
+✔ lca__Unite_all_20250219_Fungi_rep___1 completed [278ms, 73.63 kB]
++ compute_blastn__EUK_ITS_v2.1_Fungi_rep dispatched
+✔ otu_compute_sintax__EUK_ITS_v2.1 completed [9m 31s, 19.90 kB]
++ otu_sintax__EUK_ITS_v2.1___0.4 dispatched
+✔ otu_sintax__EUK_ITS_v2.1___0.4 completed [17ms, 67.66 kB]
++ otu_sintax__EUK_ITS_v2.1___0.5 dispatched
+✔ otu_sintax__EUK_ITS_v2.1___0.5 completed [16ms, 67.62 kB]
++ otu_sintax__EUK_ITS_v2.1___0.6 dispatched
+✔ otu_sintax__EUK_ITS_v2.1___0.6 completed [15ms, 67.47 kB]
++ compute_blastn__EUK_ITS_v2.1_Fungi dispatched
+✔ compute_sintax__EUK_ITS_v2.1_Fungi_rep completed [3m 48.5s, 20.45 kB]
++ sintax__EUK_ITS_v2.1_Fungi_rep___0.4 dispatched
+✔ sintax__EUK_ITS_v2.1_Fungi_rep___0.4 completed [15ms, 71.68 kB]
++ sintax__EUK_ITS_v2.1_Fungi_rep___0.5 dispatched
+✔ sintax__EUK_ITS_v2.1_Fungi_rep___0.5 completed [15ms, 71.62 kB]
++ sintax__EUK_ITS_v2.1_Fungi_rep___0.6 dispatched
+✔ sintax__EUK_ITS_v2.1_Fungi_rep___0.6 completed [14ms, 71.50 kB]
++ compute_blastn__Unite_s_all_20250219_Fungi_rep dispatched
+✔ compute_blastn__Unite_s_all_20250219_Fungi_rep completed [55.6s, 4.98 MB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...90
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...90 completed [1.1s, 70.92 kB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...92
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...92 completed [868ms, 70.45 kB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...95
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...95 completed [692ms, 70.45 kB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...97
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...97 completed [521ms, 70.45 kB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...90
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...90 completed [1.9s, 71.75 kB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...92
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...92 completed [1.6s, 71.19 kB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...95
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...95 completed [1.4s, 70.94 kB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...97
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...97 completed [1.1s, 70.69 kB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...90
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...90 completed [795ms, 69.75 kB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...92
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...92 completed [574ms, 69.50 kB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...95
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...95 completed [354ms, 69.78 kB]
++ blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...97
+dispatched
+✔ blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...97 completed [1.3s, 70.03 kB]
++ compute_lca__EUK_ITS_v2.1_Fungi dispatched
+✔ compute_blastn__EUK_ITS_v2.1_Fungi_rep completed [4m 24.7s, 3.44 MB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...90 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...90 completed [1.3s, 68.89 kB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...92 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...92 completed [1.5s, 68.81 kB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...95 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...95 completed [1.1s, 68.64 kB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...97 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...97 completed [819ms, 68.12 kB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...90 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...90 completed [3s, 69.83 kB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...92 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...92 completed [1.5s, 69.74 kB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...95 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...95 completed [1.2s, 69.52 kB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...97 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...97 completed [1s, 68.90 kB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...90 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...90 completed [2.4s, 70.42 kB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...92 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...92 completed [2.7s, 70.27 kB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...95 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...95 completed [2s, 70.04 kB]
++ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...97 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...97 completed [1.7s, 69.35 kB]
++ compute_lca__EUK_ITS_v2.1 dispatched
+✔ compute_blastn__EUK_ITS_v2.1_Fungi completed [4m 23.8s, 2.67 MB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...90 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...90 completed [3.4s, 68.43 kB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...92 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...92 completed [1.6s, 68.46 kB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...95 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...95 completed [1.4s, 68.65 kB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...97 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...97 completed [1.2s, 68.82 kB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...90 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...90 completed [1.5s, 67.67 kB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...92 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...92 completed [1.6s, 67.70 kB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...95 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...95 completed [2.2s, 67.85 kB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...97 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...97 completed [693ms, 68.06 kB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...90 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...90 completed [2.6s, 69.04 kB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...92 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...92 completed [2.3s, 69.02 kB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...95 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...95 completed [2.2s, 69.16 kB]
++ blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...97 dispatched
+✔ blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...97 completed [1.8s, 69.27 kB]
++ compute_sintax__Unite_s_all_20250219_Fungi_rep dispatched
+✔ compute_sintax__Unite_s_all_20250219_Fungi_rep completed [1m 10.6s, 24.22 kB]
++ sintax__Unite_s_all_20250219_Fungi_rep___0.4 dispatched
+✔ sintax__Unite_s_all_20250219_Fungi_rep___0.4 completed [31ms, 72.86 kB]
++ sintax__Unite_s_all_20250219_Fungi_rep___0.5 dispatched
+✔ sintax__Unite_s_all_20250219_Fungi_rep___0.5 completed [29ms, 72.64 kB]
++ sintax__Unite_s_all_20250219_Fungi_rep___0.6 dispatched
+✔ sintax__Unite_s_all_20250219_Fungi_rep___0.6 completed [21ms, 72.31 kB]
++ compute_blastn__EUK_ITS_v2.1 dispatched
+✔ otu_compute_dada2__EUK_ITS_v2.1_Fungi completed [10m 25.5s, 88.86 kB]
++ otu_dada2__EUK_ITS_v2.1_Fungi___0.4 dispatched
+✔ otu_dada2__EUK_ITS_v2.1_Fungi___0.4 completed [18ms, 65.19 kB]
++ otu_dada2__EUK_ITS_v2.1_Fungi___0.5 dispatched
+✔ otu_dada2__EUK_ITS_v2.1_Fungi___0.5 completed [17ms, 64.94 kB]
++ otu_dada2__EUK_ITS_v2.1_Fungi___0.6 dispatched
+✔ otu_dada2__EUK_ITS_v2.1_Fungi___0.6 completed [17ms, 64.08 kB]
++ otu_compute_dada2__Unite_s_all_20250219 dispatched
+✔ compute_lca__EUK_ITS_v2.1_Fungi completed [7m 18.1s, 51.67 kB]
++ lca__EUK_ITS_v2.1_Fungi___0.8 dispatched
+✔ lca__EUK_ITS_v2.1_Fungi___0.8 completed [379ms, 70.35 kB]
++ lca__EUK_ITS_v2.1_Fungi___0.9 dispatched
+✔ lca__EUK_ITS_v2.1_Fungi___0.9 completed [343ms, 70.27 kB]
++ lca__EUK_ITS_v2.1_Fungi___1 dispatched
+✔ lca__EUK_ITS_v2.1_Fungi___1 completed [358ms, 70.20 kB]
++ compute_blastn__Unite_all_20250219 dispatched
+✔ compute_blastn__Unite_all_20250219 completed [57.9s, 5.22 MB]
++ blastn__Unite_all_20250219___0.5...unanimity...100...90 dispatched
+✔ blastn__Unite_all_20250219___0.5...unanimity...100...90 completed [2s, 70.95 kB]
++ blastn__Unite_all_20250219___0.5...unanimity...100...92 dispatched
+✔ blastn__Unite_all_20250219___0.5...unanimity...100...92 completed [446ms, 71.14 kB]
++ blastn__Unite_all_20250219___0.5...unanimity...100...95 dispatched
+✔ blastn__Unite_all_20250219___0.5...unanimity...100...95 completed [309ms, 71.91 kB]
++ blastn__Unite_all_20250219___0.5...unanimity...100...97 dispatched
+✔ blastn__Unite_all_20250219___0.5...unanimity...100...97 completed [282ms, 72.84 kB]
++ blastn__Unite_all_20250219___0.5...rel_majority...100...90 dispatched
+✔ blastn__Unite_all_20250219___0.5...rel_majority...100...90 completed [2.9s, 72.71 kB]
++ blastn__Unite_all_20250219___0.5...rel_majority...100...92 dispatched
+✔ blastn__Unite_all_20250219___0.5...rel_majority...100...92 completed [1.6s, 72.61 kB]
++ blastn__Unite_all_20250219___0.5...rel_majority...100...95 dispatched
+✔ blastn__Unite_all_20250219___0.5...rel_majority...100...95 completed [1.5s, 72.85 kB]
++ blastn__Unite_all_20250219___0.5...rel_majority...100...97 dispatched
+✔ blastn__Unite_all_20250219___0.5...rel_majority...100...97 completed [1.3s, 73.33 kB]
++ blastn__Unite_all_20250219___0.5...abs_majority...100...90 dispatched
+✔ blastn__Unite_all_20250219___0.5...abs_majority...100...90 completed [964ms, 71.99 kB]
++ blastn__Unite_all_20250219___0.5...abs_majority...100...92 dispatched
+✔ blastn__Unite_all_20250219___0.5...abs_majority...100...92 completed [932ms, 71.97 kB]
++ blastn__Unite_all_20250219___0.5...abs_majority...100...95 dispatched
+✔ blastn__Unite_all_20250219___0.5...abs_majority...100...95 completed [857ms, 72.40 kB]
++ blastn__Unite_all_20250219___0.5...abs_majority...100...97 dispatched
+✔ blastn__Unite_all_20250219___0.5...abs_majority...100...97 completed [672ms, 73.08 kB]
++ compute_sintax__Unite_s_all_20250219 dispatched
+✔ compute_sintax__Unite_s_all_20250219 completed [1m 43.5s, 23.77 kB]
++ sintax__Unite_s_all_20250219___0.4 dispatched
+✔ sintax__Unite_s_all_20250219___0.4 completed [31ms, 73.15 kB]
++ sintax__Unite_s_all_20250219___0.5 dispatched
+✔ sintax__Unite_s_all_20250219___0.5 completed [19ms, 73.04 kB]
++ sintax__Unite_s_all_20250219___0.6 dispatched
+✔ sintax__Unite_s_all_20250219___0.6 completed [20ms, 72.89 kB]
++ compute_sintax__Unite_s_all_20250219_Fungi dispatched
+✔ compute_blastn__EUK_ITS_v2.1 completed [6m 29.1s, 3.57 MB]
++ blastn__EUK_ITS_v2.1___0.5...rel_majority...100...90 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...rel_majority...100...90 completed [5s, 72.05 kB]
++ blastn__EUK_ITS_v2.1___0.5...rel_majority...100...92 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...rel_majority...100...92 completed [3.1s, 72.09 kB]
++ blastn__EUK_ITS_v2.1___0.5...rel_majority...100...95 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...rel_majority...100...95 completed [2.7s, 72.16 kB]
++ blastn__EUK_ITS_v2.1___0.5...rel_majority...100...97 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...rel_majority...100...97 completed [3.7s, 72.19 kB]
++ blastn__EUK_ITS_v2.1___0.5...abs_majority...100...90 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...abs_majority...100...90 completed [2.1s, 71.34 kB]
++ blastn__EUK_ITS_v2.1___0.5...abs_majority...100...92 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...abs_majority...100...92 completed [1.9s, 71.50 kB]
++ blastn__EUK_ITS_v2.1___0.5...abs_majority...100...95 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...abs_majority...100...95 completed [1.7s, 71.63 kB]
++ blastn__EUK_ITS_v2.1___0.5...abs_majority...100...97 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...abs_majority...100...97 completed [1.2s, 71.73 kB]
++ blastn__EUK_ITS_v2.1___0.5...unanimity...100...90 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...unanimity...100...90 completed [1.6s, 70.35 kB]
++ blastn__EUK_ITS_v2.1___0.5...unanimity...100...92 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...unanimity...100...92 completed [1.7s, 70.56 kB]
++ blastn__EUK_ITS_v2.1___0.5...unanimity...100...95 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...unanimity...100...95 completed [1.3s, 70.75 kB]
++ blastn__EUK_ITS_v2.1___0.5...unanimity...100...97 dispatched
+✔ blastn__EUK_ITS_v2.1___0.5...unanimity...100...97 completed [874ms, 70.93 kB]
++ compute_lca__Unite_s_all_20250219_Fungi_rep dispatched
+✔ compute_sintax__Unite_s_all_20250219_Fungi completed [1m 9.3s, 22.36 kB]
++ sintax__Unite_s_all_20250219_Fungi___0.4 dispatched
+✔ sintax__Unite_s_all_20250219_Fungi___0.4 completed [20ms, 70.36 kB]
++ sintax__Unite_s_all_20250219_Fungi___0.5 dispatched
+✔ sintax__Unite_s_all_20250219_Fungi___0.5 completed [22ms, 70.06 kB]
++ sintax__Unite_s_all_20250219_Fungi___0.6 dispatched
+✔ sintax__Unite_s_all_20250219_Fungi___0.6 completed [20ms, 69.79 kB]
++ compute_sintax__EUK_ITS_v2.1_Fungi dispatched
+✔ compute_lca__Unite_s_all_20250219_Fungi_rep completed [1m 53.5s, 20.33 kB]
++ lca__Unite_s_all_20250219_Fungi_rep___0.8 dispatched
+✔ lca__Unite_s_all_20250219_Fungi_rep___0.8 completed [435ms, 73.74 kB]
++ lca__Unite_s_all_20250219_Fungi_rep___0.9 dispatched
+✔ lca__Unite_s_all_20250219_Fungi_rep___0.9 completed [434ms, 73.74 kB]
++ lca__Unite_s_all_20250219_Fungi_rep___1 dispatched
+✔ lca__Unite_s_all_20250219_Fungi_rep___1 completed [397ms, 73.74 kB]
++ compute_sintax__Unite_all_20250219_Fungi_rep dispatched
+✔ compute_sintax__Unite_all_20250219_Fungi_rep completed [52.3s, 24.24 kB]
++ sintax__Unite_all_20250219_Fungi_rep___0.4 dispatched
+✔ sintax__Unite_all_20250219_Fungi_rep___0.4 completed [57ms, 72.85 kB]
++ sintax__Unite_all_20250219_Fungi_rep___0.5 dispatched
+✔ sintax__Unite_all_20250219_Fungi_rep___0.5 completed [26ms, 72.55 kB]
++ sintax__Unite_all_20250219_Fungi_rep___0.6 dispatched
+✔ sintax__Unite_all_20250219_Fungi_rep___0.6 completed [21ms, 72.29 kB]
++ compute_sintax__Unite_all_20250219 dispatched
+✔ compute_sintax__Unite_all_20250219 completed [1m 16.3s, 24.11 kB]
++ sintax__Unite_all_20250219___0.4 dispatched
+✔ sintax__Unite_all_20250219___0.4 completed [25ms, 73.14 kB]
++ sintax__Unite_all_20250219___0.5 dispatched
+✔ sintax__Unite_all_20250219___0.5 completed [23ms, 72.91 kB]
++ sintax__Unite_all_20250219___0.6 dispatched
+✔ sintax__Unite_all_20250219___0.6 completed [26ms, 72.69 kB]
++ compute_blastn__Unite_s_all_20250219_Fungi dispatched
+✔ otu_compute_dada2__Unite_s_all_20250219 completed [9m 54.9s, 94.05 kB]
++ otu_dada2__Unite_s_all_20250219___0.4 dispatched
+✔ otu_dada2__Unite_s_all_20250219___0.4 completed [22ms, 68.22 kB]
++ otu_dada2__Unite_s_all_20250219___0.5 dispatched
+✔ otu_dada2__Unite_s_all_20250219___0.5 completed [18ms, 66.63 kB]
++ otu_dada2__Unite_s_all_20250219___0.6 dispatched
+✔ otu_dada2__Unite_s_all_20250219___0.6 completed [18ms, 65.04 kB]
++ otu_compute_dada2__Unite_all_20250219_Fungi_rep dispatched
+✔ compute_blastn__Unite_s_all_20250219_Fungi completed [1m 2.1s, 4.08 MB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...90 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...90 completed [1.6s, 69.55 kB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...92 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...92 completed [1.4s, 69.42 kB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...95 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...95 completed [1.1s, 69.82 kB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...97 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...97 completed [1s, 70.61 kB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...90 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...90 completed [955ms, 68.72 kB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...92 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...92 completed [796ms, 68.69 kB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...95 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...95 completed [563ms, 69.37 kB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...97 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...97 completed [438ms, 70.37 kB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...90 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...90 completed [503ms, 67.80 kB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...92 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...92 completed [380ms, 67.83 kB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...95 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...95 completed [279ms, 68.61 kB]
++ blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...97 dispatched
+✔ blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...97 completed [232ms, 69.94 kB]
++ compute_sintax__EUK_ITS_v2.1 dispatched
+✔ compute_sintax__EUK_ITS_v2.1_Fungi completed [7m 21.1s, 18.45 kB]
++ sintax__EUK_ITS_v2.1_Fungi___0.4 dispatched
+✔ sintax__EUK_ITS_v2.1_Fungi___0.4 completed [30ms, 69.77 kB]
++ sintax__EUK_ITS_v2.1_Fungi___0.5 dispatched
+✔ sintax__EUK_ITS_v2.1_Fungi___0.5 completed [26ms, 69.77 kB]
++ sintax__EUK_ITS_v2.1_Fungi___0.6 dispatched
+✔ sintax__EUK_ITS_v2.1_Fungi___0.6 completed [23ms, 69.74 kB]
++ compute_blastn__Unite_all_20250219_Fungi dispatched
+✔ compute_blastn__Unite_all_20250219_Fungi completed [48.5s, 4.13 MB]
++ blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...90 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...90 completed [596ms, 68.12 kB]
++ blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...92 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...92 completed [615ms, 68.23 kB]
++ blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...95 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...95 completed [354ms, 69.15 kB]
++ blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...97 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...97 completed [357ms, 70.26 kB]
++ blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...90 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...90 completed [1.8s, 69.43 kB]
++ blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...92 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...92 completed [1.6s, 69.43 kB]
++ blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...95 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...95 completed [1.4s, 69.92 kB]
++ blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...97 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...97 completed [1.2s, 70.69 kB]
++ blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...90 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...90 completed [931ms, 68.82 kB]
++ blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...92 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...92 completed [810ms, 68.83 kB]
++ blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...95 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...95 completed [643ms, 69.51 kB]
++ blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...97 dispatched
+✔ blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...97 completed [590ms, 70.45 kB]
++ compute_lca__Unite_all_20250219 dispatched
+✔ otu_compute_dada2__Unite_all_20250219_Fungi_rep completed [5m 39.8s, 92.55 kB]
++ otu_dada2__Unite_all_20250219_Fungi_rep___0.4 dispatched
+✔ otu_dada2__Unite_all_20250219_Fungi_rep___0.4 completed [20ms, 68.32 kB]
++ otu_dada2__Unite_all_20250219_Fungi_rep___0.5 dispatched
+✔ otu_dada2__Unite_all_20250219_Fungi_rep___0.5 completed [20ms, 67.90 kB]
++ otu_dada2__Unite_all_20250219_Fungi_rep___0.6 dispatched
+✔ otu_dada2__Unite_all_20250219_Fungi_rep___0.6 completed [21ms, 67.57 kB]
++ otu_compute_dada2__Unite_all_20250219 dispatched
+✔ compute_lca__Unite_all_20250219 completed [3m 21.3s, 19.23 kB]
++ lca__Unite_all_20250219___1 dispatched
+✔ lca__Unite_all_20250219___1 completed [373ms, 73.81 kB]
++ lca__Unite_all_20250219___0.8 dispatched
+✔ lca__Unite_all_20250219___0.8 completed [433ms, 73.81 kB]
++ lca__Unite_all_20250219___0.9 dispatched
+✔ lca__Unite_all_20250219___0.9 completed [367ms, 73.81 kB]
++ compute_lca__Unite_s_all_20250219 dispatched
+✔ compute_lca__Unite_s_all_20250219 completed [5m 5.6s, 20.44 kB]
++ lca__Unite_s_all_20250219___0.8 dispatched
+✔ lca__Unite_s_all_20250219___0.8 completed [472ms, 73.50 kB]
++ lca__Unite_s_all_20250219___0.9 dispatched
+✔ lca__Unite_s_all_20250219___0.9 completed [508ms, 73.49 kB]
++ lca__Unite_s_all_20250219___1 dispatched
+✔ lca__Unite_s_all_20250219___1 completed [421ms, 73.49 kB]
++ compute_lca__Unite_all_20250219_Fungi dispatched
+✔ compute_lca__Unite_all_20250219_Fungi completed [1m 25s, 17.03 kB]
++ lca__Unite_all_20250219_Fungi___1 dispatched
+✔ lca__Unite_all_20250219_Fungi___1 completed [340ms, 72.32 kB]
++ lca__Unite_all_20250219_Fungi___0.8 dispatched
+✔ lca__Unite_all_20250219_Fungi___0.8 completed [437ms, 72.32 kB]
++ lca__Unite_all_20250219_Fungi___0.9 dispatched
+✔ lca__Unite_all_20250219_Fungi___0.9 completed [312ms, 72.32 kB]
++ compute_blastn__Unite_all_20250219_Fungi_rep dispatched
+✔ otu_compute_dada2__Unite_all_20250219 completed [8m 7s, 92.60 kB]
++ otu_dada2__Unite_all_20250219___0.4 dispatched
+✔ otu_dada2__Unite_all_20250219___0.4 completed [22ms, 68.72 kB]
++ otu_dada2__Unite_all_20250219___0.5 dispatched
+✔ otu_dada2__Unite_all_20250219___0.5 completed [19ms, 68.39 kB]
++ otu_dada2__Unite_all_20250219___0.6 dispatched
+✔ otu_dada2__Unite_all_20250219___0.6 completed [18ms, 68.01 kB]
++ otu_compute_dada2__EUK_ITS_v2.1_Fungi_rep dispatched
+✔ compute_sintax__EUK_ITS_v2.1 completed [13m 46s, 21.42 kB]
++ sintax__EUK_ITS_v2.1___0.4 dispatched
+✔ sintax__EUK_ITS_v2.1___0.4 completed [16ms, 72.25 kB]
++ sintax__EUK_ITS_v2.1___0.5 dispatched
+✔ sintax__EUK_ITS_v2.1___0.5 completed [16ms, 72.21 kB]
++ sintax__EUK_ITS_v2.1___0.6 dispatched
+✔ sintax__EUK_ITS_v2.1___0.6 completed [16ms, 72.04 kB]
++ compute_blastn__Unite_s_all_20250219 dispatched
+✔ compute_blastn__Unite_all_20250219_Fungi_rep completed [41.1s, 4.93 MB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...90 dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...90 completed [353ms, 69.61 kB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...92 dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...92 completed [287ms, 69.64 kB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...95 dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...95 completed [221ms, 70.00 kB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...97 dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...97 completed [167ms, 70.51 kB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...90
+dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...90 completed [701ms, 70.55 kB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...92
+dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...92 completed [559ms, 70.42 kB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...95
+dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...95 completed [458ms, 70.43 kB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...97
+dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...97 completed [398ms, 70.69 kB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...90
+dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...90 completed [1.3s, 71.17 kB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...92
+dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...92 completed [1.1s, 71.01 kB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...95
+dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...95 completed [937ms, 70.87 kB]
++ blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...97
+dispatched
+✔ blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...97 completed [851ms, 70.94 kB]
++ compute_lca__EUK_ITS_v2.1_Fungi_rep dispatched
+✔ compute_blastn__Unite_s_all_20250219 completed [1m 8.6s, 5.25 MB]
++ blastn__Unite_s_all_20250219___0.5...abs_majority...100...90 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...abs_majority...100...90 completed [1s, 72.15 kB]
++ blastn__Unite_s_all_20250219___0.5...abs_majority...100...92 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...abs_majority...100...92 completed [809ms, 72.27 kB]
++ blastn__Unite_s_all_20250219___0.5...abs_majority...100...95 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...abs_majority...100...95 completed [678ms, 73.03 kB]
++ blastn__Unite_s_all_20250219___0.5...abs_majority...100...97 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...abs_majority...100...97 completed [589ms, 73.96 kB]
++ blastn__Unite_s_all_20250219___0.5...unanimity...100...90 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...unanimity...100...90 completed [580ms, 70.83 kB]
++ blastn__Unite_s_all_20250219___0.5...unanimity...100...92 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...unanimity...100...92 completed [548ms, 71.17 kB]
++ blastn__Unite_s_all_20250219___0.5...unanimity...100...95 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...unanimity...100...95 completed [318ms, 72.30 kB]
++ blastn__Unite_s_all_20250219___0.5...unanimity...100...97 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...unanimity...100...97 completed [272ms, 73.59 kB]
++ blastn__Unite_s_all_20250219___0.5...rel_majority...100...90 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...rel_majority...100...90 completed [2.4s, 73.21 kB]
++ blastn__Unite_s_all_20250219___0.5...rel_majority...100...92 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...rel_majority...100...92 completed [1.6s, 73.10 kB]
++ blastn__Unite_s_all_20250219___0.5...rel_majority...100...95 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...rel_majority...100...95 completed [1.4s, 73.50 kB]
++ blastn__Unite_s_all_20250219___0.5...rel_majority...100...97 dispatched
+✔ blastn__Unite_s_all_20250219___0.5...rel_majority...100...97 completed [1.3s, 74.18 kB]
++ itsx_compute_sintax__Unite_all_20250219_Fungi_rep dispatched
+✔ itsx_compute_sintax__Unite_all_20250219_Fungi_rep completed [13.1s, 24.34 kB]
++ itsx_sintax__Unite_all_20250219_Fungi_rep___0.4 dispatched
+✔ itsx_sintax__Unite_all_20250219_Fungi_rep___0.4 completed [15ms, 69.67 kB]
++ itsx_sintax__Unite_all_20250219_Fungi_rep___0.5 dispatched
+✔ itsx_sintax__Unite_all_20250219_Fungi_rep___0.5 completed [15ms, 69.33 kB]
++ itsx_sintax__Unite_all_20250219_Fungi_rep___0.6 dispatched
+✔ itsx_sintax__Unite_all_20250219_Fungi_rep___0.6 completed [15ms, 69.12 kB]
++ itsx_compute_sintax__Unite_all_20250219_Fungi dispatched
+✔ itsx_compute_sintax__Unite_all_20250219_Fungi completed [12.7s, 22.48 kB]
++ itsx_sintax__Unite_all_20250219_Fungi___0.4 dispatched
+✔ itsx_sintax__Unite_all_20250219_Fungi___0.4 completed [15ms, 66.88 kB]
++ itsx_sintax__Unite_all_20250219_Fungi___0.5 dispatched
+✔ itsx_sintax__Unite_all_20250219_Fungi___0.5 completed [14ms, 66.73 kB]
++ itsx_sintax__Unite_all_20250219_Fungi___0.6 dispatched
+✔ itsx_sintax__Unite_all_20250219_Fungi___0.6 completed [15ms, 66.49 kB]
++ itsx_compute_blastn__EUK_ITS_v2.1_Fungi dispatched
+✔ compute_lca__EUK_ITS_v2.1 completed [32m 11.4s, 50.72 kB]
++ lca__EUK_ITS_v2.1___1 dispatched
+✔ lca__EUK_ITS_v2.1___1 completed [469ms, 72.21 kB]
++ lca__EUK_ITS_v2.1___0.8 dispatched
+✔ lca__EUK_ITS_v2.1___0.8 completed [476ms, 72.36 kB]
++ lca__EUK_ITS_v2.1___0.9 dispatched
+✔ lca__EUK_ITS_v2.1___0.9 completed [419ms, 72.32 kB]
++ itsx_compute_blastn__EUK_ITS_v2.1_Fungi_rep dispatched
+✔ itsx_compute_blastn__EUK_ITS_v2.1_Fungi completed [2m 11.3s, 2.13 MB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...90 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...90 completed [2s, 65.02 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...92 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...92 completed [1.8s, 65.03 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...95 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...95 completed [1.4s, 65.20 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...97 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...abs_majority...100...97 completed [1.1s, 65.31 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...90 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...90 completed [3.1s, 65.41 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...92 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...92 completed [2.7s, 65.44 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...95 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...95 completed [2.4s, 65.64 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...97 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...rel_majority...100...97 completed [2s, 65.79 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...90 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...90 completed [1.9s, 64.29 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...92 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...92 completed [2.3s, 64.28 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...95 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...95 completed [1.5s, 64.40 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...97 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi___0.5...unanimity...100...97 completed [2.3s, 64.63 kB]
++ itsx_compute_blastn__Unite_all_20250219_Fungi_rep dispatched
+✔ itsx_compute_blastn__Unite_all_20250219_Fungi_rep completed [26.7s, 2.83 MB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...90
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...90 completed [450ms, 66.06 kB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...92
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...92 completed [358ms, 66.31 kB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...95
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...95 completed [300ms, 66.65 kB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...97
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...unanimity...100...97 completed [205ms, 66.98 kB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...90
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...90 completed [1.8s, 67.81 kB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...92
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...92 completed [1.7s, 67.82 kB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...95
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...95 completed [1.4s, 67.63 kB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...97
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...rel_majority...100...97 completed [1.2s, 67.50 kB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...90
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...90 completed [844ms, 67.05 kB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...92
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...92 completed [651ms, 67.10 kB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...95
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...95 completed [774ms, 67.14 kB]
++ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...97
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi_rep___0.5...abs_majority...100...97 completed [471ms, 67.23 kB]
++ itsx_compute_blastn__Unite_all_20250219_Fungi dispatched
+✔ itsx_compute_blastn__EUK_ITS_v2.1_Fungi_rep completed [2m 30.5s, 2.88 MB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...90 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...90 completed [2.1s, 65.39 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...92 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...92 completed [1.8s, 65.24 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...95 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...95 completed [1.1s, 65.04 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...97 dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...unanimity...100...97 completed [816ms, 64.69 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...90
+dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...90 completed [3.7s, 66.90 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...92
+dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...92 completed [3.3s, 66.81 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...95
+dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...95 completed [3s, 66.58 kB]
+✔ itsx_compute_blastn__Unite_all_20250219_Fungi completed [25.6s, 2.05 MB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...97
+dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...rel_majority...100...97 completed [2.1s, 65.86 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...90
+dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...90 completed [2.5s, 66.52 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...92
+dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...92 completed [3.5s, 66.40 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...95
+dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...95 completed [1.5s, 66.15 kB]
++ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...97
+dispatched
+✔ itsx_blastn__EUK_ITS_v2.1_Fungi_rep___0.5...abs_majority...100...97 completed [1.1s, 65.38 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...90 dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...90 completed [498ms, 64.57 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...92 dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...92 completed [388ms, 64.83 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...95 dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...95 completed [303ms, 65.74 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...97 dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...unanimity...100...97 completed [213ms, 66.73 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...90
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...90 completed [869ms, 65.19 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...92
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...92 completed [741ms, 65.43 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...95
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...95 completed [792ms, 66.16 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...97
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...abs_majority...100...97 completed [506ms, 67.00 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...90
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...90 completed [1.6s, 65.95 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...92
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...92 completed [1.4s, 66.18 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...95
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...95 completed [1.3s, 66.63 kB]
++ itsx_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...97
+dispatched
+✔ itsx_blastn__Unite_all_20250219_Fungi___0.5...rel_majority...100...97 completed [1.3s, 67.25 kB]
++ itsx_compute_lca__Unite_s_all_20250219_Fungi_rep dispatched
++ itsx_compute_lca__EUK_ITS_v2.1_Fungi_rep dispatched
+✔ itsx_compute_lca__Unite_s_all_20250219_Fungi_rep completed [1m 38.6s, 23.05 kB]
++ itsx_lca__Unite_s_all_20250219_Fungi_rep___0.8 dispatched
+✔ itsx_lca__Unite_s_all_20250219_Fungi_rep___0.8 completed [489ms, 71.09 kB]
++ itsx_lca__Unite_s_all_20250219_Fungi_rep___0.9 dispatched
+✔ itsx_lca__Unite_s_all_20250219_Fungi_rep___0.9 completed [520ms, 71.09 kB]
++ itsx_lca__Unite_s_all_20250219_Fungi_rep___1 dispatched
+✔ itsx_lca__Unite_s_all_20250219_Fungi_rep___1 completed [411ms, 71.08 kB]
++ itsx_compute_sintax__EUK_ITS_v2.1_Fungi dispatched
+✔ compute_lca__EUK_ITS_v2.1_Fungi_rep completed [8m 23.1s, 53.94 kB]
++ lca__EUK_ITS_v2.1_Fungi_rep___0.8 dispatched
+✔ lca__EUK_ITS_v2.1_Fungi_rep___0.8 completed [934ms, 71.98 kB]
++ lca__EUK_ITS_v2.1_Fungi_rep___0.9 dispatched
+✔ lca__EUK_ITS_v2.1_Fungi_rep___0.9 completed [936ms, 71.92 kB]
++ lca__EUK_ITS_v2.1_Fungi_rep___1 dispatched
+✔ lca__EUK_ITS_v2.1_Fungi_rep___1 completed [1.3s, 71.84 kB]
++ itsx_compute_blastn__Unite_s_all_20250219_Fungi_rep dispatched
+✔ itsx_compute_blastn__Unite_s_all_20250219_Fungi_rep completed [43.7s, 3.24 MB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...90
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...90 completed [2.6s, 68.42 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...92
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...92 completed [2.6s, 67.99 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...95
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...95 completed [2.2s, 67.69 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...97
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...rel_majority...100...97 completed [1.5s, 67.16 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...90
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...90 completed [1.1s, 66.18 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...92
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...92 completed [806ms, 66.04 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...95
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...95 completed [484ms, 66.28 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...97
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...unanimity...100...97 completed [321ms, 66.25 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...90
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...90 completed [1.5s, 67.54 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...92
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...92 completed [1.2s, 67.14 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...95
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...95 completed [1.2s, 67.17 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...97
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi_rep___0.5...abs_majority...100...97 completed [877ms, 66.87 kB]
++ itsx_compute_sintax__Unite_s_all_20250219_Fungi_rep dispatched
+✔ otu_compute_dada2__EUK_ITS_v2.1_Fungi_rep completed [11m 6.2s, 92.16 kB]
++ otu_dada2__EUK_ITS_v2.1_Fungi_rep___0.4 dispatched
+✔ otu_dada2__EUK_ITS_v2.1_Fungi_rep___0.4 completed [22ms, 67.40 kB]
++ otu_dada2__EUK_ITS_v2.1_Fungi_rep___0.5 dispatched
+✔ otu_dada2__EUK_ITS_v2.1_Fungi_rep___0.5 completed [21ms, 67.08 kB]
++ otu_dada2__EUK_ITS_v2.1_Fungi_rep___0.6 dispatched
+✔ otu_dada2__EUK_ITS_v2.1_Fungi_rep___0.6 completed [22ms, 66.47 kB]
++ otu_compute_dada2__Unite_s_all_20250219_Fungi_rep dispatched
+✔ itsx_compute_sintax__Unite_s_all_20250219_Fungi_rep completed [1m 4.1s, 24.44 kB]
++ itsx_sintax__Unite_s_all_20250219_Fungi_rep___0.4 dispatched
+✔ itsx_sintax__Unite_s_all_20250219_Fungi_rep___0.4 completed [21ms, 69.76 kB]
++ itsx_sintax__Unite_s_all_20250219_Fungi_rep___0.5 dispatched
+✔ itsx_sintax__Unite_s_all_20250219_Fungi_rep___0.5 completed [19ms, 69.41 kB]
++ itsx_sintax__Unite_s_all_20250219_Fungi_rep___0.6 dispatched
+✔ itsx_sintax__Unite_s_all_20250219_Fungi_rep___0.6 completed [21ms, 69.15 kB]
++ itsx_compute_blastn__Unite_s_all_20250219_Fungi dispatched
+✔ itsx_compute_blastn__Unite_s_all_20250219_Fungi completed [33.3s, 2.37 MB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...90
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...90 completed [1.5s, 65.16 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...90
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...90 completed [2.2s, 66.12 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...92
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...92 completed [1.1s, 65.23 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...92
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...92 completed [2s, 66.14 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...95
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...95 completed [925ms, 66.01 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...95
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...95 completed [1.9s, 66.57 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...97
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...abs_majority...100...97 completed [650ms, 66.78 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...97
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...rel_majority...100...97 completed [1.3s, 67.07 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...90
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...90 completed [846ms, 64.30 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...92
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...92 completed [926ms, 64.41 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...95
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...95 completed [524ms, 65.04 kB]
++ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...97
+dispatched
+✔ itsx_blastn__Unite_s_all_20250219_Fungi___0.5...unanimity...100...97 completed [1.9s, 66.16 kB]
++ itsx_compute_lca__Unite_s_all_20250219_Fungi dispatched
+✔ itsx_compute_lca__Unite_s_all_20250219_Fungi completed [1m 27.3s, 19.79 kB]
++ itsx_lca__Unite_s_all_20250219_Fungi___1 dispatched
+✔ itsx_lca__Unite_s_all_20250219_Fungi___1 completed [384ms, 68.67 kB]
++ itsx_lca__Unite_s_all_20250219_Fungi___0.8 dispatched
+✔ itsx_lca__Unite_s_all_20250219_Fungi___0.8 completed [373ms, 68.67 kB]
++ itsx_lca__Unite_s_all_20250219_Fungi___0.9 dispatched
+✔ itsx_lca__Unite_s_all_20250219_Fungi___0.9 completed [398ms, 68.67 kB]
++ itsx_compute_lca__Unite_all_20250219_Fungi dispatched
+✔ itsx_compute_lca__EUK_ITS_v2.1_Fungi_rep completed [8m 3.1s, 59.10 kB]
++ itsx_lca__EUK_ITS_v2.1_Fungi_rep___0.8 dispatched
+✔ itsx_lca__EUK_ITS_v2.1_Fungi_rep___0.8 completed [606ms, 69.73 kB]
++ itsx_lca__EUK_ITS_v2.1_Fungi_rep___0.9 dispatched
+✔ itsx_lca__EUK_ITS_v2.1_Fungi_rep___0.9 completed [664ms, 69.63 kB]
++ itsx_lca__EUK_ITS_v2.1_Fungi_rep___1 dispatched
+✔ itsx_lca__EUK_ITS_v2.1_Fungi_rep___1 completed [593ms, 69.51 kB]
++ itsx_compute_lca__EUK_ITS_v2.1_Fungi dispatched
+✔ itsx_compute_lca__Unite_all_20250219_Fungi completed [1m 5.2s, 18.82 kB]
++ itsx_lca__Unite_all_20250219_Fungi___0.8 dispatched
+✔ itsx_lca__Unite_all_20250219_Fungi___0.8 completed [420ms, 69.61 kB]
++ itsx_lca__Unite_all_20250219_Fungi___0.9 dispatched
+✔ itsx_lca__Unite_all_20250219_Fungi___0.9 completed [379ms, 69.59 kB]
++ itsx_lca__Unite_all_20250219_Fungi___1 dispatched
+✔ itsx_lca__Unite_all_20250219_Fungi___1 completed [372ms, 69.59 kB]
++ itsx_compute_sintax__Unite_s_all_20250219_Fungi dispatched
+✔ itsx_compute_sintax__EUK_ITS_v2.1_Fungi completed [7m 40.8s, 18.73 kB]
++ itsx_sintax__EUK_ITS_v2.1_Fungi___0.4 dispatched
+✔ itsx_sintax__EUK_ITS_v2.1_Fungi___0.4 completed [24ms, 66.37 kB]
++ itsx_sintax__EUK_ITS_v2.1_Fungi___0.5 dispatched
+✔ itsx_sintax__EUK_ITS_v2.1_Fungi___0.5 completed [24ms, 66.36 kB]
++ itsx_sintax__EUK_ITS_v2.1_Fungi___0.6 dispatched
+✔ itsx_sintax__EUK_ITS_v2.1_Fungi___0.6 completed [23ms, 66.24 kB]
++ itsx_compute_lca__Unite_all_20250219_Fungi_rep dispatched
+✔ itsx_compute_sintax__Unite_s_all_20250219_Fungi completed [1m 11.2s, 22.34 kB]
++ itsx_sintax__Unite_s_all_20250219_Fungi___0.4 dispatched
+✔ itsx_sintax__Unite_s_all_20250219_Fungi___0.4 completed [21ms, 66.95 kB]
++ itsx_sintax__Unite_s_all_20250219_Fungi___0.5 dispatched
+✔ itsx_sintax__Unite_s_all_20250219_Fungi___0.5 completed [18ms, 66.74 kB]
++ itsx_sintax__Unite_s_all_20250219_Fungi___0.6 dispatched
+✔ itsx_sintax__Unite_s_all_20250219_Fungi___0.6 completed [17ms, 66.45 kB]
++ itsx_compute_sintax__EUK_ITS_v2.1_Fungi_rep dispatched
+✔ itsx_compute_lca__Unite_all_20250219_Fungi_rep completed [1m 10.4s, 20.71 kB]
++ itsx_lca__Unite_all_20250219_Fungi_rep___1 dispatched
+✔ itsx_lca__Unite_all_20250219_Fungi_rep___1 completed [419ms, 71.09 kB]
++ itsx_lca__Unite_all_20250219_Fungi_rep___0.8 dispatched
+✔ itsx_lca__Unite_all_20250219_Fungi_rep___0.8 completed [482ms, 71.11 kB]
++ itsx_lca__Unite_all_20250219_Fungi_rep___0.9 dispatched
+✔ itsx_lca__Unite_all_20250219_Fungi_rep___0.9 completed [425ms, 71.09 kB]
+✔ otu_compute_dada2__Unite_s_all_20250219_Fungi_rep completed [6m 50.2s, 92.76 kB]
++ otu_dada2__Unite_s_all_20250219_Fungi_rep___0.4 dispatched
+✔ otu_dada2__Unite_s_all_20250219_Fungi_rep___0.4 completed [17ms, 68.64 kB]
++ otu_dada2__Unite_s_all_20250219_Fungi_rep___0.5 dispatched
+✔ otu_dada2__Unite_s_all_20250219_Fungi_rep___0.5 completed [17ms, 68.50 kB]
++ otu_dada2__Unite_s_all_20250219_Fungi_rep___0.6 dispatched
+✔ otu_dada2__Unite_s_all_20250219_Fungi_rep___0.6 completed [17ms, 68.21 kB]
++ otu_compute_dada2__Unite_all_20250219_Fungi dispatched
+✔ itsx_compute_lca__EUK_ITS_v2.1_Fungi completed [6m 56.3s, 56.62 kB]
++ itsx_lca__EUK_ITS_v2.1_Fungi___0.8 dispatched
+✔ itsx_lca__EUK_ITS_v2.1_Fungi___0.8 completed [578ms, 67.56 kB]
++ itsx_lca__EUK_ITS_v2.1_Fungi___0.9 dispatched
+✔ itsx_lca__EUK_ITS_v2.1_Fungi___0.9 completed [610ms, 67.44 kB]
++ itsx_lca__EUK_ITS_v2.1_Fungi___1 dispatched
+✔ itsx_lca__EUK_ITS_v2.1_Fungi___1 completed [572ms, 67.35 kB]
+✔ otu_compute_dada2__Unite_all_20250219_Fungi completed [5m 2.9s, 88.82 kB]
++ otu_dada2__Unite_all_20250219_Fungi___0.4 dispatched
+✔ otu_dada2__Unite_all_20250219_Fungi___0.4 completed [17ms, 65.71 kB]
++ otu_dada2__Unite_all_20250219_Fungi___0.5 dispatched
+✔ otu_dada2__Unite_all_20250219_Fungi___0.5 completed [19ms, 65.48 kB]
++ otu_dada2__Unite_all_20250219_Fungi___0.6 dispatched
+✔ otu_dada2__Unite_all_20250219_Fungi___0.6 completed [18ms, 65.25 kB]
++ d_all_taxo_otu dispatched
+✔ d_all_taxo_otu completed [4.4s, 825.75 kB]
++ compute_dada2__Unite_s_all_20250219_Fungi dispatched
+✔ itsx_compute_sintax__EUK_ITS_v2.1_Fungi_rep completed [7m 8.4s, 20.66 kB]
++ itsx_sintax__EUK_ITS_v2.1_Fungi_rep___0.4 dispatched
+✔ itsx_sintax__EUK_ITS_v2.1_Fungi_rep___0.4 completed [16ms, 68.47 kB]
++ itsx_sintax__EUK_ITS_v2.1_Fungi_rep___0.5 dispatched
+✔ itsx_sintax__EUK_ITS_v2.1_Fungi_rep___0.5 completed [15ms, 68.28 kB]
++ itsx_sintax__EUK_ITS_v2.1_Fungi_rep___0.6 dispatched
+✔ itsx_sintax__EUK_ITS_v2.1_Fungi_rep___0.6 completed [14ms, 68.07 kB]
+✔ compute_dada2__Unite_s_all_20250219_Fungi completed [5m 17.9s, 96.08 kB]
++ dada2__Unite_s_all_20250219_Fungi___0.4 dispatched
+✔ dada2__Unite_s_all_20250219_Fungi___0.4 completed [16ms, 70.66 kB]
++ dada2__Unite_s_all_20250219_Fungi___0.5 dispatched
+✔ dada2__Unite_s_all_20250219_Fungi___0.5 completed [18ms, 70.42 kB]
++ dada2__Unite_s_all_20250219_Fungi___0.6 dispatched
+✔ dada2__Unite_s_all_20250219_Fungi___0.6 completed [18ms, 70.26 kB]
++ compute_dada2__Unite_s_all_20250219 dispatched
+✔ compute_dada2__Unite_s_all_20250219 completed [9m 28.4s, 101.66 kB]
++ dada2__Unite_s_all_20250219___0.4 dispatched
+✔ dada2__Unite_s_all_20250219___0.4 completed [17ms, 73.04 kB]
++ dada2__Unite_s_all_20250219___0.5 dispatched
+✔ dada2__Unite_s_all_20250219___0.5 completed [16ms, 71.74 kB]
++ dada2__Unite_s_all_20250219___0.6 dispatched
+✔ dada2__Unite_s_all_20250219___0.6 completed [18ms, 70.42 kB]
++ compute_dada2__EUK_ITS_v2.1_Fungi_rep dispatched
+✔ compute_dada2__EUK_ITS_v2.1_Fungi_rep completed [9m 55.9s, 99.33 kB]
++ dada2__EUK_ITS_v2.1_Fungi_rep___0.4 dispatched
+✔ dada2__EUK_ITS_v2.1_Fungi_rep___0.4 completed [16ms, 72.44 kB]
++ dada2__EUK_ITS_v2.1_Fungi_rep___0.5 dispatched
+✔ dada2__EUK_ITS_v2.1_Fungi_rep___0.5 completed [17ms, 72.04 kB]
++ dada2__EUK_ITS_v2.1_Fungi_rep___0.6 dispatched
+✔ dada2__EUK_ITS_v2.1_Fungi_rep___0.6 completed [16ms, 71.66 kB]
++ compute_dada2__Unite_all_20250219_Fungi_rep dispatched
+✔ compute_dada2__Unite_all_20250219_Fungi_rep completed [4m 39.3s, 99.98 kB]
++ dada2__Unite_all_20250219_Fungi_rep___0.4 dispatched
+✔ dada2__Unite_all_20250219_Fungi_rep___0.4 completed [16ms, 73.03 kB]
++ dada2__Unite_all_20250219_Fungi_rep___0.5 dispatched
+✔ dada2__Unite_all_20250219_Fungi_rep___0.5 completed [16ms, 72.83 kB]
++ dada2__Unite_all_20250219_Fungi_rep___0.6 dispatched
+✔ dada2__Unite_all_20250219_Fungi_rep___0.6 completed [15ms, 72.59 kB]
++ compute_dada2__Unite_all_20250219 dispatched
+✔ compute_dada2__Unite_all_20250219 completed [6m 50.2s, 99.74 kB]
++ dada2__Unite_all_20250219___0.4 dispatched
+✔ dada2__Unite_all_20250219___0.4 completed [16ms, 73.41 kB]
++ dada2__Unite_all_20250219___0.5 dispatched
+✔ dada2__Unite_all_20250219___0.5 completed [16ms, 73.23 kB]
++ dada2__Unite_all_20250219___0.6 dispatched
+✔ dada2__Unite_all_20250219___0.6 completed [15ms, 72.93 kB]
++ compute_dada2__EUK_ITS_v2.1 dispatched
+✔ compute_dada2__EUK_ITS_v2.1 completed [27m 48.5s, 100.88 kB]
++ dada2__EUK_ITS_v2.1___0.4 dispatched
+✔ dada2__EUK_ITS_v2.1___0.4 completed [41ms, 66.71 kB]
++ dada2__EUK_ITS_v2.1___0.5 dispatched
+✔ dada2__EUK_ITS_v2.1___0.5 completed [16ms, 66.33 kB]
++ dada2__EUK_ITS_v2.1___0.6 dispatched
+✔ dada2__EUK_ITS_v2.1___0.6 completed [17ms, 66.15 kB]
++ compute_dada2__Unite_all_20250219_Fungi dispatched
+✔ compute_dada2__Unite_all_20250219_Fungi completed [4m 52.7s, 96.03 kB]
++ dada2__Unite_all_20250219_Fungi___0.4 dispatched
+✔ dada2__Unite_all_20250219_Fungi___0.4 completed [17ms, 70.47 kB]
++ dada2__Unite_all_20250219_Fungi___0.5 dispatched
+✔ dada2__Unite_all_20250219_Fungi___0.5 completed [17ms, 70.31 kB]
++ dada2__Unite_all_20250219_Fungi___0.6 dispatched
+✔ dada2__Unite_all_20250219_Fungi___0.6 completed [16ms, 70.13 kB]
++ compute_dada2__Unite_s_all_20250219_Fungi_rep dispatched
+✔ compute_dada2__Unite_s_all_20250219_Fungi_rep completed [6m 15.1s, 100.03 kB]
++ dada2__Unite_s_all_20250219_Fungi_rep___0.4 dispatched
+✔ dada2__Unite_s_all_20250219_Fungi_rep___0.4 completed [17ms, 73.43 kB]
++ dada2__Unite_s_all_20250219_Fungi_rep___0.5 dispatched
+✔ dada2__Unite_s_all_20250219_Fungi_rep___0.5 completed [31ms, 73.19 kB]
++ dada2__Unite_s_all_20250219_Fungi_rep___0.6 dispatched
+✔ dada2__Unite_s_all_20250219_Fungi_rep___0.6 completed [16ms, 72.94 kB]
++ compute_dada2__EUK_ITS_v2.1_Fungi dispatched
+✔ compute_dada2__EUK_ITS_v2.1_Fungi completed [9m 44.7s, 95.87 kB]
++ dada2__EUK_ITS_v2.1_Fungi___0.4 dispatched
+✔ dada2__EUK_ITS_v2.1_Fungi___0.4 completed [17ms, 70.28 kB]
++ dada2__EUK_ITS_v2.1_Fungi___0.5 dispatched
+✔ dada2__EUK_ITS_v2.1_Fungi___0.5 completed [17ms, 70.00 kB]
++ dada2__EUK_ITS_v2.1_Fungi___0.6 dispatched
+✔ dada2__EUK_ITS_v2.1_Fungi___0.6 completed [16ms, 69.73 kB]
++ itsx_compute_dada2__Unite_s_all_20250219_Fungi dispatched
+✔ itsx_compute_dada2__Unite_s_all_20250219_Fungi completed [4m 39.8s, 90.07 kB]
++ itsx_dada2__Unite_s_all_20250219_Fungi___0.4 dispatched
+✔ itsx_dada2__Unite_s_all_20250219_Fungi___0.4 completed [17ms, 67.28 kB]
++ itsx_dada2__Unite_s_all_20250219_Fungi___0.5 dispatched
+✔ itsx_dada2__Unite_s_all_20250219_Fungi___0.5 completed [18ms, 67.21 kB]
++ itsx_dada2__Unite_s_all_20250219_Fungi___0.6 dispatched
+✔ itsx_dada2__Unite_s_all_20250219_Fungi___0.6 completed [17ms, 67.08 kB]
++ itsx_compute_dada2__Unite_all_20250219_Fungi dispatched
+✔ itsx_compute_dada2__Unite_all_20250219_Fungi completed [3m 54.6s, 90.28 kB]
++ itsx_dada2__Unite_all_20250219_Fungi___0.4 dispatched
+✔ itsx_dada2__Unite_all_20250219_Fungi___0.4 completed [18ms, 67.03 kB]
++ itsx_dada2__Unite_all_20250219_Fungi___0.5 dispatched
+✔ itsx_dada2__Unite_all_20250219_Fungi___0.5 completed [18ms, 66.90 kB]
++ itsx_dada2__Unite_all_20250219_Fungi___0.6 dispatched
+✔ itsx_dada2__Unite_all_20250219_Fungi___0.6 completed [18ms, 66.80 kB]
++ itsx_compute_dada2__Unite_all_20250219_Fungi_rep dispatched
+✔ itsx_compute_dada2__Unite_all_20250219_Fungi_rep completed [4m 16.4s, 94.43 kB]
++ itsx_dada2__Unite_all_20250219_Fungi_rep___0.4 dispatched
+✔ itsx_dada2__Unite_all_20250219_Fungi_rep___0.4 completed [17ms, 69.88 kB]
++ itsx_dada2__Unite_all_20250219_Fungi_rep___0.5 dispatched
+✔ itsx_dada2__Unite_all_20250219_Fungi_rep___0.5 completed [18ms, 69.69 kB]
++ itsx_dada2__Unite_all_20250219_Fungi_rep___0.6 dispatched
+✔ itsx_dada2__Unite_all_20250219_Fungi_rep___0.6 completed [17ms, 69.25 kB]
++ itsx_compute_dada2__EUK_ITS_v2.1_Fungi dispatched
+✔ itsx_compute_dada2__EUK_ITS_v2.1_Fungi completed [8m 21.8s, 89.84 kB]
++ itsx_dada2__EUK_ITS_v2.1_Fungi___0.4 dispatched
+✔ itsx_dada2__EUK_ITS_v2.1_Fungi___0.4 completed [16ms, 66.97 kB]
++ itsx_dada2__EUK_ITS_v2.1_Fungi___0.5 dispatched
+✔ itsx_dada2__EUK_ITS_v2.1_Fungi___0.5 completed [16ms, 66.72 kB]
++ itsx_dada2__EUK_ITS_v2.1_Fungi___0.6 dispatched
+✔ itsx_dada2__EUK_ITS_v2.1_Fungi___0.6 completed [16ms, 66.51 kB]
++ itsx_compute_dada2__Unite_s_all_20250219_Fungi_rep dispatched
+✔ itsx_compute_dada2__Unite_s_all_20250219_Fungi_rep completed [4m 53.2s, 93.92 kB]
++ itsx_dada2__Unite_s_all_20250219_Fungi_rep___0.4 dispatched
+✔ itsx_dada2__Unite_s_all_20250219_Fungi_rep___0.4 completed [17ms, 70.33 kB]
++ itsx_dada2__Unite_s_all_20250219_Fungi_rep___0.5 dispatched
+✔ itsx_dada2__Unite_s_all_20250219_Fungi_rep___0.5 completed [15ms, 70.05 kB]
++ itsx_dada2__Unite_s_all_20250219_Fungi_rep___0.6 dispatched
+✔ itsx_dada2__Unite_s_all_20250219_Fungi_rep___0.6 completed [16ms, 69.75 kB]
++ itsx_compute_dada2__EUK_ITS_v2.1_Fungi_rep dispatched
+✔ itsx_compute_dada2__EUK_ITS_v2.1_Fungi_rep completed [8m 48.3s, 93.30 kB]
++ itsx_dada2__EUK_ITS_v2.1_Fungi_rep___0.4 dispatched
+✔ itsx_dada2__EUK_ITS_v2.1_Fungi_rep___0.4 completed [16ms, 69.28 kB]
++ itsx_dada2__EUK_ITS_v2.1_Fungi_rep___0.5 dispatched
+✔ itsx_dada2__EUK_ITS_v2.1_Fungi_rep___0.5 completed [16ms, 68.85 kB]
++ itsx_dada2__EUK_ITS_v2.1_Fungi_rep___0.6 dispatched
+✔ itsx_dada2__EUK_ITS_v2.1_Fungi_rep___0.6 completed [17ms, 68.44 kB]
++ d_all_taxo dispatched
+✔ d_all_taxo completed [7.9s, 1.53 MB]
++ benchmark_costs dispatched
+✔ benchmark_costs completed [1.4s, 11.70 kB]
++ session_info dispatched
+✔ session_info completed [676ms, 5.12 kB]
+✔ ended pipeline [3h 31m 59.4s, 587 completed, 53 skipped]
+here() starts at /home/adrien/Nextcloud/IdEst/Projets/pqverse/arround_MiscMetabar/benchmar_assign_taxo
+here() starts at /home/adrien/Nextcloud/IdEst/Projets/pqverse/arround_MiscMetabar/benchmar_assign_taxo
+config.R: mini_db = FALSE (full databases)

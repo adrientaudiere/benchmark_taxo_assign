@@ -39,6 +39,11 @@ data/data_raw/rawseq/
 data/data_raw/rawseq_endophyte/
 data/data_raw/mock_hleap2021/
 data/data_raw/fake_ref/
+data/data_raw/insilico/
+# Raw reads of the D1c biological datasets, one folder per config.R::bio_datasets
+# entry. A glob rather than a line per dataset: the table is meant to grow, and
+# each new entry would otherwise be a silent multi-MB commit.
+data/data_raw/rawseq_*/
 data/data_intermediate/
 data/data_final/
 
@@ -51,3 +56,7 @@ figures/*
 *~
 *.bak
 *.tmp
+
+# Rendered docs (regenerated with quarto from docs/*.md)
+docs/*.html
+docs/*_files/

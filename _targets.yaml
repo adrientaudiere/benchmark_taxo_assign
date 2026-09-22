@@ -22,3 +22,13 @@ cross_val:
 cross_val_mini:
   script: pipelines/cross_val.R
   store: store_cross_val_mini
+# Biological-community datasets (D1c). One pair per dataset: dada2_<dataset>
+# builds the phyloseq from fastq with pipelines/dada2_bio.R, assign_taxo_<dataset>
+# runs the usual assignment grid on it. config.R derives the dataset key and the
+# DADA2 store from TAR_PROJECT, so the production projects are untouched.
+dada2_tedersoo_illumina:
+  script: pipelines/dada2_bio.R
+  store: store_dada2_tedersoo_illumina
+assign_taxo_tedersoo_illumina:
+  script: pipelines/assign_taxo.R
+  store: store_assign_taxo_tedersoo_illumina

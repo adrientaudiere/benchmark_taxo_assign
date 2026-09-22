@@ -1,5 +1,5 @@
 ---
-title: "In silico simulations (D1b)"
+title: "In silico simulation (D1b, InSilicoSeq)"
 author: "Adrien Taudière"
 format: html
 ---
@@ -29,36 +29,34 @@ load_pqverse(c("MiscMetabar", "comparpq"))
 # see docs/diagnostics_cv_and_databases.md). The chapters use
 # BENCHMARK_ANALYSIS_MINI instead (analysis/00_setup.R); honour it here too:
 #   BENCHMARK_ANALYSIS_MINI=TRUE quarto render analysis/in_silico_simulation.qmd
-sim_mini <- as.logical(Sys.getenv("BENCHMARK_ANALYSIS_MINI", unset = NA))
-if (is.na(sim_mini)) {
+sim_mini_env <- Sys.getenv("BENCHMARK_ANALYSIS_MINI", unset = NA)
+if (is.na(sim_mini_env)) {
   sim_mini <- mini_db
+} else {
+  sim_mini <- as.logical(sim_mini_env)
+  if (is.na(sim_mini)) {
+    # An unparseable value (1, yes, "true " with a trailing space) yields NA.
+    # Falling back here would send the render to the full databases, the 45 GB
+    # path, when mini was meant. analysis/00_setup.R stops the same way.
+    stop("BENCHMARK_ANALYSIS_MINI must be TRUE or FALSE.")
+  }
 }
 message("in silico: ", if (sim_mini) "MINI databases" else "full databases")
-
-# miaSim is needed by the D1b-B branch only, and its two calls are namespaced
-# (miaSim::simulateHubbell, SummarizedExperiment::assay). It is therefore not
-# attached: a missing package used to abort the whole file at this chunk,
-# including the D1b-A branch, which never touches it.
-miasim_ok <- requireNamespace("miaSim", quietly = TRUE)
-if (!miasim_ok) {
-  message(
-    "miaSim is not installed: the D1b-B branch below cannot run. Install it with\n",
-    '  BiocManager::install("miaSim")'
-  )
-}
 ```
 
 # Overview
 
-Two sub-branches following the Bokulich (2020) multi-dataset approach:
+D1b follows the Bokulich (2020) multi-dataset approach with one branch:
+**InSilicoSeq** generates Illumina reads from real records of
+`config.R::insilico_source`, which go through the ordinary DADA2 and assignment
+pipelines. The ground truth is the taxonomy of the input records, so every ASV
+can be scored per unit exactly as a mock community is.
 
-- **D1b-A** — InSilicoSeq: real UNITE sequences + simulated Illumina errors → fastq
-  → DADA2 → assignment. Ground truth = input fasta taxonomy.
-- **D1b-B** — miaSim: neutral (Hubbell) community structure applied to real UNITE
-  sequences, bypassing DADA2. Ground truth = input fasta taxonomy. Tests
-  assignment accuracy independent of denoising errors.
-
-Both branches reuse `tc_metrics_mock()` machinery from `comparpq`.
+A second branch (**D1b-B**, community matrices from miaSim's neutral and
+niche-based models) existed until 2026-09-22 and was **dropped**: the benchmark
+tests the taxonomic assignment of Fungi and nothing else, so simulated
+community structure is out of scope (`docs/objectives_design.md` decision 12,
+ROADMAP 0.9). Its code is in the git history of this file.
 
 ---
 
@@ -70,12 +68,13 @@ DADA2 + assignment pipeline on the resulting fastqs.
 
 ## Step 1 — Prepare input fasta
 
-Select a curated set of Fungi sequences (50–200 species, spanning ≥ 4 phyla) from
-the general UNITE release named by `fake_ref_source` (`config.R`), the same file
-D1b-B draws from, keeping the records whose kingdom is Fungi. The release is
-used rather than its dada2-format derivation because the truth table is parsed
-from the `k__`/`p__` prefixes, which `derive_dada2()` strips
-(see docs/reference_databases.md); `sources/` has no `mini_*` variant.
+Select a curated set of Fungi sequences (50–200 species, spanning ≥ 4 phyla)
+from the general release named by `config.R::insilico_source`
+(`Unite_s_all_20250219`, objectives_design decision 5), keeping the records
+whose kingdom is Fungi. The release is used rather than its dada2-format
+derivation because the truth table is parsed from the `k__`/`p__` prefixes,
+which `derive_dada2()` strips (see docs/reference_databases.md); `sources/` has
+no `mini_*` variant.
 
 ```{r prepare-iss-input}
 # Output path for the curated input fasta
@@ -83,12 +82,12 @@ iss_input_fasta <- here("data/data_raw/insilico/iss_input_fungi.fasta")
 dir.create(dirname(iss_input_fasta), showWarnings = FALSE, recursive = TRUE)
 
 if (!file.exists(iss_input_fasta)) {
-  # The general UNITE release, not the dada2-format derivation: parse_unite_taxonomy()
-  # below reads the k__/p__ prefixes, which derive_dada2() strips (checked
-  # 2026-09-16: 100 % of the source headers carry k__, 0 % of the dada2-format
-  # ones). Using the dada2 file here would give an all-NA truth table. D1b-B
-  # draws from the same file, so both branches share one parser.
-  db_path  <- here("data/data_raw/refseq/sources", paste0(fake_ref_source, ".fasta"))
+  # The general UNITE release, not the dada2-format derivation:
+  # parse_unite_taxonomy() below reads the k__/p__ prefixes, which
+  # derive_dada2() strips (checked 2026-09-16: 100 % of the source headers
+  # carry k__, 0 % of the dada2-format ones). Using the dada2 file here would
+  # give an all-NA truth table.
+  db_path <- here("data/data_raw/refseq/sources", paste0(insilico_source, ".fasta"))
   all_seqs <- Biostrings::readDNAStringSet(db_path)
   all_seqs <- all_seqs[grepl("k__Fungi", names(all_seqs), fixed = TRUE)]
   set.seed(targets_seed)
@@ -147,17 +146,16 @@ Sys.setenv(TAR_PROJECT = "dada2_insilico");       targets::tar_make()
 Sys.setenv(TAR_PROJECT = "assign_taxo_insilico"); targets::tar_make()
 ```
 
-The truth table for D1b-A is built in the same way as D1b-B below (parse taxonomy
-from `iss_input_fasta` headers).
+## Step 4 — Truth table
 
----
+The ground truth of D1b-A is the taxonomy of the records InSilicoSeq generated
+the reads from, parsed out of the UNITE headers of `iss_input_fasta`. It gives
+one lineage per input record, which is the per-unit truth the scoring of
+`comparpq::tc_metrics_unit()` takes (`R/score_assignments.R`, chapter 01);
+matching the ASVs back to the input records follows the rule of
+`R/mock_truth.R::sanger_matches()`, the input fasta playing the part of the
+Sanger reads.
 
-# D1b-B — miaSim path
-
-Neutral (Hubbell) community dynamics applied to real UNITE sequences. No DADA2:
-each simulated time-step is treated as a perfectly denoised sample.
-
-## Helper — parse UNITE taxonomy from header
 
 ```{r parse-taxonomy-fn}
 # Extracts the k__/p__/.../s__ taxonomy string from UNITE general-release headers.
@@ -183,315 +181,9 @@ parse_unite_taxonomy <- function(headers) {
 }
 ```
 
-## 1. Sample species from UNITE Fungi
 
-```{r sample-species}
-# General UNITE release (k__/p__ headers, see docs/reference_databases.md),
-# restricted to the records whose kingdom is Fungi.
-db_path <- here("data/data_raw/refseq/sources", paste0(fake_ref_source, ".fasta"))
-all_fungi <- Biostrings::readDNAStringSet(db_path)
-all_fungi <- all_fungi[grepl("k__Fungi;", names(all_fungi), fixed = TRUE)]
-
-# Keep only sequences with ≥ genus-level annotation.
-has_genus <- !grepl("g__.*Incertae_sedis|g__[^;]+_gen_", names(all_fungi))
-all_fungi <- all_fungi[has_genus]
-
-n_species <- min(50, length(all_fungi))
-set.seed(targets_seed)
-idx       <- sample(length(all_fungi), n_species)
-sim_seqs  <- all_fungi[idx]
-
-# Truth table: one row per species, columns = taxonomy ranks.
-truth_table <- parse_unite_taxonomy(names(sim_seqs))
-
-cat("Species selected:", n_species, "\n")
-cat("Phyla represented:", length(unique(truth_table$Phylum)), "\n")
-print(table(truth_table$Phylum))
-```
-
-## 2. Simulate community abundances with Hubbell model
-
-Run `n_samples` independent Hubbell simulations (different seeds = independent
-communities from the same metacommunity). Each returns a species × time matrix;
-we take the final time step as the community composition.
-
-```{r simulate-hubbell}
-if (!miasim_ok) {
-  stop(
-    'miaSim is required from here on. Install it with BiocManager::install("miaSim"), ',
-    "or render only the D1b-A section above."
-  )
-}
-
-n_samples <- 10
-sim_seed  <- targets_seed
-
-all_counts <- vapply(seq_len(n_samples), function(s) {
-  set.seed(sim_seed + s)
-  sim <- miaSim::simulateHubbell(
-    n_species         = n_species,
-    M                 = 200,
-    carrying_capacity = 1000,
-    k_events          = 50,
-    migration_p       = 0.02,
-    t_end             = 200
-  )
-  counts_mat <- SummarizedExperiment::assay(sim, "counts")
-  as.integer(counts_mat[, ncol(counts_mat)])
-}, integer(n_species))
-
-rownames(all_counts) <- names(sim_seqs)
-colnames(all_counts) <- paste0("sim_sample_", seq_len(n_samples))
-
-cat("OTU table dimensions:", nrow(all_counts), "species ×", ncol(all_counts), "samples\n")
-cat("Samples with 0 reads:", sum(colSums(all_counts) == 0), "\n")
-```
-
-## 3. Build phyloseq + inject fake taxa
-
-```{r build-phyloseq}
-pq_sim <- phyloseq::phyloseq(
-  phyloseq::otu_table(all_counts, taxa_are_rows = TRUE),
-  phyloseq::sample_data(data.frame(
-    sample_id = colnames(all_counts),
-    row.names = colnames(all_counts)
-  ))
-)
-pq_sim@refseq <- sim_seqs
-
-# Inject shuffled (fake_*) and external (non-Fungi) sequences for TN computation,
-# mirroring the real pipeline in script_assign_taxo_parallel.R.
-pq_sim <- add_shuffle_seq_pq(pq_sim, prop_fake = prop_fake)
-pq_sim <- add_external_seq_pq(
-  pq_sim,
-  Biostrings::readDNAStringSet(here(fake_ref_fasta))
-)
-
-cat("Phyloseq taxa after fake injection:", ntaxa(pq_sim), "\n")
-```
-
-## 4. Assign taxonomy
-
-Run a small subset of method × DB combinations. Adjust `sim_values_map` to test
-more combinations. `sim_mini` (set at the top of this file from
-`BENCHMARK_ANALYSIS_MINI`, falling back to `config.R::mini_db`) controls which
-database files are used: `mini_*` for smoke-testing, full for publication. Keep
-it TRUE while testing — one dada2 assignment against a full reference peaks at
-23–45 GB (docs/diagnostics_cv_and_databases.md).
-
-```{r assign-taxonomy}
-# Database names come from config.R (db_list, built from benchmark_dbs): never
-# glue a suffix by hand (CLAUDE.md). Picking the Fungi variant out of db_list
-# fails loudly if a release is renamed, instead of silently dropping the row at
-# the file.exists() filter below.
-preference_db_fungi <- grep(
-  paste0("^", preference_db, "_Fungi$"),
-  db_list,
-  value = TRUE
-)
-stopifnot(length(preference_db_fungi) == 1)
-
-sim_values_map_all <- tibble::tibble(
-  method = c("sintax", "sintax", "dada2"),
-  db     = c(seed_taxonomy_db, preference_db_fungi, seed_taxonomy_db),
-  min_bootstrap = 0.5
-) |>
-  dplyr::mutate(
-    # `if`, not ifelse(): a scalar ifelse() recycles its first value (S6.1).
-    db_name   = if (sim_mini) paste0("mini_", db) else db,
-    db_path   = paste0(
-      ifelse(method == "dada2",
-             "data/data_raw/refseq/dada2_format/",
-             "data/data_raw/refseq/sintax_format/"),
-      db_name, ".fasta"
-    ),
-    full_name = paste0(method, "__", db, "___", min_bootstrap)
-  )
-
-missing_db <- dplyr::filter(sim_values_map_all, !file.exists(here(db_path)))
-if (nrow(missing_db) > 0) {
-  message(
-    "Database files not found, rows dropped: ",
-    paste(missing_db$db_path, collapse = ", ")
-  )
-}
-
-sim_values_map <- dplyr::filter(sim_values_map_all, file.exists(here(db_path)))
-
-if (nrow(sim_values_map) == 0) {
-  stop("No database files found. Run derive_all_variants() first.")
-}
-
-pq_assigned <- pq_sim
-for (i in seq_len(nrow(sim_values_map))) {
-  row <- sim_values_map[i, ]
-  message("Assigning: ", row$full_name)
-  # clean_pq = FALSE: assign_sintax() and assign_vsearch_lca() drop empty taxa
-  # before querying, which would skip the fake_ / external_ controls and leave
-  # no true negatives (ROADMAP B19, same fix as pipelines/assign_taxo.R).
-  # add_new_taxonomy_pq() filters `...` on the formals of the called function,
-  # so clean_pq reaches sintax and lca and is ignored for dada2.
-  pq_assigned <- add_new_taxonomy_pq(
-    pq_assigned,
-    method        = row$method,
-    ref_fasta     = here(row$db_path),
-    suffix        = paste0("_", row$full_name),
-    min_bootstrap = row$min_bootstrap,
-    clean_pq      = FALSE
-  )
-}
-```
-
-## 5. Compute performance metrics
-
-`tc_metrics_mock()` takes a `ranks_df` (one column per `method_db`, one row per
-rank) and a `true_values_df` (one column per rank, same order), and returns the
-long format `method_db` / `tax_level` / `metrics` / `values`. Every method
-names its columns `<rank>_<full_name>`: dada2 through
-`paste0(colnames(tax_tab), suffix)`, sintax, lca and blastn through
-`paste0(taxa_ranks, suffix)`.
-
-```{r compute-metrics}
-sim_ranks <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
-
-ranks_df <- do.call(
-  data.frame,
-  stats::setNames(
-    lapply(sim_values_map$full_name, \(fn) paste0(sim_ranks, "_", fn)),
-    sim_values_map$full_name
-  )
-)
-
-missing_cols <- setdiff(
-  as.vector(unlist(ranks_df)),
-  colnames(pq_assigned@tax_table)
-)
-if (length(missing_cols) > 0) {
-  print(missing_cols)
-  stop("Assignment columns expected from sim_values_map are missing.")
-}
-
-res_sim <- tc_metrics_mock(
-  pq_assigned,
-  ranks_df       = ranks_df,
-  true_values_df = truth_table[, sim_ranks]
-) |>
-  dplyr::left_join(
-    sim_values_map |> dplyr::select(full_name, method, db, min_bootstrap),
-    by = c("method_db" = "full_name")
-  )
-
-head(res_sim)
-```
-
-## 6. Visualise results
-
-### F1 and MCC per taxonomic rank
-
-```{r plot-metrics}
-res_sim |>
-  dplyr::filter(metrics %in% c("F1_score", "MCC")) |>
-  ggplot2::ggplot(ggplot2::aes(
-    x    = tax_level,
-    y    = values,
-    fill = db
-  )) +
-  ggplot2::geom_col(position = "dodge") +
-  ggplot2::facet_grid(metric ~ method, scales = "free_y") +
-  ggplot2::labs(
-    title = "D1b-B: assignment accuracy on miaSim communities",
-    x     = "Taxonomic rank",
-    y     = "Score",
-    fill  = "Reference DB"
-  ) +
-  ggplot2::theme_bw()
-```
-
-### NA (unclassified) proportion per rank
-
-`tc_metrics_mock()` returns no NA metric, so the proportion of unassigned taxa
-is computed from the assignment columns themselves, over the real taxa only
-(the `fake_` and `external_` controls are unassignable by construction).
-
-```{r plot-na}
-tax_df    <- as.data.frame(as(phyloseq::tax_table(pq_assigned), "matrix"))
-real_taxa <- !grepl("^fake_|^external_", rownames(tax_df))
-
-na_prop <- do.call(rbind, lapply(sim_values_map$full_name, function(fn) {
-  cols <- paste0(sim_ranks, "_", fn)
-  data.frame(
-    method_db = fn,
-    tax_level = factor(sim_ranks, levels = sim_ranks),
-    prop_NA   = vapply(cols, \(cl) mean(is.na(tax_df[real_taxa, cl])), numeric(1)),
-    row.names = NULL
-  )
-})) |>
-  dplyr::left_join(
-    sim_values_map |> dplyr::select(full_name, method, db),
-    by = c("method_db" = "full_name")
-  )
-
-na_prop |>
-  ggplot2::ggplot(ggplot2::aes(
-    x      = tax_level,
-    y      = prop_NA,
-    colour = method,
-    group  = method_db
-  )) +
-  ggplot2::geom_line() +
-  ggplot2::geom_point() +
-  ggplot2::facet_wrap(~db) +
-  ggplot2::labs(
-    title = "D1b-B: proportion unclassified per rank",
-    x     = "Taxonomic rank",
-    y     = "Proportion NA"
-  ) +
-  ggplot2::theme_bw()
-```
-
----
-
-# Comparison: D1b-B vs mock community (D1)
-
-The mock-community metrics no longer have to be recomputed here:
-`analysis/01_load_and_clean.qmd` writes `res_comp_tax` to
-`analysis/_cache/res_comp_tax.rds` (render chapter 01 first). Only the six
-ranks common to both tables are compared: chapter 01 replaces Species by the
-concatenated `Gen_sp`, which this notebook does not build.
-
-```{r compare-mock}
-cache_file <- here("analysis/_cache/res_comp_tax.rds")
-
-if (!file.exists(cache_file)) {
-  message("Render analysis/01_load_and_clean.qmd first: ", cache_file, " is missing.")
-} else {
-  shared_ranks <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus")
-
-  res_mock <- readRDS(cache_file) |>
-    dplyr::filter(!is_consensus, algo %in% c("dada2", "sintax", "lca", "blastn")) |>
-    dplyr::select(method_db, tax_level, metrics, values, method = algo, db)
-
-  res_combined <- dplyr::bind_rows(
-    dplyr::mutate(
-      dplyr::select(res_sim, method_db, tax_level, metrics, values, method, db),
-      dataset = "in_silico_miaSim"
-    ),
-    dplyr::mutate(res_mock, dataset = "mock_community")
-  ) |>
-    dplyr::filter(tax_level %in% shared_ranks) |>
-    dplyr::mutate(tax_level = factor(tax_level, levels = shared_ranks))
-
-  res_combined |>
-    dplyr::filter(metrics == "F1_score") |>
-    ggplot2::ggplot(ggplot2::aes(x = tax_level, y = values, fill = dataset)) +
-    ggplot2::geom_boxplot() +
-    ggplot2::facet_wrap(~method) +
-    ggplot2::labs(
-      title = "F1 per rank: in silico communities against the mock community",
-      x     = "Taxonomic rank",
-      y     = "F1",
-      fill  = "Dataset"
-    ) +
-    ggplot2::theme_bw()
-}
+```{r truth-table}
+input_seqs <- Biostrings::readDNAStringSet(iss_input_fasta)
+insilico_truth <- parse_unite_taxonomy(names(input_seqs))
+head(insilico_truth)
 ```

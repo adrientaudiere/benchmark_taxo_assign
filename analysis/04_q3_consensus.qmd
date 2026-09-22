@@ -12,7 +12,7 @@ Effect of consensus voting across methods, databases and parameters
 ```{r setup}
 here::i_am("analysis/04_q3_consensus.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
-res_comp_tax <- cache_read("res_comp_tax")
+res_comp_tax <- cache_read("res_comp_tax") |> default_view()
 ```
 
 ## Q3.2 — Consensus vs single-method (F1, MCC)

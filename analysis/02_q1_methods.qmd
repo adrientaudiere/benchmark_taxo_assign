@@ -10,7 +10,7 @@ community. Figures: Q1.2 (per-rank × method), Q1.3 (bootstrap sweep), Q1.4
 ```{r setup}
 here::i_am("analysis/02_q1_methods.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
-res_comp_tax <- cache_read("res_comp_tax")
+res_comp_tax <- cache_read("res_comp_tax") |> default_view()
 ```
 
 ## Q1.2 — Per-rank × method (ACC, F1, MCC)
@@ -59,12 +59,14 @@ save_fig(fig_q1_bootstrap, "fig_q1_bootstrap", width = 16, height = 9)
 
 ## Q1.4 — Blastn vote-algorithm sweep
 
-F1 and MCC across `c("rel_majority", "abs_majority", "unanimity")` per rank × DB.
+F1 and MCC across `c("rel_majority", "abs_majority", "unanimity")` per rank × DB,
+at the default `min_id = 95` (the `min_id` and `lca_cutoff` sweeps get their own
+figures in ROADMAP 0.8).
 
 ```{r q1-4}
 fig_q1_blastn_data <- res_comp_tax |>
   filter(metrics %in% c("F1_score", "MCC")) |>
-  filter(algo == "blastn") |>
+  filter(algo == "blastn", min_id == 95) |>
   filter(!startsWith(db, "mini_")) |>
   mutate(tax_level = factor(tax_level, levels = tax_order))
 

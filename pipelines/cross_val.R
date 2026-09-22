@@ -1,7 +1,7 @@
 # k-fold cross-validation of every (method x database) pair on the database
 # itself, standard (held-out sequences removed) and leaked variants.
 #
-# WARNING: the full run (cv_fold_number folds x 4 methods x length(db_list) DBs
+# WARNING: the full run (cv_fold_number folds x 4 methods x length(cv_db_list) DBs
 # x 2 variants) takes hours. The cross_val_mini project (mini_* databases, own
 # store) uses smoke-test values set in config.R: 2 folds, 200 sequences.
 #
@@ -32,21 +32,55 @@ load_pqverse(c("MiscMetabar", "comparpq", "tidypq", "dbpq"))
 tar_option_set(
   seed = targets_seed,
   packages = c("here", "phyloseq", "dplyr", "tidyr", "tibble", "Biostrings"),
-  controller = crew::crew_controller_local(workers = n_workers, seconds_idle = 60)
+  # dada2 on its own worker (ROADMAP B24, 2026-09-16): with
+  # cv_reduce_reference = FALSE a dada2 target loads the whole database and
+  # peaks at 23.5 GB on Unite_s_all_20250219, at least 45 GB on EUK_ITS_v2.1,
+  # so three of them at once cannot fit in memory. sintax / lca / blastn stream
+  # their reference through vsearch or BLAST and stay on the fast controller.
+  # Same split as pipelines/assign_taxo.R; the column comes from
+  # build_cv_values_map().
+  controller = crew::crew_controller_group(
+    crew::crew_controller_local(
+      name = "dada2_ctrl",
+      workers = 1,
+      seconds_idle = 60
+    ),
+    crew::crew_controller_local(
+      name = "fast_ctrl",
+      workers = cv_n_workers_fast,
+      seconds_idle = 60
+    )
+  )
 )
 
-cv_values_map <- build_cv_values_map(dbs = db_list, mini_db = mini_db)
+cv_values_map <- build_cv_values_map(dbs = cv_db_list, mini_db = mini_db)
 
 # Runs cross_val() and forwards blastn-specific args only when they are not NA.
 # vote_algorithm / nb_voting are NA for non-blastn methods (tar_eval substitutes
 # them literally from cv_values_map).
-run_cv <- function(method, db_path, fold_number, fold_tested, min_bootstrap,
-                   remove_tested, seed, vote_algorithm = NULL, nb_voting = NULL,
-                   max_seq = NULL, min_cover = NULL, nproc = 1,
-                   primer_fw = NULL, primer_rev = NULL, primer_min_overlap = NULL,
-                   oversample = 2, cutadapt_prelude = NULL, query_fasta = NULL,
-                   id_fasta = NULL, query_id_fasta = NULL,
-                   reduce_reference = TRUE) {
+run_cv <- function(
+  method,
+  db_path,
+  fold_number,
+  fold_tested,
+  min_bootstrap,
+  remove_tested,
+  seed,
+  vote_algorithm = NULL,
+  nb_voting = NULL,
+  max_seq = NULL,
+  min_cover = NULL,
+  nproc = 1,
+  primer_fw = NULL,
+  primer_rev = NULL,
+  primer_min_overlap = NULL,
+  oversample = 2,
+  cutadapt_prelude = NULL,
+  query_fasta = NULL,
+  id_fasta = NULL,
+  query_id_fasta = NULL,
+  reduce_reference = TRUE
+) {
   extra_args <- list()
   if (!is.null(vote_algorithm) && !is.na(vote_algorithm)) {
     extra_args$vote_algorithm <- vote_algorithm
@@ -56,29 +90,32 @@ run_cv <- function(method, db_path, fold_number, fold_tested, min_bootstrap,
   if (method == "blastn" && !is.null(min_cover) && !is.na(min_cover)) {
     extra_args$min_cover <- min_cover
   }
-  do.call(cross_val, c(
-    list(
-      ref_fasta = db_path,
-      fold_number = fold_number,
-      fold_tested = fold_tested,
-      method = method,
-      min_bootstrap = min_bootstrap,
-      remove_tested_sequences = remove_tested,
-      seed = seed,
-      max_seq = max_seq,
-      nproc = nproc,
-      primer_fw = primer_fw,
-      primer_rev = primer_rev,
-      primer_min_overlap = primer_min_overlap,
-      oversample = oversample,
-      cutadapt_prelude = cutadapt_prelude,
-      query_fasta = query_fasta,
-      id_fasta = id_fasta,
-      query_id_fasta = query_id_fasta,
-      reduce_reference = reduce_reference
-    ),
-    extra_args
-  ))
+  do.call(
+    cross_val,
+    c(
+      list(
+        ref_fasta = db_path,
+        fold_number = fold_number,
+        fold_tested = fold_tested,
+        method = method,
+        min_bootstrap = min_bootstrap,
+        remove_tested_sequences = remove_tested,
+        seed = seed,
+        max_seq = max_seq,
+        nproc = nproc,
+        primer_fw = primer_fw,
+        primer_rev = primer_rev,
+        primer_min_overlap = primer_min_overlap,
+        oversample = oversample,
+        cutadapt_prelude = cutadapt_prelude,
+        query_fasta = query_fasta,
+        id_fasta = id_fasta,
+        query_id_fasta = query_id_fasta,
+        reduce_reference = reduce_reference
+      ),
+      extra_args
+    )
+  )
 }
 
 cv_targets <- tarchetypes::tar_eval(
@@ -115,7 +152,10 @@ cv_targets <- tarchetypes::tar_eval(
         remove_tested = remove_tested,
         min_bootstrap = min_bootstrap
       )
-    }
+    },
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = controller)
+    )
   ),
   values = dplyr::mutate(
     cv_values_map,
@@ -133,9 +173,21 @@ ref_file_targets <- tarchetypes::tar_eval(
   # References and query sources (the _Fungi file of a _Fungi_cut database).
   values = dplyr::distinct(dplyr::bind_rows(
     dplyr::distinct(cv_values_map, ref_file, db_path),
-    dplyr::distinct(cv_values_map, ref_file = query_ref_file, db_path = query_db_path),
-    dplyr::distinct(cv_values_map, ref_file = id_ref_file, db_path = id_db_path),
-    dplyr::distinct(cv_values_map, ref_file = query_id_ref_file, db_path = query_id_db_path)
+    dplyr::distinct(
+      cv_values_map,
+      ref_file = query_ref_file,
+      db_path = query_db_path
+    ),
+    dplyr::distinct(
+      cv_values_map,
+      ref_file = id_ref_file,
+      db_path = id_db_path
+    ),
+    dplyr::distinct(
+      cv_values_map,
+      ref_file = query_id_ref_file,
+      db_path = query_id_db_path
+    )
   ))
 )
 

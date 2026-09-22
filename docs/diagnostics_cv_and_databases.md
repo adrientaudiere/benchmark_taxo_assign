@@ -218,12 +218,18 @@ same as one of these computations:
 | `Unite_s_all_20250219` | 9.3 | 3.5 | 1.9 | 1.2 | 15.9 min |
 | `Unite_s_all_20250219_Fungi` | 5.1 | 1.3 | 1.0 | 1.0 | 8.4 min |
 
-One pass over the 28 method × database cells is 188 min. Training on the full
-database would repeat it for each of the 10 folds and each of the two variants:
-≈ 63 h of compute, i.e. 20–25 h of wall time with three workers, against 2.3 h
-of compute and 47 min of wall time for the run of 2026-09-15. The standard
-variant cannot share an index between folds, since each fold removes its own
-records.
+One pass over the 28 method × database cells is 188 min. **The 63 h figure this
+paragraph used to quote is withdrawn**: it assumed ten folds and was derived
+from mock assignments of 392 ASVs, before the design changed to three folds and
+a full reference.
+
+What is measured, per fold of 500 queries against the full `EUK_ITS_v2.1`:
+blastn 1 min 48, sintax 2 min 26, lca 7 min 05. What is **not** measured is the
+one that matters: **dada2 did not finish a single fold in 8 minutes** before
+being killed. With 14 dada2 targets × 3 folds, dada2 could dominate the run by
+an order of magnitude, and no honest total can be quoted until one dada2 fold
+completes on a full EUKARYOME reference. The standard variant cannot share an
+index between folds, since each fold removes its own records.
 
 A genus-preserving pool (draw the queries, then keep every record sharing
 their genus) would stay near the current cost only if the added congeners are
@@ -238,6 +244,50 @@ Measured on 2026-09-16 with `/usr/bin/time -v`, one `cross_val()` call,
 |---|---|---|---|---|
 | dada2 × `EUK_ITS_v2.1` | 1 877 003 | **≥ 45.0 GB** | killed at 7 min 58 | fold unfinished, machine at 60/62 GB and 22.9 GB of swap |
 | dada2 × `Unite_s_all_20250219` | 266 589 | **23.5 GB** | 4 min 32 | completed; genus standard 0.335 good, 0.138 wrong, 52.7 % NA |
+| sintax × `EUK_ITS_v2.1` | 1 877 003 | **5.9 GB** | 2 min 26 | completed; genus standard 0.790 good, 0.054 wrong, 15.6 % NA |
+
+The contrast between the two methods is structural: dada2 loads the reference
+and its k-mer profiles into R, while vsearch streams the database, so sintax
+costs eight times less memory on the *same* file. It also shows what the
+reference size was hiding: sintax reaches **0.79** good genus against the full
+EUKARYOME, where the drawn pool gave 0.26–0.52 (§ 1).
+
+| blastn × `EUK_ITS_v2.1` | 1 877 003 | **3.5 GB** | 1 min 48 | completed; genus standard 0.737 good, 0.072 wrong, 19.2 % NA |
+| lca × `EUK_ITS_v2.1` | 1 877 003 | **6.2 GB** | 7 min 05 | completed; genus standard 0.754 good, 0.150 wrong, 9.6 % NA |
+
+Taken together, these four runs are a preview of the production cross-validation
+on the hardest database, over the same 500 queries: sintax 0.790 good genus,
+lca 0.754, blastn 0.737. The behaviour that the reduced reference exaggerated
+is still there, in a readable form: **lca abstains least (9.6 % NA) and errs
+most (15.0 % wrong), blastn does the opposite** (19.2 % NA, 7.2 % wrong), and
+sintax sits between the two on both counts.
+
+**Memory budget for the production run.** `pipelines/cross_val.R` now runs
+`dada2_ctrl` (1 worker) next to `fast_ctrl` (`config.R::cv_n_workers_fast`).
+The worst case is one dada2 target on `EUK_ITS_v2.1` beside the fast ones on
+the same database:
+
+| configuration | worst case | verdict |
+|---|---|---|
+| 3 fast workers | 45 + 6.2 (lca) + 5.9 (sintax) + 3.5 (blastn) = **60.6 GB** | fits on paper, 1.4 GB left for the system |
+| 2 fast workers | 45 + 6.2 + 5.9 = **57.1 GB** | safe — **adopted 2026-09-16** |
+
+Every figure is now measured rather than projected. Two caveats on the
+arithmetic itself. First, `dada2_ctrl` holds **one** worker for 14 dada2
+targets, so a dada2 target is resident almost continuously during the run, not
+occasionally: the worst case above is the normal case. Second, the budget
+assumes a fresh worker per target, which `seconds_idle = 60` does not
+guarantee — a crew worker that has just finished an EUKARYOME target may still
+hold its memory when the next one starts, since R returns freed memory to the
+system lazily. Watch `free -g` during the first dada2 targets rather than
+trusting the sum.
+
+The dada2 figure is a **floor**, not a peak: that run was killed before it
+finished its fold, so the real maximum is higher than 45 GB. That alone argued
+for two fast workers, and the developer settled on them on 2026-09-16:
+`config.R::cv_n_workers_fast = 2`, a constant dedicated to this project and
+read by `pipelines/cross_val.R` only, rather than lowering `n_workers`, which
+`pipelines/assign_taxo.R` shares and which stays at 3.
 
 The machine has 62 GB. During that run it reached 60 GB used and 22.9 GB of
 swap, so a single such target saturates it. `pipelines/cross_val.R` dispatches
