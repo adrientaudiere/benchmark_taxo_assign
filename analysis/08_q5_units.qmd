@@ -108,7 +108,6 @@ s08_unit_mean <- s08_by_unit |>
   group_by(view, tax_level, unit) |>
   summarise(value = mean(value), .groups = "drop")
 s08_genus_best <- filter(s08_unit_mean, tax_level == "Genus")
-s08_gensp_best <- filter(s08_unit_mean, tax_level == "Gen_sp")
 # Paired per method x database column: each OTU unit minus the ASVs.
 s08_paired <- s08_f1 |>
   filter(tax_level == "Genus") |>
@@ -172,7 +171,8 @@ databases; one value per view (`r paste(views$label, collapse = ", ")`).
   `r fmt_range(s08_paired$derived_gain)` for `OTU_derived`.
 - **Cluster then assign, or assign then cluster**: `OTU_derived` minus `OTU`,
   mean Genus F1 per view, `r fmt_range(s08_derived_vs_otu$value)`.
-- **Species (Gen_sp)**: the best unit is `r best_phrase(s08_gensp_best, "unit")`.
+- **Species** is no longer a primary endpoint here (OD 43): it is read by
+  exact and near match in chapter 09; the `Gen_sp` rows below are secondary.
 - **ASVs subsampled to the OTU count** (Q5.3, Genus, `r s08_n_null` view ×
   method pairs, 95 % interval of the draws): the full ASV set falls inside the
   interval of the random draws `r s08_count_word`; `OTU` lies above the random draws in
@@ -184,11 +184,12 @@ databases; one value per view (`r paste(views$label, collapse = ", ")`).
 ```{r summary-fig}
 #| echo: false
 fig_summary_08_f1_by_unit <- s08_by_unit |>
+  filter(tax_level == "Genus") |>
   ggplot(aes(x = unit, y = value, colour = algo, group = algo)) +
   geom_point(size = 2) +
   geom_line() +
-  facet_grid(tax_level ~ view, scales = "free_y") +
-  labs(x = "Unit", y = "F1 (mean over databases)", colour = "Method") +
+  facet_wrap(~view, nrow = 1, scales = "free_y") +
+  labs(x = "Unit", y = "Genus F1 (mean over databases)", colour = "Method") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 print(fig_summary_08_f1_by_unit)
@@ -323,4 +324,8 @@ s08_vs_null |>
     OTU_derived = round(OTU_derived, 3)
   ) |>
   knitr::kable(caption = "Genus F1, mean over the nine databases: the observed units against the 95 % interval of the 100 subsampled ASV draws.")
+```
+
+```{r versions-footer, results = "asis", echo = FALSE}
+versions_footer()
 ```

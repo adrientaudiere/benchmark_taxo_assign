@@ -37,24 +37,59 @@ git_lines <- function(path, args) {
   )
 }
 
-# Git state of one checkout: its commit, whether tracked files differ from it
-# (`dirty`), and a hash of that difference (`diff_hash`, NA when clean), so
-# that two runs on the same dirty commit can be told apart
-# (reviews/code_review_2026-10-05.md §1.7). Untracked files do not count.
-git_state <- function(path) {
+# Git state of the code of one checkout: its commit, whether the files under
+# `code` differ from it (`dirty`: a modified, deleted or untracked file), and
+# a hash of that difference (`diff_hash`, NA when clean: the diff of the
+# tracked files and the content of the untracked ones), so that two runs on
+# the same dirty commit can be told apart (reviews/code_review_2026-10-05.md
+# §1.7). Only `code` counts: the stores' tracked meta files change with every
+# run and would make every run read as dirty.
+git_state <- function(path, code) {
   commit <- git_lines(path, c("rev-parse", "HEAD"))
-  diff <- git_lines(path, c("diff", "HEAD"))
   known <- length(commit) == 1 && !is.na(commit)
-  tibble::tibble(
-    git_commit = if (known) commit else NA_character_,
-    dirty = if (known) length(diff) > 0 else NA,
-    diff_hash = if (known && length(diff) > 0) {
-      rlang::hash(diff)
-    } else {
-      NA_character_
-    }
+  code <- code[file.exists(file.path(path, code))]
+  if (!known || length(code) == 0) {
+    return(tibble::tibble(
+      git_commit = if (known) commit else NA_character_,
+      dirty = NA,
+      diff_hash = NA_character_
+    ))
+  }
+  status <- git_lines(
+    path,
+    c("status", "--porcelain", "--untracked-files=all", "--", code)
   )
+  dirty <- length(status) > 0
+  diff_hash <- NA_character_
+  if (dirty) {
+    diff <- git_lines(path, c("diff", "HEAD", "--", code))
+    untracked <- sub("^\\?\\? ", "", grep("^\\?\\? ", status, value = TRUE))
+    contents <- vapply(
+      file.path(path, untracked),
+      \(f) paste(readLines(f, warn = FALSE), collapse = "\n"),
+      character(1)
+    )
+    diff_hash <- rlang::hash(list(diff, untracked, unname(contents)))
+  }
+  tibble::tibble(git_commit = commit, dirty = dirty, diff_hash = diff_hash)
 }
+
+# What counts as code in a pqverse checkout and in this project.
+package_code <- c("R", "src", "inst", "DESCRIPTION", "NAMESPACE")
+project_code <- c(
+  "R",
+  "pipelines",
+  "analysis",
+  "tools",
+  "tests",
+  "config.R",
+  "make_databases.R",
+  "make.R",
+  "run_bio_night.R",
+  "_targets.yaml",
+  ".Rprofile",
+  "patches"
+)
 
 # Version and git state of each checkout, for the `session_info` target and
 # the manuscript's Methods section.
@@ -72,7 +107,7 @@ pqverse_versions <- function(
           fields = "Version"
         ))
       ),
-      git_state(path)
+      git_state(path, package_code)
     )
   })
   dplyr::bind_rows(rows)
@@ -83,6 +118,6 @@ pqverse_versions <- function(
 project_version <- function(path = here::here()) {
   dplyr::bind_cols(
     tibble::tibble(package = "benchmar_assign_taxo"),
-    git_state(path)
+    git_state(path, project_code)
   )
 }

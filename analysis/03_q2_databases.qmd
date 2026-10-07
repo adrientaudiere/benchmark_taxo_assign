@@ -206,42 +206,64 @@ view_tabs(res_all, views, function(res, v) {
 
 Does a smaller (filtered / trimmed) DB pay for itself in runtime without
 losing F1? Uses `benchmark_costs` (see `05_m2_costs.qmd` for its provenance),
-restricted to the computations of the view's region.
+restricted to the computations of the view's region. One point per
+computation (method × database): the rows of one computation share its cost,
+so averaging rows would weight blastn by its 12 rows (code review §1.5). The
+size is that of the sintax-format file for every method (the dada2 file holds
+the same records). F1 at Genus, the primary endpoint (OD 43).
 
 ```{r q2-5, results = "asis"}
 view_tabs(res_all, views, function(res, v) {
-  db_size_tbl <- costs_for(v$dataset, res) |>
+  db_size <- tibble(
+    db = db_list,
+    db_size_mb = file.size(here(db_path_for("sintax", db_list))) / 1e6
+  )
+  cost_tbl <- costs_for(v$dataset, res) |>
     filter(phase %in% res$method_db, !startsWith(db, "mini_")) |>
-    mutate(db_size_mb = file.size(here(db_path)) / 1e6) |>
-    group_by(db, db_size_mb) |>
-    summarise(mean_wall_h = mean(wall_time_s, na.rm = TRUE) / 3600,
-              .groups = "drop")
+    distinct(compute_name, method, db, wall_time_s) |>
+    left_join(db_size, by = "db")
 
   f1_by_db <- res |>
-    filter(metrics == "F1_score", tax_level == "Gen_sp") |>
+    filter(metrics == "F1_score", tax_level == "Genus") |>
     filter_default_settings() |>
-    group_by(db) |>
-    summarise(mean_f1 = mean(values, na.rm = TRUE), .groups = "drop")
+    group_by(algo, db) |>
+    summarise(f1 = mean(values, na.rm = TRUE), .groups = "drop")
 
-  q2_5_data <- left_join(db_size_tbl, f1_by_db, by = "db") |>
+  q2_5_data <- cost_tbl |>
+    left_join(f1_by_db, by = c("method" = "algo", "db")) |>
     left_join(db_meta |> select(db, db_base, simplification), by = "db")
 
   p_size_time <- q2_5_data |>
-    ggplot(aes(x = db_size_mb, y = mean_wall_h, color = db_base, label = simplification)) +
-    geom_point(size = 3) +
-    ggrepel::geom_label_repel(size = 2.5, show.legend = FALSE) +
-    labs(x = "DB size (MB)", y = "Mean wall time (h)", color = "DB family") +
+    ggplot(aes(x = db_size_mb, y = wall_time_s / 60, colour = method, shape = db_base)) +
+    geom_point(size = 2.5) +
+    scale_x_log10() +
+    scale_y_log10() +
+    labs(
+      x = "DB size (MB, sintax file)",
+      y = "Wall time of one computation (min)",
+      colour = "Method",
+      shape = "DB family"
+    ) +
     theme_bw()
 
   p_size_f1 <- q2_5_data |>
-    ggplot(aes(x = db_size_mb, y = mean_f1, color = db_base, label = simplification)) +
-    geom_point(size = 3) +
-    ggrepel::geom_label_repel(size = 2.5, show.legend = FALSE) +
-    labs(x = "DB size (MB)", y = "Mean F1 (Gen_sp)", color = "DB family") +
+    ggplot(aes(x = db_size_mb, y = f1, colour = method, shape = db_base)) +
+    geom_point(size = 2.5) +
+    scale_x_log10() +
+    labs(
+      x = "DB size (MB, sintax file)",
+      y = "Genus F1 (default settings)",
+      colour = "Method",
+      shape = "DB family"
+    ) +
     theme_bw()
 
   fig_q2_5 <- p_size_time / p_size_f1 + patchwork::plot_layout(guides = "collect")
   print(fig_q2_5)
   save_fig(fig_q2_5, paste0("fig_q2_5_size_cost_", v$id), width = 8, height = 10)
 })
+```
+
+```{r versions-footer, results = "asis", echo = FALSE}
+versions_footer()
 ```

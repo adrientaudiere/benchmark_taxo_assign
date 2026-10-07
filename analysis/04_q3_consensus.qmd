@@ -28,7 +28,7 @@ views <- analysis_views(res_all)
 # columns of Q3.2 (aside reading, not strict, nb_agree 1) against the single
 # methods at default settings.
 s04_rows <- view_rows(res_all, views) |>
-  filter(metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp"))
+  filter(metrics == "F1_score", tax_level == "Genus")
 s04_cons <- s04_rows |>
   filter(is_consensus, !consensus_strict, nb_agree == 1L) |>
   filter(algo %in% paste0(c("preference", "rel_majority", "abs_majority", "consensus", "unanimity"), "_consensus")) |>
@@ -38,13 +38,10 @@ s04_single <- s04_rows |>
   group_by(view, tax_level) |>
   summarise(best_single = max(values), mean_single = mean(values), .groups = "drop")
 s04_best_cons <- s04_cons |>
-  group_by(view, tax_level) |>
-  slice_max(value, n = 1, with_ties = FALSE) |>
-  ungroup() |>
+  best_of("strategy", by = c("view", "tax_level")) |>
   left_join(s04_single, by = c("view", "tax_level")) |>
   mutate(gain_best = value - best_single, gain_mean = value - mean_single)
 s04_g <- filter(s04_best_cons, tax_level == "Genus")
-s04_s <- filter(s04_best_cons, tax_level == "Gen_sp")
 s04_beats <- function(x) {
   n <- sum(x$gain_best > 0)
   if (n == 0) {
@@ -55,7 +52,7 @@ s04_beats <- function(x) {
     paste0("in ", n, " of ", nrow(x), " views")
   }
 }
-s04_both <- bind_rows(s04_g, s04_s)
+s04_both <- s04_g
 s04_word <- if (all(s04_both$gain_mean > 0) && mean(s04_both$gain_best > 0) <= 0.5) {
   "A consensus therefore protects against a poor choice of method and database more than it improves on the best one."
 } else if (all(s04_both$gain_best > 0)) {
@@ -73,31 +70,28 @@ of the 36.
   It beats the best single column `r s04_beats(s04_g)` (difference
   `r fmt_range(s04_g$gain_best)`), and the mean single column by
   `r fmt_range(s04_g$gain_mean)`.
-- **Species (Gen_sp)**: the best strategy is `r best_phrase(s04_s, "strategy")`.
-  It beats the best single column `r s04_beats(s04_s)` (difference
-  `r fmt_range(s04_s$gain_best)`), and the mean single column by
-  `r fmt_range(s04_s$gain_mean)`.
+- **Species** is no longer a primary endpoint here (OD 43): it is read by
+  exact and near match in chapter 09; the `Gen_sp` rows below are secondary.
 - `r s04_word`
 
 ```{r summary-fig}
 #| echo: false
 fig_summary_04_consensus <- s04_cons |>
   mutate(
-    tax_level = factor(tax_level, levels = c("Genus", "Gen_sp")),
     strategy = factor(strategy, levels = c("preference", "rel_majority", "abs_majority", "consensus", "unanimity"))
   ) |>
   ggplot(aes(x = strategy, y = value)) +
   geom_col(fill = "grey60") +
   geom_hline(
-    data = mutate(s04_single, tax_level = factor(tax_level, levels = c("Genus", "Gen_sp"))),
+    data = s04_single,
     aes(yintercept = best_single, linetype = "best single column"), colour = "firebrick"
   ) +
   geom_hline(
-    data = mutate(s04_single, tax_level = factor(tax_level, levels = c("Genus", "Gen_sp"))),
+    data = s04_single,
     aes(yintercept = mean_single, linetype = "mean of the 36 single columns"), colour = "steelblue"
   ) +
-  facet_grid(tax_level ~ view) +
-  labs(x = "Consensus strategy", y = "F1", linetype = NULL) +
+  facet_wrap(~view, nrow = 1) +
+  labs(x = "Consensus strategy", y = "Genus F1", linetype = NULL) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 print(fig_summary_04_consensus)
@@ -215,4 +209,8 @@ view_tabs(res_all, views, function(res, v) {
   print(fig_q3_heatmap)
   save_fig(fig_q3_heatmap, paste0("fig_q3_heatmap_", v$id), width = 12, height = 4)
 })
+```
+
+```{r versions-footer, results = "asis", echo = FALSE}
+versions_footer()
 ```

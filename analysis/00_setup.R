@@ -45,7 +45,6 @@ if (is.na(analysis_mini)) {
 variant_suffix <- if (analysis_mini) "_mini" else ""
 
 store_assign_taxo <- here(paste0("store_assign_taxo", variant_suffix))
-store_cross_val <- here(paste0("store_cross_val", variant_suffix))
 
 # Datasets chapter 01 scores: the Pauvert mock of the production projects and
 # every biological dataset of `config.R::bio_datasets` that has a truth table
@@ -135,8 +134,6 @@ message(
   if (analysis_mini) "MINI" else "production",
   " stores (",
   basename(store_assign_taxo),
-  ", ",
-  basename(store_cross_val),
   ")"
 )
 
@@ -363,17 +360,37 @@ fmt_range <- function(x, digits = 3) {
   paste0(format(min(x), nsmall = digits), sep, format(max(x), nsmall = digits))
 }
 
+# The best row of each `by` group of `tbl` by `value` (`best = min` for the
+# lowest), ties kept: the tied values of `what` are joined by " = " in one row,
+# so a tie never goes to whichever row comes first (code review §4.1).
+best_of <- function(tbl, what, by = "view", value = "value", best = max) {
+  tbl |>
+    dplyr::group_by(dplyr::across(dplyr::all_of(by))) |>
+    dplyr::filter(.data[[value]] == best(.data[[value]])) |>
+    dplyr::summarise(
+      dplyr::across(
+        dplyr::all_of(what),
+        \(x) paste(sort(unique(as.character(x))), collapse = " = ")
+      ),
+      dplyr::across(
+        -dplyr::all_of(what),
+        \(x) if (is.numeric(x)) mean(x) else dplyr::first(x)
+      ),
+      .groups = "drop"
+    )
+}
+
 # One phrase naming the best `what` (a column of `tbl`, e.g. "algo" or "db")
 # of each view by `value`, for the summaries: "**dada2** in every view
 # (0.823–0.928)" when one wins everywhere, else one "**x** on view (value)"
-# per view. Computed, so a summary never states a winner the data dropped.
+# per view; tied winners are named together ("dada2 = sintax"). Computed, so
+# a summary never states a winner the data dropped.
 # `show_value = FALSE` names the winners only (when `value` is a ranking key
 # rather than a figure to quote).
 best_phrase <- function(tbl, what, show_value = TRUE) {
   best <- tbl |>
-    dplyr::group_by(view) |>
-    dplyr::slice_max(value, n = 1, with_ties = FALSE) |>
-    dplyr::ungroup() |>
+    dplyr::select(dplyr::all_of(c("view", what, "value"))) |>
+    best_of(what) |>
     dplyr::arrange(view)
   if (dplyr::n_distinct(best[[what]]) == 1) {
     value <- if (show_value) paste0(" (", fmt_range(best$value), ")") else ""
@@ -421,12 +438,18 @@ costs_for <- function(dataset, res) {
 itsx_trimmed <- function(store, dada2_store, region) {
   d_asv <- targets::tar_read(d_asv, store = dada2_store)
   orig <- stats::setNames(as.character(d_asv@refseq), taxa_names(d_asv))
-  real <- targets::tar_read_raw(paste0("d_", region, "_asv_real"), store = store)
+  real <- targets::tar_read_raw(
+    paste0("d_", region, "_asv_real"),
+    store = store
+  )
   now <- stats::setNames(as.character(real@refseq), taxa_names(real))
   missing <- setdiff(names(now), names(orig))
   if (length(missing) > 0) {
     stop(
-      length(missing), " units of d_", region, "_asv_real are not in d_asv of ",
+      length(missing),
+      " units of d_",
+      region,
+      "_asv_real are not in d_asv of ",
       basename(dada2_store)
     )
   }
@@ -534,4 +557,48 @@ plot_tc_metrics_mock <- function(
     p <- p + no_legend()
   }
   p
+}
+
+# The code that produced a chapter (code review §1.7): the commit of this
+# project and of each pqverse checkout, "+dirty" when its tracked files differ
+# from that commit, and the code that scored `res_comp_tax` (its "versions"
+# attribute, written by chapter 01). Printed at the end of every chapter.
+versions_footer <- function() {
+  fmt <- function(v) {
+    paste0(
+      "`",
+      v$package,
+      "` ",
+      substr(v$git_commit, 1, 7),
+      ifelse(v$dirty %in% TRUE, "+dirty", "")
+    )
+  }
+  now <- dplyr::bind_rows(project_version(), pqverse_versions())
+  lines <- paste0(
+    "**Code of this render** (",
+    format(Sys.time(), "%Y-%m-%d %H:%M"),
+    "): ",
+    paste(fmt(now), collapse = ", "),
+    "."
+  )
+  scored <- tryCatch(
+    attr(cache_read("res_comp_tax"), "versions"),
+    error = function(e) NULL
+  )
+  if (!is.null(scored)) {
+    lines <- c(
+      lines,
+      paste0(
+        "\n\n**Code that scored `res_comp_tax`** (chapter 01, ",
+        format(scored$rendered, "%Y-%m-%d %H:%M"),
+        "): ",
+        paste(
+          fmt(dplyr::bind_rows(scored$project, scored$pqverse)),
+          collapse = ", "
+        ),
+        "."
+      )
+    )
+  }
+  cat("\n\n---\n\n", lines, "\n", sep = "")
 }

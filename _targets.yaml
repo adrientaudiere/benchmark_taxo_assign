@@ -1,4 +1,5 @@
-# Named {targets} projects (ROADMAP S3.1). Select one with the TAR_PROJECT
+# Named {targets} projects (ROADMAP S3.1). The cross_val projects were
+# archived on 2026-10-07 (Archives/cross_val/, OD 28 parked). Select one with the TAR_PROJECT
 # environment variable, then call tar_make() / tar_read() / tar_visnetwork()
 # without script = / store = arguments:
 #
@@ -16,12 +17,6 @@ assign_taxo:
 assign_taxo_mini:
   script: pipelines/assign_taxo.R
   store: store_assign_taxo_mini
-cross_val:
-  script: pipelines/cross_val.R
-  store: store_cross_val
-cross_val_mini:
-  script: pipelines/cross_val.R
-  store: store_cross_val_mini
 # Biological-community datasets (D1c). One pair per dataset: dada2_<dataset>
 # builds the phyloseq from fastq with pipelines/dada2_bio.R, assign_taxo_<dataset>
 # runs the usual assignment grid on it. config.R derives the dataset key and the

@@ -164,8 +164,8 @@ vsearch_exact_hits <- function(seqs, db_fasta, nproc = 1) {
 # ---- Near matches (OD 43, developer 2026-10-07) ------------------------------
 # Two relaxations of the exact match, read by vsearch and blastn
 # (assignSpecies() has no such mode): at most one difference over the whole
-# query, and a stretch of at least 90 % of the query found exactly in the
-# record. Each search only proposes (query, record) pairs; whether a pair
+# query, and 100 % identity over at least 90 % of the query, the rest lying
+# beyond an end of the record (the record stops early). Each search only proposes (query, record) pairs; whether a pair
 # passes is then decided from the two sequences, identically for both
 # methods, so the methods differ only by the pairs their search finds.
 
@@ -200,31 +200,41 @@ query_diffs <- function(query, record, qlo, qhi, tlo, thi, approx, max_diffs) {
   as.integer(out)
 }
 
-# TRUE when `query` holds a stretch of at least `min_cover` of its length that
-# `record` contains exactly. Vectorised.
+# TRUE when the record holds the query at 100 % wherever it covers it, covers
+# at least `min_cover` of it, and only stops early: the rest of the query lies
+# beyond an end of the record, not against different bases (developer,
+# 2026-10-07; the record of a species that ends before the ITSx region does).
+# Four cases: the query is inside the record; a prefix of the query ends the
+# record; a suffix of the query starts the record; the record lies inside the
+# query. Vectorised.
 exact_cover <- function(query, record, min_cover) {
   ql <- nchar(query)
-  k <- ceiling(min_cover * ql)
-  found <- rep(FALSE, length(query))
+  rl <- nchar(record)
+  k_min <- ceiling(min_cover * ql)
+  found <- stringi::stri_detect_fixed(record, query) |
+    (rl >= k_min & rl < ql & stringi::stri_detect_fixed(query, record))
   if (length(query) == 0) {
     return(found)
   }
-  for (o in 0:max(ql - k)) {
-    todo <- !found & o <= ql - k
+  for (d in seq_len(max(c(0, ql - k_min)))) {
+    todo <- !found & d <= ql - k_min
     if (!any(todo)) {
       break
     }
-    found[todo] <- stringi::stri_detect_fixed(
+    q <- query[todo]
+    n <- ql[todo]
+    found[todo] <- stringi::stri_endswith_fixed(
       record[todo],
-      substring(query[todo], o + 1, o + k[todo])
-    )
+      substring(q, 1, n - d)
+    ) |
+      stringi::stri_startswith_fixed(record[todo], substring(q, d + 1, n))
   }
   found
 }
 
 # The near-match columns of candidate pairs: `diffs` (query_diffs()) and
-# `exact_cover` (exact_cover()), keeping the pairs within `max_diffs` or with
-# the exact stretch. `pairs` holds query, record, qlo, qhi, tlo, thi, approx.
+# `exact_cover` (exact_cover()), keeping the pairs within `max_diffs` or
+# covered at 100 % over `min_cover` of the query. `pairs` holds query, record, qlo, qhi, tlo, thi, approx.
 near_hit_columns <- function(pairs, seqs, ref, max_diffs, min_cover) {
   query_seq <- as.character(seqs[pairs$query])
   record_seq <- as.character(ref[pairs$record])
@@ -349,7 +359,7 @@ blastn_near_hits <- function(
   nproc = 1,
   perc_identity = 90,
   qcov_hsp = 89,
-  max_target_seqs = 10000L,
+  max_target_seqs = 2000L,
   max_diffs = 1L,
   min_cover = 0.9
 ) {
@@ -359,11 +369,20 @@ blastn_near_hits <- function(
   query_file <- file.path(dir, "queries.fasta")
   out_file <- file.path(dir, "hits.tsv")
   Biostrings::writeXStringSet(seqs, query_file, width = 20000)
+  # The records are indexed under their position (r1, r2...): BLAST+ rewrites
+  # some ids (it drops the trailing "." of a EUKARYOME header ending in
+  # "nov.inval."), so its ids cannot be matched back to the headers.
+  ref <- Biostrings::readDNAStringSet(db_fasta)
+  indexed <- ref
+  names(indexed) <- paste0("r", seq_along(ref))
+  ref_file <- file.path(dir, "ref.fasta")
+  Biostrings::writeXStringSet(indexed, ref_file, width = 20000)
+  rm(indexed)
   status <- system2(
     "makeblastdb",
     c(
       "-dbtype nucl -in",
-      shQuote(db_fasta),
+      shQuote(ref_file),
       "-out",
       shQuote(file.path(dir, "db"))
     ),
@@ -418,14 +437,14 @@ blastn_near_hits <- function(
     quote = "",
     colClasses = c("character", "character", rep("integer", 7))
   )
-  # blastn names a record by the first word of its header: back to the whole
-  # header, as vsearch reports it.
-  ref <- Biostrings::readDNAStringSet(db_fasta)
-  first_word <- sub(" .*$", "", names(ref))
-  if (anyDuplicated(first_word)) {
-    stop("headers of ", basename(db_fasta), " share their first word")
+  # Back to the whole header, as vsearch reports it.
+  hits$record <- names(ref)[as.integer(sub("^r", "", hits$sseqid))]
+  if (anyNA(hits$record)) {
+    stop(
+      "blastn returned ids that are not record positions: ",
+      basename(db_fasta)
+    )
   }
-  hits$record <- names(ref)[match(hits$sseqid, first_word)]
   hits$approx <- (hits$length - hits$nident) +
     (hits$qlo - 1) +
     (hits$ql - hits$qhi)

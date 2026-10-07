@@ -357,3 +357,7 @@ res_insilico |>
   labs(x = NULL, y = NULL, fill = "F1") +
   theme_minimal()
 ```
+
+```{r versions-footer, results = "asis", echo = FALSE}
+versions_footer()
+```

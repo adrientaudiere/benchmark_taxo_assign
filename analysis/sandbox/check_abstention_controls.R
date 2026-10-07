@@ -11,7 +11,7 @@ source("R/assignment_helpers.R")
 
 # Evidence for ROADMAP SA1 (2026-09-30), measured again on the ITSx-only stores
 # (OD 34). Former measure (2026-09-23, before OD 34, raw inputs):
-# analysis/sandbox/check_controls_by_simplification.R, text in HISTORY.md §6.4.
+# Archives/sandbox_pre_od34/check_controls_by_simplification.R, text in HISTORY.md §6.4.
 #
 # Question: on the three `Fungi` databases at Genus, where naming a control is
 # a false positive by construction, which methods abstain on the controls, and

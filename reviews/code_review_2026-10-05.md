@@ -1253,19 +1253,26 @@ second full rerun. Hence this order.
 
 1. Commit this project and comparpq (§1.7). Add the `dirty` flag to
    `pqverse_versions()` and the version attribute to `res_comp_tax`.
+   *Flag, attribute and chapter footers done 2026-10-07; the commits are the
+   developer's.*
 2. Rebuild and cap `EUK_ITS_v2.1_Fungi_cut` before the zoom (§1.6). Add the
-   staleness rule and the atomic writes to `make_databases.R`.
+   staleness rule and the atomic writes to `make_databases.R`. *Done
+   2026-10-07 (stale files reported, not rebuilt; cap on `_Fungi_cut`); the
+   rebuild goes with the zoom.*
 3. `autometric_dir_assign` from `TAR_PROJECT` (§3.1); delete the mini logs
    from the production folder. *Done 2026-10-07 for the folder; the old
    logs stay in `assign_taxo/`, superseded by the newer M2.4 runs.*
 4. `run_projects()` with pruning (§3.2, §1.8); port or archive the five
-   sandbox scripts that read orphans.
+   sandbox scripts that read orphans. *Done 2026-10-07 (`dataset_projects()`,
+   archived; no pruning in the night runs).*
 5. Fix the `derive_fake_ref()` code and make its test seed-proof (§1.2); the
    file stays until Q2.
 6. Docs: AGENTS.md first, then README, CONTEXT and experimental_design
-   (§6). Start `tools/etat.R` → `ETAT.md`.
-7. Dead code and stray files (§5); archive the CV code (§8).
-8. The sintax equivalence test and the dada2 rule test (§7).
+   (§6). Start `tools/etat.R` → `ETAT.md`. *Done 2026-10-07.*
+7. Dead code and stray files (§5); archive the CV code (§8). *Done
+   2026-10-07.*
+8. The sintax equivalence test and the dada2 rule test (§7). *Done
+   2026-10-07.*
 
 **[R] Re-render chapters, no reassignment:**
 
@@ -1277,6 +1284,7 @@ second full rerun. Hence this order.
 10. Q2.5 one point per computation (§1.5); CO₂ with `memory_ram` (§1.4, once
     §1.3 gives real peaks); ties (§4.1); warnings on in 01 (§4.2); chapter
     06 out of the render list (§4.3); `check-cells` as `stopifnot()`.
+    *Done 2026-10-07.*
 11. Measure the seed spread of dada2 and sintax on a few combinations and
     report it beside their comparisons (§1.9, step 1; this costs compute,
     not reassignment of the stores).
@@ -1296,7 +1304,7 @@ second full rerun. Hence this order.
     gives identical tables on the 27 stored Pauvert sintax cases.*
 16. Optionally `ITSx_detected` written by `itsx_pq()` (§1.1, step 5), and
     the dada2 worker guard target (§3.4). *Guard target done 2026-10-07
-    (`dada2_build_on_worker`); `ITSx_detected` not done.*
+    (`dada2_build_on_worker`); `ITSx_detected` done 2026-10-07.*
 
 ---
 

@@ -116,7 +116,7 @@ test_that("add_exact_columns writes the calls on every taxon of a query", {
   out <- add_exact_columns(physeq, calls, map, "ITS1_asv")
   near <- add_exact_columns(
     physeq,
-    dplyr::mutate(calls, match = "90 % exact"),
+    dplyr::mutate(calls, match = "90 % covered"),
     map,
     "ITS1_asv"
   )

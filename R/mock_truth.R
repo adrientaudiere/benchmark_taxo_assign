@@ -26,24 +26,11 @@
 # Requires dplyr, tibble and vsearch; refresh_gna_lineage_cache() also needs
 # the taxinfo checkout and a network connection.
 #
-# Measured on the production stores (2026-09-22), which is what the developer
-# confirmed in hleap §6: 149 of the 196 Pauvert ASVs get a truth (12 ties) and
-# 99 of the 238 Tedersoo ASVs (3 ties); on the OTUs, 126 of 143 and 74 of 180.
-# With OD 36 (2026-10-02): Pauvert 150 of 196 ASVs, 3 foreign; ITS1 OTUs 129
-# of 150 (93 before: their Sanger reads are often shorter than the trimmed
-# OTU), 3 foreign. Tedersoo 115 of 238 ASVs, 105 foreign; OTUs 75-78 of
-# 175-180 per region, 93-96 foreign. Two Pauvert units stop above Genus for a reason worth knowing: one matches a
-# strain named only to class (Sordariomycetes sp) and one ties with a
-# genus-only name (Fusarium sp) that GBIF places in another class. Ten more
-# stop at Genus because their strain is named "Genus sp": species_name()
-# gives them no species truth (2026-09-22), so the Pauvert truth_depth reads
-# 127 Species, 20 Genus, 1 Class, 1 Phylum and 47 without truth. The
-# The GBIF accepted name differs from the submitted one for 28 Pauvert and 7
-# Tedersoo units, and is missing for the names GBIF does not resolve. The
-# disagreements between the Table S1 lineage and GBIF are listed in
-# data/data_final/mock_truth/pauvert_lineage_disagreements.csv (61 rows: 33
-# families, 18 orders, 8 classes, 1 genus, 1 species) for the hand check the
-# decision asks for.
+# Measurements (units with a truth, ties, foreign units, per dataset and
+# input): HISTORY.md §2 (OD 36) and the chapters; they belong there, not here
+# (code review §6). The disagreements between the Table S1 lineage and GBIF
+# are listed in data/data_final/mock_truth/pauvert_lineage_disagreements.csv
+# for the hand check the decision asks for.
 
 truth_ranks <- c(
   "Kingdom",

@@ -1,6 +1,11 @@
 ---
 title: "01 — Load, clean, score against the per-unit truth"
 author: "Adrien Taudière"
+execute:
+  # Shown here, unlike the other chapters: a warning of the scoring (a join
+  # gone many-to-many, rows removed) is the first sign of a wrong filter
+  # (code review §4.2). Known, harmless ones are silenced at their call.
+  warning: true
 ---
 
 Reads the assignments of every dataset that has a store, cleans the taxonomy
@@ -615,6 +620,11 @@ itsx_trimming
 # Hand over to the next chapters
 
 ```{r cache}
+attr(res_comp_tax, "versions") <- list(
+  pqverse = pqverse_versions(),
+  project = project_version(),
+  rendered = Sys.time()
+)
 cache_write(res_comp_tax, "res_comp_tax")
 cache_write(res_abundance, "res_abundance")
 cache_write(res_subsample, "res_subsample")
@@ -670,14 +680,19 @@ tibble(
 
 Every scored unit falls in exactly one cell of the confusion matrix, so the
 four cells sum to the number of scored units — constant across the columns of
-one scoring group.
+one scoring group. The render stops if it is not (code review §4.3).
 
 ```{r check-cells}
-res_comp_tax |>
+cells <- res_comp_tax |>
   filter(metrics %in% c("TP", "FP", "FN", "TN")) |>
   group_by(dataset, region, unit, external_scoring, tax_level, method_db) |>
-  summarise(n_units = sum(values), .groups = "drop") |>
-  count(dataset, region, unit, external_scoring, tax_level, n_units) |>
+  summarise(n_units = sum(values), .groups = "drop")
+cells_per_group <- cells |>
+  distinct(dataset, region, unit, external_scoring, tax_level, n_units) |>
+  count(dataset, region, unit, external_scoring, tax_level)
+stopifnot(all(cells_per_group$n == 1))
+cells |>
+  distinct(dataset, region, unit, external_scoring, tax_level, n_units) |>
   filter(tax_level %in% c("Genus", "Gen_sp"))
 ```
 
@@ -783,4 +798,8 @@ if (length(empty_tc_cols) > 0) {
             sintax_seed_db,
             paste0("Family_", preference_col))
 }
+```
+
+```{r versions-footer, results = "asis", echo = FALSE}
+versions_footer()
 ```

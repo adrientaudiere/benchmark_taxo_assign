@@ -1,4 +1,4 @@
-# Figure of analysis/sandbox/timing_query_x_refsize.R: elapsed time of one
+# Figure of Archives/sandbox_pre_od34/timing_query_x_refsize.R: elapsed time of one
 # computation against the number of queries, one line per reference size, one
 # panel per method, with the points measured by the pipeline runs (same
 # database, 206 to 1412 units, other computations running at the same time).

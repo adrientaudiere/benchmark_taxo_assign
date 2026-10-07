@@ -29,7 +29,11 @@ if (length(datasets) == 0) {
   datasets <- c("pauvert", "korhonen_wood")
 }
 
-log_path <- paste0("run_bio_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".log")
+dir.create("logs", showWarnings = FALSE)
+log_path <- file.path(
+  "logs",
+  paste0("run_bio_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".log")
+)
 log_con <- file(log_path, open = "wt")
 sink(log_con, split = TRUE)
 sink(log_con, type = "message")

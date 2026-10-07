@@ -1,5 +1,15 @@
 # Experimental design: what is tested, against what, at what cost
 
+> **Updated 2026-10-07 (code review §6).** Since OD 34 (2026-09-27) every
+> dataset is assigned on its **ITSx inputs only** (each ITS region of the
+> amplicon × ASV / OTU), so the input counts below (raw ASVs, `d_vs` OTUs,
+> a separate ITSx input; 96 computations, 504 rows) describe the grid of
+> 2026-09-17, not today's. The grid of a project is `build_values_map()`
+> for its regions and units (`R/values_map.R`, `config.R::bio_datasets`);
+> its sizes are in [`ETAT.md`](../ETAT.md). The memory figures of §3 for
+> sintax, lca and blastn are those of the R process only, not of vsearch or
+> BLAST+ (code review §1.3); the M2.4 run measures the process tree.
+
 > **Updated 2026-09-22 (ROADMAP 0.10).** The counts of §1, §2 and §6, the
 > dataset table of §4 and the two `_cut` implications of §5.2 and §5.3 now
 > describe the design of 2026-09-17: 9 databases × 3 inputs, 96 computations
@@ -35,8 +45,9 @@ community that would save nothing, and splitting the objectives into separate
 `{targets}` projects would cost **more**, because they share their
 computations:
 
-- The 96 computations are 4 methods × 9 databases on the ASVs (36), the same
-  on the OTUs (36) and 4 methods × 6 Fungi databases on the ITSx input (24).
+- The computations are 4 methods × 9 databases per input; since OD 34 the
+  inputs are the dataset's ITSx regions × ASV / OTU (2026-09-17: raw ASVs,
+  OTUs and one ITSx input, 96 computations).
 - **Q2 requires all nine databases by definition.** Q1, Q3 and Q5 re-read
   exactly the same columns of `d_all_taxo` / `d_all_taxo_otu` and recompute
   nothing.
@@ -69,8 +80,8 @@ material already on disk. Q5 changed side on 2026-09-17: the OTUs are now
 assigned in their own right (objectives_design decision 4) instead of being
 derived from the ASV assignments, which is why it carries 36 computations.
 
-Verify this claim with `build_values_map(dbs = db_list)`: 504 rows, 96 distinct
-`compute_name` (36 ASV + 36 OTU + 24 ITSx).
+Verify this claim with `build_values_map(dbs = db_list)` (2026-09-17: 504
+rows, 96 distinct `compute_name`; today's counts per project in `ETAT.md`).
 
 ## 3. Measured cost (production store, not extrapolated)
 
@@ -192,7 +203,7 @@ override.
 Developer decision of 2026-09-16, implemented as ROADMAP 0.1b: `config.R` no
 longer substitutes `EUK_ITS_v2.1_Fungi_cut_full_ITS` into `db_list`,
 `itsx_db_list` and `db_meta$db` when `assign_taxo_tedersoo_illumina` runs; the
-`bio_datasets$cut_suffix` column stays, holding NA. `tar_manifest()` on that
+`bio_datasets$cut_suffix` column held NA (removed 2026-10-07). `tar_manifest()` on that
 project now gives the same 96 computations and 504 rows as `assign_taxo`.
 
 Why it mattered: the grid carried two databases that are 96.9 % identical, and
@@ -257,10 +268,11 @@ by the measurements of section 3.
 **Shape of the cost.** One computation per method × database × input; every
 parameter row is derived from it in the main process, so a threshold, an
 `lca_cutoff` or a `min_id` costs nothing (`R/assign_compute.R`). The cost is
-therefore the number of computations (96 per dataset with the 2026-09-17 grid)
+therefore the number of computations (per dataset: `ETAT.md`)
 times the cost of one, which grows with the size of the reference and is
-dominated by dada2: 53 % of the target time and 53.1 GB of peak memory against
-1.2–1.3 GB for the other three methods.
+dominated by dada2: 53 % of the target time and 53.1 GB of peak memory
+(2026-09-16); the 1.2–1.3 GB then read for the other three methods was the R
+process alone, not vsearch or BLAST+ (code review §1.3).
 
 **Levers already applied** (ROADMAP S8.1–S8.5): one computation per method
 (L1–L4), threads for every method (L5, `config.R::assign_threads`, per

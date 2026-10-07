@@ -128,7 +128,7 @@ dataset_tabs <- function(fun) {
 #| include: false
 # Computed from the same rows as the tabs below (res_q4, default settings).
 s07_by_region <- res_q4 |>
-  filter(metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp")) |>
+  filter(metrics == "F1_score", tax_level == "Genus") |>
   group_by(view, tax_level, algo, region) |>
   summarise(value = mean(values), .groups = "drop")
 # Per dataset x rank x method: best minus worst region.
@@ -139,7 +139,6 @@ s07_best_region <- s07_by_region |>
   group_by(view, tax_level, region) |>
   summarise(value = mean(value), .groups = "drop")
 s07_genus_best <- filter(s07_best_region, tax_level == "Genus")
-s07_gensp_best <- filter(s07_best_region, tax_level == "Gen_sp")
 s07_genus_spread <- filter(s07_spread, tax_level == "Genus")
 s07_widest <- s07_genus_spread |>
   slice_max(spread, n = 1, with_ties = FALSE)
@@ -156,7 +155,7 @@ s07_blastn_gain <- s07_blastn |>
   filter(region != "full")
 # The same reading on the ASVs trimmed in the three regions (Q4.4).
 s07_paired_by_region <- res_paired |>
-  filter(metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp")) |>
+  filter(metrics == "F1_score", tax_level == "Genus") |>
   group_by(view, tax_level, algo, region) |>
   summarise(value = mean(values), .groups = "drop")
 s07_paired_best <- s07_paired_by_region |>
@@ -183,8 +182,8 @@ value per dataset (`r paste(q4_datasets, collapse = ", ")`).
   `r fmt_range(s07_genus_spread$spread)`, `r s07_region_word`; the widest gap
   is `r s07_widest$algo` on `r s07_widest$view`
   (`r format(round(s07_widest$spread, 3), nsmall = 3)`).
-- **Species (Gen_sp)**: the best region is
-  `r best_phrase(s07_gensp_best, "region")`.
+- **Species** is no longer a primary endpoint here (OD 43): it is read by
+  exact and near match in chapter 09; the `Gen_sp` rows below are secondary.
 - **On the ASVs trimmed in all three regions** (Tedersoo, `r n_common` of
   the `r n_common_all` real ASVs common to the regions, Q4.4): the best
   region at Genus is `r best_phrase(s07_paired_best, "region")`; best minus
@@ -201,9 +200,9 @@ fig_summary_07_f1_by_region <- s07_by_region |>
   ggplot(aes(x = region, y = value, colour = algo, group = algo)) +
   geom_point(size = 2) +
   geom_line() +
-  facet_grid(tax_level ~ view, scales = "free_y") +
+  facet_wrap(~view, scales = "free_y") +
   labs(
-    x = "ITSx region", y = "F1 (mean over databases)",
+    x = "ITSx region", y = "Genus F1 (mean over databases)",
     colour = "Method"
   ) +
   theme_bw() +
@@ -425,3 +424,6 @@ its Genus F1 across seeds on Pauvert (up to 0.013, `HISTORY.md` §3d, OD 41):
 no region is better than another for dada2. The result is the order of the
 four methods together.
 
+```{r versions-footer, results = "asis", echo = FALSE}
+versions_footer()
+```

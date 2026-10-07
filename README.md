@@ -10,7 +10,7 @@ assignment quality, compute time and compute power** for the taxonomic
 assignment of Fungi. The benchmark tests that one step and nothing else: no
 community ecology.
 
-## Design (decided 2026-09-17, being implemented)
+## Design (decided 2026-09-17; inputs since OD 34)
 
 The full design, objective by objective, is in
 [`docs/objectives_design.md`](docs/objectives_design.md); the scoring in
@@ -19,25 +19,22 @@ The full design, objective by objective, is in
 | Axis | Values |
 |---|---|
 | Methods | `dada2`, `sintax`, `lca`, `blastn` |
-| Parameters | dada2 / sintax bootstrap ∈ {0.4, 0.5, 0.6}; lca `lca_cutoff` ∈ {0.8, 0.9, 1}; blastn vote (relative, absolute majority, unanimity) × `min_id` ∈ {90, 92, 95, 97} — derived from one computation per method × database × input |
+| Parameters | dada2 / sintax bootstrap ∈ {0.4, 0.5, 0.6}; lca `lca_cutoff` ∈ {0.51, 0.8, 1}; blastn vote (relative, absolute majority, unanimity) × `min_id` ∈ {90, 92, 95, 97} — derived from one computation per method × database × input |
 | Databases | EUKARYOME ITS v2.1, UNITE 19.02.2025 without singletons, UNITE with singletons × {all, Fungi only, Fungi + 5 % non-fungal representatives} = 9 databases |
-| Inputs | ASVs; 97 % OTUs (`d_vs`) assigned directly; ASVs trimmed with ITSx to the amplicon's ITS region (ITS1 for Pauvert, full ITS for Tedersoo; Fungi databases only) — 96 computations per dataset |
+| Inputs | ITSx inputs only (OD 34): each ITS region of the dataset's amplicon (`config.R::bio_datasets`) × ASVs and their 97 % OTUs; grid sizes per project in [`ETAT.md`](ETAT.md) |
 | Negative controls | shuffled sequences (`fake_`) and 100 non-fungal sequences (`external_`) added to every input |
-| Datasets | mock communities of Pauvert et al. 2019 (ITS1) and Tedersoo et al. 2026 (full ITS), scored per unit against the Sanger sequence of each strain as in Hleap et al. 2021; cross-validation (database subset to choose); in silico reads (InSilicoSeq); biological datasets read through their share of unassigned sequences and controls |
-| Cost | wall time, peak memory and CPU per computation (`autometric`), CO₂eq (`greenAlgoR`) |
+| Datasets | mock communities of Pauvert et al. 2019 (ITS1), Tedersoo et al. 2026 (full ITS) and Rolling et al. 2022 (ITS1), scored per unit against the sequence of each strain as in Hleap et al. 2021; in silico reads (InSilicoSeq); biological datasets (air, wood) read through their share of unassigned sequences and controls; cross-validation parked (OD 28) |
+| Endpoints | F1 and PPV at Genus (OD 43); Species in its own section, by exact and near match (chapter 09) |
+| Cost | wall time, peak memory and CPU per computation, child processes included (`autometric`, `R/sample_tree.R`), CO₂eq (`greenAlgoR`) |
 
 Trimming the references to the amplicon (cutadapt) is left out of the grid and
 will be tried at the end on the best combinations, on the Pauvert mock only.
 Consensus voting across columns is compared with
 `comparpq::resolve_taxo_conflict()`.
 
-**Status.** Built: the nine databases, the three inputs (96 computations,
-504 assignment rows per dataset), the parameter sweeps, the per-unit truth of
-the mocks, the Hleap-style scoring and the chapters that read them — including
-the abundance-filter sweep. **No production run has been made on this grid
-yet**: the stored results and every figure come from the former seven-database
-design and must be regenerated. What is left is listed in `ROADMAP.md`
-section 0 (0.9 to 0.11).
+**Status.** What has run and what is left: [`ROADMAP.md`](ROADMAP.md); the
+dated counts (targets, outdated targets, units per input, tests):
+[`ETAT.md`](ETAT.md).
 
 ## Quick start
 
@@ -47,8 +44,10 @@ source("make_databases.R")
 download_reference_sources()   # general FASTA releases listed in config.R
 derive_all_variants()          # dada2 / sintax formats, Fungi, Fungi + rep and cut variants
 
-# Everything in order: databases, then the three production projects (hours)
+# Everything in order: databases, then every dataset (a day or more)
 source("make.R")
+# At night, per dataset (its DADA2 store, then its grid; log in logs/):
+#   Rscript run_bio_night.R pauvert korhonen_wood ... species
 
 # One project at a time (sourcing R/run_project.R runs nothing by itself)
 source("R/run_project.R")
@@ -56,9 +55,8 @@ run_project("assign_taxo")        # tar_make() + tar_prune() on that project
 
 # Smoke test on the mini_* databases (own stores, never overwrite production)
 run_project("assign_taxo_mini")
-run_project("cross_val_mini")     # lower the CV knobs of config.R first
 
-# Tests (twelve files, or one at a time with Rscript tests/test_<name>.R)
+# Tests (every file, or one at a time with Rscript tests/test_<name>.R)
 Rscript tests/run_all.R
 ```
 
@@ -108,23 +106,26 @@ smoke-test stores, with their own cache and figures.
 ## Layout
 
 ```
-_targets.yaml                 # named targets projects (dada2, assign_taxo, cross_val, *_mini, per-dataset pairs)
+_targets.yaml                 # named targets projects (dada2, assign_taxo, *_mini, per-dataset pairs, species)
 pipelines/dada2.R             # ASV pipeline (Pauvert mock) -> store_dada2
-pipelines/dada2_bio.R         # ASV pipeline of the other datasets -> store_dada2_<dataset>
-pipelines/assign_taxo.R       # methods x DBs x inputs in parallel -> store_assign_taxo
-pipelines/cross_val.R         # k-fold CV pipeline -> store_cross_val
-make.R                        # sourcing it runs DB derivation + the three production projects
-R/run_project.R               # run_project(name): tar_make() + tar_prune() on one project
-make_databases.R              # idempotent DB derivation (delegates to dbpq::)
-config.R                      # shared constants (primers, threads, db_list, seed, CV params)
-R/                            # load_pqverse, values_map, autometric helpers, combine, cross_val
-analysis/                     # Quarto project: 00_setup.R + chapters 01..06, sandbox/
+pipelines/dada2_bio.R         # ASV pipeline of the other fastq datasets -> store_dada2_<dataset>
+pipelines/load_bio.R          # published OTUs (air, wood) -> store_dada2_<dataset>
+pipelines/assign_taxo.R       # methods x DBs x ITSx inputs -> store_assign_taxo[_<dataset>]
+pipelines/species.R           # species by exact and near match -> store_species
+make.R                        # sourcing it runs DB derivation + every dataset's projects
+run_bio_night.R               # night runner: per dataset, its DADA2 store then its grid
+R/run_project.R               # run_project(), dataset_projects(), production_datasets()
+make_databases.R              # idempotent, atomic DB derivation (delegates to dbpq::)
+config.R                      # shared constants (primers, threads, pinned settings, databases, datasets)
+R/                            # helpers, one file per concern (see AGENTS.md)
+analysis/                     # Quarto project: 00_setup.R + chapters 01-05, 07-09, sandbox/
+logs/                         # run logs (not tracked)
 figures/                      # save_fig() output of the chapters (not tracked)
 tests/                        # Rscript-runnable testthat fixtures
 docs/                         # design documents, database procedure, external references
 tools/etat.R                  # writes the dated figures in front of ETAT.md
 reviews/                      # review documents (code review, critiques, dbpq proposals)
-Archives/                     # superseded scripts (kept for reference)
+Archives/                     # superseded code (cross-validation, pre-OD 34 sandbox; kept for reference)
 ```
 
 ## Dependencies

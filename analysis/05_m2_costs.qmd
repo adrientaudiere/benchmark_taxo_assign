@@ -56,18 +56,9 @@ s05 <- lapply(seq_len(nrow(views)), function(i) {
 s05_by_algo <- s05 |>
   group_by(view, algo) |>
   summarise(minutes = mean(wall_time_s) / 60, f1 = mean(values), .groups = "drop")
-s05_fast <- s05_by_algo |>
-  group_by(view) |>
-  slice_min(minutes, n = 1, with_ties = FALSE) |>
-  ungroup()
-s05_slow <- s05_by_algo |>
-  group_by(view) |>
-  slice_max(minutes, n = 1, with_ties = FALSE) |>
-  ungroup()
-s05_best <- s05_by_algo |>
-  group_by(view) |>
-  slice_max(f1, n = 1, with_ties = FALSE) |>
-  ungroup()
+s05_fast <- best_of(s05_by_algo, "algo", value = "minutes", best = min)
+s05_slow <- best_of(s05_by_algo, "algo", value = "minutes")
+s05_best <- best_of(s05_by_algo, "algo", value = "f1")
 s05_ratio <- s05_slow$minutes / s05_fast$minutes
 ```
 
@@ -144,17 +135,34 @@ view_tabs(res_all, views, function(res, v) {
 ## M2.2 — CO₂eq per assignment target
 
 Carbon footprint (gCO2eq) estimated via `greenAlgoR::ga_footprint()` from
-`wall_time_s`. Hardware parameters default to the machine's detected RAM and
-WORLD carbon intensity; `n_cores` is the thread count of the computation
-(`config.R::assign_threads`, per method).
+`wall_time_s`, WORLD carbon intensity; `n_cores` is the cores the computation
+really used, its CPU time (worker and children) over its wall time (blastn
+uses about one core whatever its threads; dada2 and lca about 4 of 6 in the
+smoke test), and `memory_ram` its
+measured peak memory, the R worker **and** vsearch / BLAST+ (`peak_tree_mb`,
+`R/sample_tree.R`). Without it `ga_footprint()` charges every computation
+the machine's whole RAM (62 GB, two thirds of the footprint of a one-thread
+job; code review §1.4). Computations logged before the process-tree sampler
+(before M2.4) have no such peak: their CO₂ is left empty.
 
 ```{r m2-2, results = "asis"}
-# CO2eq of every computation of a cost table. Targets shorter than the 1 s
-# autometric sampling interval have NA costs (e.g. sintax on mini_*
-# databases); ga_footprint() cannot take NA.
+# CO2eq of every computation of a cost table with a wall time and a
+# process-tree memory peak (ga_footprint() cannot take NA); the others get NA.
 add_co2 <- function(costs) {
+  # Stores logged before the process-tree sampler lack these columns.
+  for (col in c("wall_s", "cpu_self_s", "cpu_child_s", "peak_tree_mb")) {
+    if (!col %in% names(costs)) {
+      costs[[col]] <- NA_real_
+    }
+  }
+  costs <- costs |>
+    mutate(wall_time_s = coalesce(wall_s, wall_time_s)) |>
+    filter(!is.na(wall_time_s), !is.na(peak_tree_mb), !is.na(cpu_child_s))
+  if (nrow(costs) == 0) {
+    # ga_footprint() fails on empty input: no measured computation yet.
+    return(mutate(costs, co2eq_gCO2 = numeric()))
+  }
   costs |>
-    filter(!is.na(wall_time_s)) |>
     rowwise() |>
     mutate(
       co2eq_gCO2 = greenAlgoR::ga_footprint(
@@ -162,7 +170,8 @@ add_co2 <- function(costs) {
         # World-mean carbon intensity, stated explicitly so a changed package
         # default cannot silently change the figures (ROADMAP M2.5)
         location_code  = "WORLD",
-        n_cores        = assign_threads[[method]],
+        n_cores        = max(1, (cpu_self_s + cpu_child_s) / wall_time_s),
+        memory_ram     = peak_tree_mb / 1000,
         add_ref_values = FALSE
       )$carbon_footprint_total_gCO2
     ) |>
@@ -179,8 +188,8 @@ view_tabs(res_all, views, function(res, v) {
       by = c("method_db" = "phase")
     )
 
-  fig_m2_co2_species <- accuracy_vs_co2 |>
-    filter(tax_level == "Gen_sp", !is.na(co2eq_gCO2)) |>
+  fig_m2_co2_genus <- accuracy_vs_co2 |>
+    filter(tax_level == "Genus", !is.na(co2eq_gCO2)) |>
     ggplot(aes(x = co2eq_gCO2, y = values, color = algo)) +
     geom_point(size = 3, alpha = 0.85) +
     ggrepel::geom_label_repel(
@@ -188,12 +197,16 @@ view_tabs(res_all, views, function(res, v) {
     ) +
     labs(
       x = expression(CO[2]*"eq (gCO2)"),
-      y = "F1 score (Gen_sp rank)",
+      y = "F1 score (Genus)",
       color = "Method"
     ) +
     theme_bw()
-  print(fig_m2_co2_species)
-  save_fig(fig_m2_co2_species, paste0("fig_m2_co2_species_", v$id), width = 8, height = 6)
+  if (nrow(filter(accuracy_vs_co2, !is.na(co2eq_gCO2))) == 0) {
+    cat("No computation of this view has a process-tree memory peak yet (logged before M2.4): no CO₂ figure.\n\n")
+    return(invisible())
+  }
+  print(fig_m2_co2_genus)
+  save_fig(fig_m2_co2_genus, paste0("fig_m2_co2_genus_", v$id), width = 8, height = 6)
 
   fig_m2_co2_allranks <- accuracy_vs_co2 |>
     filter(!is.na(co2eq_gCO2)) |>
@@ -238,4 +251,8 @@ for (i in seq_len(nrow(analysis_datasets))) {
   }
 }
 cat(":::\n\n")
+```
+
+```{r versions-footer, results = "asis", echo = FALSE}
+versions_footer()
 ```

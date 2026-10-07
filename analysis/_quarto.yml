@@ -13,6 +13,8 @@ project:
     # in_silico first: 07_q4_its_region.qmd reads the res_insilico cache it writes.
     - "in_silico_simulation.qmd"
     - "0*.qmd"
+    # Chapter 06 (cross-validation, parked by OD 28) is in
+    # Archives/cross_val/ since 2026-10-07 (code review §4.3, §8).
 
 execute:
   # No freeze: chapters exchange data through analysis/_cache/ and switch

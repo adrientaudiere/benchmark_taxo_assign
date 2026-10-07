@@ -9,7 +9,7 @@
 #
 # To run a single project, do not source this file; instead:
 #   source("R/run_project.R")
-#   run_project("assign_taxo_mini"); run_project("cross_val_mini")
+#   run_project("assign_taxo_mini")
 
 source("R/run_project.R")
 

@@ -38,8 +38,9 @@ clean_taxo <- function(physeq) {
 
 # Assignment labels of a tax_table read with tidypq::tax_table_to_df(): the
 # column names without their rank prefix, reference ranks, the `Taxa_name_*`
-# columns and the ITSx origin of the unit (`ITSx_origin`, written by
-# MiscMetabar::itsx_pq(), OD 34) excluded.
+# columns and the ITSx columns of the unit (`ITSx_origin` and, since
+# 2026-10-07, `ITSx_detected`, written by MiscMetabar::itsx_pq(), OD 34)
+# excluded.
 assignment_labels <- function(taxtab_df) {
   labels <- gsub(
     "Kingdom|Phylum|Phyla|Class|Order|Family|Genus|Species",
@@ -53,7 +54,7 @@ assignment_labels <- function(taxtab_df) {
     stats::na.omit() |>
     as.vector()
   labels <- grep("Taxa_name_", labels, invert = TRUE, value = TRUE)
-  setdiff(labels, "ITSx_origin")
+  setdiff(labels, c("ITSx_origin", "ITSx_detected"))
 }
 
 # Species when it already carries the genus (Genus_species), else

@@ -94,13 +94,14 @@ test_that("build_ranks_df() maps ranks to columns and guards missing ones", {
   expect_equal(names(rdf), "m__db")
 })
 
-test_that("assignment_labels() ignores the ITSx origin column", {
+test_that("assignment_labels() ignores the ITSx columns", {
   df <- data.frame(
     taxon = "t1",
     Kingdom = "Fungi",
     Genus_m__db = "Alpha",
     Species_m__db = "Alpha_one",
-    ITSx_origin = "Fungi"
+    ITSx_origin = "Fungi",
+    ITSx_detected = "TRUE"
   )
   expect_equal(assignment_labels(df), "m__db")
 })

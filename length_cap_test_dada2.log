@@ -1,6 +1,0 @@
-config.R: mini_db = FALSE (full databases)
-here() starts at /home/adrien/Nextcloud/IdEst/Projets/pqverse/arround_MiscMetabar/benchmar_assign_taxo
-config.R: mini_db = FALSE (full databases)
-queries: 97 Pauvert ITS1 ASV fakes, 118 Tedersoo full-ITS ASV fakes
-dada2 x uncapped: 17.9 min
-dada2 x capped: 20.3 min

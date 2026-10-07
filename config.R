@@ -1,5 +1,5 @@
 # Shared constants for the benchmark pipelines. Sourced by pipelines/dada2.R,
-# pipelines/assign_taxo.R, pipelines/cross_val.R, make_databases.R and the
+# pipelines/assign_taxo.R, make_databases.R and the
 # analysis notebooks.
 
 # ITS-1F (Gardes & Bruns 1993) / ITS2 (White 1990), per Pauvert et al. 2018.
@@ -280,8 +280,8 @@ cut_discard_untrimmed <- FALSE
 cut_min_length <- 50L
 
 # ITS extraction of the ASVs with ITSx (ROADMAP Q4). ITSx 1.1.3 lives in the
-# `itsxenv` conda env (bioconda). Only ITS1 is kept (the ASVs start with 45 bp
-# of 18S and end in the 5.8S). ITSx only trims the flanking regions here, it is
+# `itsxenv` conda env (bioconda). The regions kept are per dataset (below; for
+# Pauvert ITS1: its ASVs start with 45 bp of 18S and end in the 5.8S). ITSx only trims the flanking regions here, it is
 # not used as a Fungi filter: "all" uses every organism profile so non-fungal
 # ASVs are trimmed too, and undetected ASVs keep their full sequence.
 itsx_conda_prelude <-

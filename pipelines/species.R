@@ -13,10 +13,11 @@
 #                           --maxaccepts 0 --maxrejects 32 on sintax_format/
 #     species_vsearch_near_<db>  vsearch candidates at --id 0.9 --query_cov
 #                           0.9, kept with at most one difference over the
-#                           query or a 90 % exact stretch (near matches,
+#                           query, or 100 % over >= 90 % of it with the record
+#                           stopping early (near matches,
 #                           developer 2026-10-07)
 #     species_blastn_<db>   blastn's own search (megablast, >= 90 % identity
-#                           over >= 89 % of the query, 10 000 records per
+#                           over >= 89 % of the query, 2 000 records per
 #                           query), same pairs kept; its exact match is the
 #                           pairs with no difference. The grid's blastn tables
 #                           were used before 2026-10-07 (500 hits per query,

@@ -25,12 +25,13 @@ species_status_levels <- c(
 
 # Match levels of the near-match hits (R/species_exact.R, near_hit_columns()),
 # each with the tag of its scored column: "exact" (no difference over the
-# query), "1 difference" (at most one), "90 % exact" (a stretch of at least
-# 90 % of the query found exactly in the record; developer 2026-10-07).
+# query), "1 difference" (at most one), "90 % covered" (100 % identity over at
+# least 90 % of the query, the rest beyond an end of the record: the record
+# stops early; developer 2026-10-07).
 match_tags <- c(
   "exact" = "exact",
   "1 difference" = "diff1",
-  "90 % exact" = "cover90"
+  "90 % covered" = "cover90"
 )
 
 # The hits of `hits` (with `diffs` and `exact_cover`) at one match level.
@@ -39,7 +40,7 @@ hits_at <- function(hits, match) {
     match,
     "exact" = hits[hits$diffs == 0, ],
     "1 difference" = hits[hits$diffs <= 1, ],
-    "90 % exact" = hits[hits$exact_cover, ],
+    "90 % covered" = hits[hits$exact_cover, ],
     stop("Unknown match level: ", match)
   )
 }

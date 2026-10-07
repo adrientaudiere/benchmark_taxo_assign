@@ -33,14 +33,9 @@ s02_by_algo <- s02_f1 |>
   group_by(view, tax_level, algo) |>
   summarise(value = mean(values), lo = min(values), hi = max(values), .groups = "drop")
 s02_genus <- filter(s02_by_algo, tax_level == "Genus")
-s02_gensp <- filter(s02_by_algo, tax_level == "Gen_sp")
 s02_spread <- s02_genus |>
   group_by(view) |>
   summarise(spread = max(value) - min(value), .groups = "drop")
-s02_worst_gensp <- s02_gensp |>
-  group_by(view) |>
-  slice_min(value, n = 1, with_ties = FALSE) |>
-  ungroup()
 s02_boot <- s02_rows |>
   filter(metrics == "F1_score", tax_level == "Genus", algo %in% c("dada2", "sintax")) |>
   group_by(view, algo, bootstrap_num) |>
@@ -50,9 +45,6 @@ s02_boot <- s02_rows |>
     delta = value[bootstrap_num == 0.6] - value[bootstrap_num == 0.4],
     .groups = "drop"
   )
-s02_spread_gensp <- s02_gensp |>
-  group_by(view) |>
-  summarise(spread = max(value) - min(value), .groups = "drop")
 # Words that follow the numbers, so that no adjective outlives the data.
 s02_boot_word <- if (max(abs(s02_boot$delta)) < 0.03) {
   "at most 0.03 either way: the default 0.5 is not a sensitive choice"
@@ -66,11 +58,8 @@ value per view (`r paste(views$label, collapse = ", ")`).
 
 - **Genus**: the best method is `r best_phrase(s02_genus, "algo")`; best
   minus worst method `r fmt_range(s02_spread$spread)` per view.
-- **Species (Gen_sp)**: the best method is
-  `r best_phrase(s02_gensp, "algo")`; best minus worst method
-  `r fmt_range(s02_spread_gensp$spread)` per view. The lowest is `r paste(unique(s02_worst_gensp$algo), collapse = " / ")`
-  (`r fmt_range(s02_worst_gensp$value)`), a level not explained yet (to check
-  before reading it as a property of the method).
+- **Species** is no longer a primary endpoint here (OD 43): it is read by
+  exact and near match in chapter 09; the `Gen_sp` rows below are secondary.
 - **Bootstrap** (dada2, sintax): raising `min_bootstrap` from 0.4 to 0.6
   changes the Genus F1 by `r fmt_range(s02_boot$delta[s02_boot$algo == "dada2"])`
   for dada2 and `r fmt_range(s02_boot$delta[s02_boot$algo == "sintax"])` for
@@ -79,7 +68,8 @@ value per view (`r paste(views$label, collapse = ", ")`).
 ```{r summary-fig}
 #| echo: false
 fig_summary_02_f1_by_rank <- s02_by_algo |>
-  mutate(tax_level = factor(tax_level, levels = tax_order)) |>
+  filter(tax_level != "Gen_sp") |>
+  mutate(tax_level = factor(tax_level, levels = setdiff(tax_order, "Gen_sp"))) |>
   ggplot(aes(x = tax_level, y = value, colour = algo, group = algo)) +
   geom_linerange(aes(ymin = lo, ymax = hi), position = position_dodge(width = 0.5), alpha = 0.5) +
   geom_point(position = position_dodge(width = 0.5), size = 2) +
@@ -194,19 +184,24 @@ view_tabs(res_all, views, function(res, v) {
     filter(metrics == "F1_score") |>
     filter_default_settings() |>
     group_by(tax_level, db) |>
-    slice_max(values, n = 1, with_ties = FALSE) |>
+    # A win shared by n tied methods counts 1 / n for each (code review §4.1).
+    filter(values == max(values)) |>
+    mutate(share = 1 / n()) |>
     ungroup() |>
-    count(tax_level, algo, name = "n_wins") |>
+    count(tax_level, algo, wt = share, name = "n_wins") |>
     pivot_wider(
       names_from  = algo,
       values_from = n_wins,
-      values_fill = 0L
+      values_fill = 0
     ) |>
-    mutate(tax_level = factor(tax_level, levels = tax_order)) |>
+    mutate(
+      tax_level = factor(tax_level, levels = tax_order),
+      across(-tax_level, \(x) round(x, 2))
+    ) |>
     arrange(tax_level)
   cat_kable(
     win_matrix_tbl,
-    caption = "Win matrix: number of DBs where each method achieves highest F1 per rank (bootstrap = 0.5)"
+    caption = "Win matrix: number of DBs where each method achieves highest F1 per rank (bootstrap = 0.5); a win shared by n methods counts 1/n"
   )
 })
 ```
@@ -261,4 +256,8 @@ view_tabs(res_all, views, function(res, v) {
     caption = "LRT: F1 ~ method + (1|db) vs. null (1|db) per rank. *** p<0.001, ** p<0.01, * p<0.05."
   )
 })
+```
+
+```{r versions-footer, results = "asis", echo = FALSE}
+versions_footer()
 ```

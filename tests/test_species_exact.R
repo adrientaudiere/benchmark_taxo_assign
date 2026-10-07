@@ -77,21 +77,31 @@ test_that("query_diffs() counts differences over the whole query", {
   expect_equal(out, c(0L, 1L, 1L, 2L))
 })
 
-test_that("exact_cover() looks for a stretch of min_cover of the query", {
+test_that("exact_cover() accepts a record that stops early, not one that differs", {
   q <- rand_seq(100)
+  other_tail <- paste(
+    ifelse(strsplit(substr(q, 96, 100), "")[[1]] == "A", "C", "A"),
+    collapse = ""
+  )
+  records <- c(
+    substr(q, 5, 100), # starts after the query: 96 % covered
+    substr(q, 15, 100), # 86 % covered
+    paste0("A", q, "A"), # holds the query
+    paste0(substr(q, 1, 95), other_tail, rand_seq(20)), # last 5 bases differ
+    paste0(rand_seq(20), substr(q, 1, 92)), # ends before the query: 92 %
+    substr(q, 4, 97) # inside the query: 94 %
+  )
   expect_equal(
-    exact_cover(
-      rep(q, 3),
-      c(substr(q, 5, 100), substr(q, 15, 100), paste0("A", q)),
-      min_cover = 0.9
-    ),
-    c(TRUE, FALSE, TRUE)
+    exact_cover(rep(q, 6), records, min_cover = 0.9),
+    c(TRUE, FALSE, TRUE, FALSE, TRUE, TRUE)
   )
 })
 
-# Five records around one 200 bp query: r1 holds it, r2 with one mismatch,
-# r3 with three, r4 ends after its first 185 bases (a 92.5 % exact stretch),
-# r5 with an N.
+# Six records around one 200 bp query: r1 holds it, r2 with one mismatch,
+# r3 with three, r4 ends after its first 185 bases (92.5 % covered at 100 %),
+# r5 with an N, r6 holds it under a header ending in "." (BLAST+ drops that
+# dot from its ids) and names no species, r7 holds its first 185 bases then
+# different ones (not a near match: the record does not stop early).
 near_db <- function() {
   q <- rand_seq(200)
   swap <- function(x, at) {
@@ -114,19 +124,23 @@ near_db <- function() {
       ">r4 with space;tax=k:Fungi,g:Genus,s:Genus_four",
       paste0(rand_seq(100), substr(q, 1, 185)),
       ">r5;tax=k:Fungi,g:Genus,s:Genus_five",
-      paste0(rand_seq(100), with_n, rand_seq(100))
+      paste0(rand_seq(100), with_n, rand_seq(100)),
+      ">r6;tax=k:Fungi,g:Genus,s:sp.nov.inval.",
+      paste0(rand_seq(50), q, rand_seq(50)),
+      ">r7;tax=k:Fungi,g:Genus,s:Genus_seven",
+      paste0(rand_seq(100), swap(q, 186:200), rand_seq(100))
     ),
     db
   )
   list(seqs = Biostrings::DNAStringSet(c(q1 = q)), db = db)
 }
 near_expected <- tibble::tibble(
-  binomial = c("Genus_one", "Genus_two", "Genus_four", "Genus_five"),
-  diffs = c(0L, 1L, 15L, 1L),
-  exact_cover = c(TRUE, FALSE, TRUE, FALSE)
+  binomial = c("Genus_one", "Genus_two", "Genus_four", "Genus_five", NA),
+  diffs = c(0L, 1L, 15L, 1L, 0L),
+  exact_cover = c(TRUE, FALSE, TRUE, FALSE, TRUE)
 )
 
-test_that("vsearch_near_hits() keeps one difference or a 90 % exact stretch", {
+test_that("vsearch_near_hits() keeps one difference or 90 % covered at 100 %", {
   skip_if_not(dbpq::is_vsearch_installed())
   x <- near_db()
   hits <- vsearch_near_hits(x$seqs, x$db)
@@ -140,7 +154,7 @@ test_that("blastn_near_hits() gives the same pairs from its own search", {
   hits <- blastn_near_hits(x$seqs, x$db)
   hits <- hits[order(match(hits$binomial, near_expected$binomial)), ]
   expect_equal(hits[, names(near_expected)], near_expected)
-  expect_true(all(hits$n_targets == 5L))
+  expect_true(all(hits$n_targets >= 6L))
 })
 
 test_that("vsearch_exact_hits() finds contained queries, not ambiguous ones", {

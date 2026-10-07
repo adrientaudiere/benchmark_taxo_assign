@@ -1176,14 +1176,16 @@ The developer's answers, verbatim after **>>**, with what each changes.
     species layer reads two relaxations with vsearch and blastn
     (`assignSpecies()` has none): **at most one difference** over the whole
     query (a substitution, an indel, an ambiguity code of the record, or a
-    query base beyond the end of the record), and **a stretch of at least
-    90 % of the query found exactly** in the record. The question is whether
+    query base beyond the end of the record), and **100 % identity over at
+    least 90 % of the query, the record stopping early** (the rest of the
+    query lies beyond an end of the record, not against different bases;
+    developer's precision, 2026-10-07). The question is whether
     F1 rises much once the match is loosened. Each search only proposes
     (query, record) pairs (vsearch `--id 0.9 --query_cov 0.9`, blastn
     megablast at ≥ 90 % identity over ≥ 89 % of the query); whether a pair
     passes is decided from the two sequences, the same way for both methods
     (`R/species_exact.R`, `near_hit_columns()`). The call rule is the one
-    above, at each match level. blastn runs its own search, up to 10 000
+    above, at each match level. blastn runs its own search, up to 2 000
     records per query, instead of reading the grid's tables (500 hits, no
     alignment coordinates); its exact match is the pairs with no difference.
     → `ROADMAP.md` §2, `HISTORY.md` §3d
