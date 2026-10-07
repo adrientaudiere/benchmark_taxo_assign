@@ -1,7 +1,9 @@
 # Reproducible download and derivation of every reference database the
 # benchmark consumes. Full documentation: docs/reference_databases.md.
 #
-# Two idempotent steps (existing outputs are kept unless force = TRUE):
+# Two idempotent steps (existing outputs are kept unless force = TRUE; an
+# output older than one of its inputs is reported as stale, not rebuilt, so
+# that a database file the stores hash never changes behind their back):
 #
 #   1. download_reference_sources()
 #      Fetches the general FASTA release of every row of `reference_sources`
@@ -31,40 +33,73 @@
 #
 # derive_clustered() and derive_no_parens() were deleted on 2026-09-22
 # (ROADMAP C22-S2): both were defined but never called. Why, and what to do if
-# a clustered reference ever returns to the design: proposals_for_dbpq.md
+# a clustered reference ever returns to the design: reviews/proposals_for_dbpq.md
 # sections 3 and 5.
 
 library("here")
 here::i_am("make_databases.R")
 source(here("config.R"))
 source(here("R/load_pqverse.R"))
+source(here("R/species_exact.R"))
 load_pqverse("dbpq")
 
 refseq_dir <- here("data/data_raw/refseq")
 sources_dir <- file.path(refseq_dir, "sources")
 dada2_dir <- file.path(refseq_dir, "dada2_format")
 sintax_dir <- file.path(refseq_dir, "sintax_format")
+species_dir <- file.path(refseq_dir, "species_format")
 
 # ---- helpers ----------------------------------------------------------------
 
-# Returns TRUE (skip) when output already exists AND force is FALSE.
-# When force is TRUE and the file exists, removes it and returns FALSE so the
-# caller rebuilds.
-skip_if_exists <- function(output, label = NULL, force = FALSE) {
-  if (force && file.exists(output)) {
-    file.remove(output)
+# Returns TRUE (skip) when output already exists AND force is FALSE; FALSE
+# when it must be built. With force = TRUE the old file stays until the new
+# one replaces it (atomic_output()), so a failed rebuild keeps the good copy.
+# An existing output older than one of its `inputs` gets a warning: a rule or
+# an input changed since it was built (code review §1.6). It is not rebuilt
+# on its own, because the assignment stores hash these files and a rebuild
+# would rerun them: check, then rebuild with force = TRUE.
+skip_if_exists <- function(output, label = NULL, force = FALSE, inputs = NULL) {
+  if (force || !file.exists(output)) {
     return(FALSE)
   }
-  if (file.exists(output)) {
-    msg <- if (is.null(label)) {
-      sprintf("- %s already exists; skipping", output)
-    } else {
-      sprintf("- %s: %s already exists; skipping", label, output)
-    }
-    message(msg)
-    return(TRUE)
+  where <- if (is.null(label)) output else sprintf("%s: %s", label, output)
+  inputs <- as.character(inputs)
+  newer <- inputs[
+    file.exists(inputs) & file.mtime(inputs) > file.mtime(output)
+  ]
+  if (length(newer) > 0) {
+    warning(
+      "STALE ",
+      where,
+      " is older than ",
+      paste(basename(newer), collapse = ", "),
+      "; kept. Rebuild with force = TRUE if a rule changed.",
+      call. = FALSE
+    )
+  } else {
+    message(sprintf("- %s already exists; skipping", where))
   }
-  FALSE
+  TRUE
+}
+
+# Runs `write_fun(part)`, which writes the file `part`, then renames `part` to
+# `output`: an interrupted run leaves no partial `output` for the next run to
+# take for a finished one, and the old `output` stays until the new one is
+# complete. The part file keeps the extension of `output` (some writers check
+# it). Returns the normalised `output`.
+atomic_output <- function(output, write_fun) {
+  dir.create(dirname(output), showWarnings = FALSE, recursive = TRUE)
+  part <- sub("(\\.[^.]+)$", ".part\\1", output)
+  unlink(part)
+  on.exit(unlink(part), add = TRUE)
+  write_fun(part)
+  if (!file.exists(part)) {
+    stop("atomic_output(): nothing written for ", output)
+  }
+  if (!file.rename(part, output)) {
+    stop("atomic_output(): could not move ", part, " to ", output)
+  }
+  normalizePath(output)
 }
 
 run_bash <- function(cmd) {
@@ -76,10 +111,11 @@ run_bash <- function(cmd) {
 }
 
 # Path of the reference file `name` (a source or a benchmarked database) in
-# the general (downloaded), dada2 or sintax header format. Vectorised on name.
+# the general (downloaded), dada2, sintax or species (dada2::assignSpecies())
+# header format. Vectorised on name.
 refseq_path <- function(
   name,
-  format = c("dada2", "sintax", "general"),
+  format = c("dada2", "sintax", "general", "species"),
   mini = FALSE
 ) {
   format <- match.arg(format)
@@ -87,7 +123,8 @@ refseq_path <- function(
     format,
     dada2 = dada2_dir,
     sintax = sintax_dir,
-    general = sources_dir
+    general = sources_dir,
+    species = species_dir
   )
   file.path(dir, paste0(if (mini) "mini_" else "", name, ".fasta"))
 }
@@ -250,34 +287,66 @@ general_headers_fixed <- function(input, tmpdir = tempdir()) {
 # The rewritten copy is written next to the output: the EUKARYOME ITS release
 # (1.5 GB) may not fit a RAM-backed tempdir().
 derive_sintax <- function(input, output, input_format = "auto", force = FALSE) {
-  if (skip_if_exists(output, "sintax", force = force)) {
+  if (skip_if_exists(output, "sintax", force = force, inputs = input)) {
     return(normalizePath(output))
   }
   dir.create(dirname(output), showWarnings = FALSE, recursive = TRUE)
   source_file <- general_headers_fixed(input, tmpdir = dirname(output))
   on.exit(unlink(source_file), add = TRUE)
-  dbpq::format2sintax(
-    fasta_db = source_file,
-    input_format = input_format,
-    output_path = output
-  )
-  normalizePath(output)
+  atomic_output(output, function(part) {
+    dbpq::format2sintax(
+      fasta_db = source_file,
+      input_format = input_format,
+      output_path = part
+    )
+  })
 }
 
 # General FASTA -> dada2 pure-rank headers (">Fungi;Ascomycota;...;") expected
 # by dada2::assignTaxonomy().
 derive_dada2 <- function(input, output, input_format = "auto", force = FALSE) {
-  if (skip_if_exists(output, "dada2", force = force)) {
+  if (skip_if_exists(output, "dada2", force = force, inputs = input)) {
     return(normalizePath(output))
   }
   dir.create(dirname(output), showWarnings = FALSE, recursive = TRUE)
   source_file <- general_headers_fixed(input, tmpdir = dirname(output))
   on.exit(unlink(source_file), add = TRUE)
-  dbpq::format2dada2(
-    fasta_db = source_file,
-    input_format = input_format,
-    output_path = output
+  atomic_output(output, function(part) {
+    dbpq::format2dada2(
+      fasta_db = source_file,
+      input_format = input_format,
+      output_path = part
+    )
+  })
+}
+
+# Sintax headers -> the ">ID Genus epithet" headers of dada2::assignSpecies(),
+# which keeps a record only when it names a species
+# (R/species_exact.R::binomial_of_sintax_header(), shared with the vsearch and
+# blastn hits of the species section). Derived from the sintax file of a
+# database, so it inherits its simplification and its record-length cap.
+derive_species <- function(input, output, force = FALSE) {
+  if (skip_if_exists(output, "species", force = force, inputs = input)) {
+    return(normalizePath(output))
+  }
+  ref <- Biostrings::readDNAStringSet(input)
+  headers <- names(ref)
+  binomial <- binomial_of_sintax_header(headers)
+  keep <- !is.na(binomial)
+  ref <- ref[keep]
+  names(ref) <- paste(
+    sub(";tax=.*$", "", headers[keep]),
+    sub("_", " ", binomial[keep])
   )
+  atomic_output(output, \(part) {
+    Biostrings::writeXStringSet(ref, part, width = 20000)
+  })
+  message(sprintf(
+    "- species: %s (%d of %d records name a species)",
+    output,
+    sum(keep),
+    length(keep)
+  ))
   normalizePath(output)
 }
 
@@ -310,23 +379,38 @@ derive_kingdom_only <- function(
   force = FALSE
 ) {
   format <- match.arg(format)
-  if (skip_if_exists(output, paste0(kingdom, "_only"), force = force)) {
+  if (
+    skip_if_exists(
+      output,
+      paste0(kingdom, "_only"),
+      force = force,
+      inputs = input
+    )
+  ) {
     return(normalizePath(output))
   }
-  dbpq::filter_db(
-    ref_fasta = input,
-    pattern = kingdom_pattern(format, kingdom),
-    output = output,
-    force_two_lines_per_seq = TRUE
-  )
-  normalizePath(output)
+  atomic_output(output, function(part) {
+    dbpq::filter_db(
+      ref_fasta = input,
+      pattern = kingdom_pattern(format, kingdom),
+      output = part,
+      force_two_lines_per_seq = TRUE
+    )
+  })
 }
 
 # Inverse pattern (remove records whose header matches `pattern`, an awk
 # regular expression). No dbpq equivalent yet — proposal in
-# proposals_for_dbpq.md.
+# reviews/proposals_for_dbpq.md.
 derive_no_pattern <- function(input, output, pattern = "Fungi", force = FALSE) {
-  if (skip_if_exists(output, paste0("no_", pattern), force = force)) {
+  if (
+    skip_if_exists(
+      output,
+      paste0("no_", pattern),
+      force = force,
+      inputs = input
+    )
+  ) {
     return(normalizePath(output))
   }
   tmp_2line <- tempfile(fileext = ".fasta")
@@ -338,30 +422,57 @@ derive_no_pattern <- function(input, output, pattern = "Fungi", force = FALSE) {
     shQuote(tmp_2line)
   ))
   # Print only records whose header does NOT match pattern.
-  run_bash(sprintf(
-    "awk '/^>/{keep=!/%s/} keep{print}' %s > %s",
-    pattern,
-    shQuote(tmp_2line),
-    shQuote(output)
-  ))
-  normalizePath(output)
+  atomic_output(output, function(part) {
+    run_bash(sprintf(
+      "awk '/^>/{keep=!/%s/} keep{print}' %s > %s",
+      pattern,
+      shQuote(tmp_2line),
+      shQuote(part)
+    ))
+  })
+}
+
+# Drop, in place, the records of `fasta` longer than `max_length` (OD 32).
+# Idempotent: a file with no such record is left untouched, so rerunning
+# derive_all_variants() costs one read. Returns the number of records dropped.
+cap_record_length <- function(fasta, max_length) {
+  index <- Biostrings::fasta.index(fasta)
+  too_long <- index$seqlength > max_length
+  if (!any(too_long)) {
+    return(invisible(0L))
+  }
+  kept <- Biostrings::readBStringSet(index[!too_long, ])
+  atomic_output(fasta, \(part) {
+    Biostrings::writeXStringSet(kept, part, width = 20000)
+  })
+  message(
+    "- cap: ",
+    basename(fasta),
+    ": ",
+    sum(too_long),
+    " records over ",
+    max_length,
+    " bp dropped"
+  )
+  invisible(sum(too_long))
 }
 
 # ---- subsetting ------------------------------------------------------------
 
 # First `n` records as a quick smoke-test subset.
-# (No dbpq equivalent yet — proposal in proposals_for_dbpq.md.)
+# (No dbpq equivalent yet — proposal in reviews/proposals_for_dbpq.md.)
 derive_mini <- function(input, output, n = 10000, force = FALSE) {
-  if (skip_if_exists(output, "mini", force = force)) {
+  if (skip_if_exists(output, "mini", force = force, inputs = input)) {
     return(normalizePath(output))
   }
-  run_bash(sprintf(
-    "awk '/^>/{count++} count > %d {exit} {print}' %s > %s",
-    n,
-    shQuote(input),
-    shQuote(output)
-  ))
-  normalizePath(output)
+  atomic_output(output, function(part) {
+    run_bash(sprintf(
+      "awk '/^>/{count++} count > %d {exit} {print}' %s > %s",
+      n,
+      shQuote(input),
+      shQuote(part)
+    ))
+  })
 }
 
 # Cutadapt-trim every record to the region between the primers (produces the
@@ -379,19 +490,20 @@ derive_cutadapted <- function(
   force = FALSE,
   ...
 ) {
-  if (skip_if_exists(output, "cutadapted", force = force)) {
+  if (skip_if_exists(output, "cutadapted", force = force, inputs = input)) {
     return(normalizePath(output))
   }
-  dbpq::cutadapt_rm_primers_db(
-    ref_fasta = input,
-    output = output,
-    primer_fw = primer_fw,
-    primer_rev = primer_rev,
-    discard_untrimmed = discard_untrimmed,
-    return_file_path = TRUE,
-    ...
-  )
-  normalizePath(output)
+  atomic_output(output, function(part) {
+    dbpq::cutadapt_rm_primers_db(
+      ref_fasta = input,
+      output = part,
+      primer_fw = primer_fw,
+      primer_rev = primer_rev,
+      discard_untrimmed = discard_untrimmed,
+      return_file_path = TRUE,
+      ...
+    )
+  })
 }
 
 # ---- fake reference set ----------------------------------------------------
@@ -439,7 +551,7 @@ external_control_kingdoms <- function(min_records = rep_kingdom_min_records) {
 # records. `kingdoms`, when given, restricts the pool to those kingdoms first.
 # Used by add_external_seq_pq() in pipelines/assign_taxo.R to inject
 # negative-control taxa. (Proposal `subset_balanced_db()` in
-# proposals_for_dbpq.md.)
+# reviews/proposals_for_dbpq.md.)
 derive_fake_ref <- function(
   input,
   output,
@@ -448,7 +560,7 @@ derive_fake_ref <- function(
   kingdoms = NULL,
   force = FALSE
 ) {
-  if (skip_if_exists(output, "fake_ref", force = force)) {
+  if (skip_if_exists(output, "fake_ref", force = force, inputs = input)) {
     return(normalizePath(output))
   }
   set.seed(seed)
@@ -462,22 +574,33 @@ derive_fake_ref <- function(
   }
   phyla <- stringr::str_match(names(seqs), "p__\\s*(.*?)\\s*;c__")[, 2]
 
+  # Index into the phylum's records rather than sample() on them: for a phylum
+  # with a single record at position k, sample(k, 1) draws from 1:k, so the 8
+  # single-record phyla of the 2026-09-17 file were never drawn (65 of 73
+  # phyla; code review §1.2, OD 39).
   one_per_phylum <- vapply(
     unique(phyla),
-    function(p) sample(which(phyla == p), 1),
+    function(p) {
+      idx <- which(phyla == p)
+      idx[sample.int(length(idx), 1L)]
+    },
     integer(1)
   )
 
   remaining <- setdiff(seq_along(seqs), one_per_phylum)
   # sample.int() rather than sample(): a length-one `remaining` would otherwise
   # be read as 1:remaining, and n larger than the pool would error.
-  n_topup <- min(length(remaining), max(0, n - length(one_per_phylum)))
+  n_topup <- min(
+    length(remaining),
+    max(0, n - length(unique(one_per_phylum)))
+  )
   topup <- remaining[sample.int(length(remaining), n_topup)]
   picks <- unique(c(one_per_phylum, topup))
 
-  dir.create(dirname(output), showWarnings = FALSE, recursive = TRUE)
-  Biostrings::writeXStringSet(seqs[picks], output, width = 10000)
-  normalizePath(output)
+  atomic_output(
+    output,
+    \(part) Biostrings::writeXStringSet(seqs[picks], part, width = 10000)
+  )
 }
 
 # ---- fungi + rep databases -------------------------------------------------
@@ -546,6 +669,7 @@ records_near_external <- function(index, external_fasta, max_identity) {
       shQuote(hits_file),
       "--threads",
       "4",
+      "--notrunclabels",
       "--quiet"
     ),
     stdout = FALSE,
@@ -584,6 +708,7 @@ derive_fungi_rep <- function(
   aliases = kingdom_aliases,
   external_fasta = here(fake_ref_fasta),
   max_identity_to_external = rep_max_identity_to_external,
+  max_length = max_record_length[source],
   seed = targets_seed,
   mini_n = 10000L,
   force = FALSE
@@ -627,6 +752,11 @@ derive_fungi_rep <- function(
   aliased[has_alias] <- aliases[aliased[has_alias]]
   kingdoms <- retained_kingdoms(c(table(aliased)), min_records, exclude)
   candidate <- which(aliased %in% kingdoms)
+  # The representatives obey the same length cap as the `_Fungi` records they
+  # join (OD 32); NA means no cap for this source.
+  if (!is.na(max_length)) {
+    candidate <- candidate[index$sintax$seqlength[candidate] <= max_length]
+  }
 
   external <- toupper(as.character(Biostrings::readBStringSet(external_fasta)))
   same_length <- candidate[
@@ -710,8 +840,9 @@ derive_fungi_rep <- function(
 # ---- orchestration ---------------------------------------------------------
 
 # Step 2: build every file the pipelines read, from the general FASTA files of
-# step 1. Idempotent; rerunning after a failure resumes where it stopped.
-# force = TRUE deletes and rebuilds each derived file.
+# step 1. Idempotent; rerunning after a failure resumes where it stopped
+# (each file is written atomically). Stale files are reported, not rebuilt
+# (skip_if_exists()); force = TRUE rebuilds each derived file.
 derive_all_variants <- function(
   force = FALSE,
   sources = reference_sources,
@@ -742,6 +873,17 @@ derive_all_variants <- function(
     )
   }
 
+  # 2a-bis. Record-length cap on the whole releases too (OD 35, developer
+  # 2026-10-01; OD 32 capped the Fungi variants only). Once dada2's overflow
+  # was fixed, the 32 759 bp plant mitochondrial genomes of the full
+  # EUK_ITS_v2.1 drew 55 of 97 shuffled controls to a genus. The variants
+  # below are derived from these files, so they inherit the cap.
+  for (s in intersect(sources$source, names(max_record_length))) {
+    for (fmt in c("dada2", "sintax")) {
+      cap_record_length(refseq_path(s, fmt), max_record_length[[s]])
+    }
+  }
+
   # 2b. Kingdom-Fungi and primer-trimmed variants, only where `dbs` uses them.
   fungi_sources <- unique(dbs$source[
     dbs$simplification %in% c("Fungi", "Fungi+cut", "Fungi+rep")
@@ -756,6 +898,12 @@ derive_all_variants <- function(
         kingdom = "Fungi",
         force = force
       )
+      if (s %in% names(max_record_length)) {
+        cap_record_length(
+          refseq_path(paste0(s, "_Fungi"), fmt),
+          max_record_length[[s]]
+        )
+      }
     }
   }
   for (s in cut_sources) {
@@ -772,39 +920,14 @@ derive_all_variants <- function(
         nproc = n_threads,
         args_before_cutadapt = cutadapt_conda_prelude
       )
-    }
-  }
-
-  # 2b-bis. Amplicon-specific trimmed variants, one per biological dataset
-  # (config.R::bio_datasets, developer decision 2026-09-16). Each `_cut`
-  # reference is trimmed with EXACTLY the primers of the dataset that will be
-  # assigned against it, so queries and reference cover the same region: ITS1
-  # for the Pauvert mock above, the full ITS (ITS9mun / ITS4ngsUni) for
-  # Tedersoo. min_overlap follows that dataset's own reverse primer, not the
-  # ITS1 one of `primer_min_overlap`.
-  for (i in seq_len(nrow(bio_datasets))) {
-    ds <- bio_datasets[i, ]
-    if (is.na(ds$cut_suffix)) {
-      next
-    }
-    for (s in cut_sources) {
-      for (fmt in c("dada2", "sintax")) {
-        derive_cutadapted(
-          refseq_path(paste0(s, "_Fungi"), fmt),
-          refseq_path(paste0(s, ds$cut_suffix), fmt),
-          primer_fw = ds$fw_primer,
-          primer_rev = ds$rev_primer,
-          discard_untrimmed = cut_discard_untrimmed,
-          force = force,
-          min_overlap = nchar(ds$rev_primer),
-          min_length = cut_min_length,
-          nproc = n_threads,
-          args_before_cutadapt = cutadapt_conda_prelude
-        )
-        derive_mini(
-          refseq_path(paste0(s, ds$cut_suffix), fmt),
-          refseq_path(paste0(s, ds$cut_suffix), fmt, mini = TRUE),
-          force = force
+      # The cut keeps the records without primer sites whole
+      # (cut_discard_untrimmed = FALSE), so the long ones too: cap them like
+      # the source (code review §1.6; the 2026-09-15 file held 11 records over
+      # 5 000 bp, up to 32 568).
+      if (s %in% names(max_record_length)) {
+        cap_record_length(
+          refseq_path(paste0(s, "_Fungi_cut"), fmt),
+          max_record_length[[s]]
         )
       }
     }
@@ -835,6 +958,16 @@ derive_all_variants <- function(
   # writes their mini_* files too.
   for (s in unique(dbs$source[dbs$simplification == "Fungi+rep"])) {
     derive_fungi_rep(s, force = force)
+  }
+
+  # 2c-ter. dada2::assignSpecies() references of every database (species
+  # assignment, developer 2026-10-06), from its sintax file.
+  for (db in dbs$db) {
+    derive_species(
+      refseq_path(db, "sintax"),
+      refseq_path(db, "species"),
+      force = force
+    )
   }
 
   # 2d. mini_* subsets (first 10 000 records) of every other database.

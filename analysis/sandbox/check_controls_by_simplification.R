@@ -13,6 +13,15 @@ source("config.R")
 # Kingdom only (decisions 6, 15, 22). Pooling also mixes the `itsx_*` columns,
 # which exist for the six non-full databases only, with the raw ones, which
 # exist for all nine: a pooled mean then compares different database sets.
+#
+# Count only the labels the scoring counts (2026-09-23). analysis/01's
+# clean_taxo() turns "*_Incertae_sedis", "unclassified*" and empty labels into
+# NA before scoring, so a column "assigns" a unit here only when its label
+# survives that cleaning. The first version of this script counted raw labels
+# and reported dada2 naming 76.7 % of the non-fungal controls on the Fungi
+# databases; cleaned, it is 0.3 %: dada2 answers them with
+# "Fungi_gen_Incertae_sedis"-style placeholders, which are no identification.
+# Species "<Genus>_sp" is not cleaned here because the SA figures are at Genus.
 
 d <- tar_read(d_all_taxo, store = "store_assign_taxo")
 tt <- as.data.frame(tax_table(d), stringsAsFactors = FALSE)
@@ -22,8 +31,16 @@ unit <- ifelse(
   ifelse(grepl("^fake_", rownames(tt)), "fake", "mock")
 )
 
+not_an_identification <- "ncertae_sedis|^unclassified|^$"
 rate <- function(cols, keep) {
-  vapply(cols, \(x) mean(!is.na(tt[[x]][keep])), numeric(1))
+  vapply(
+    cols,
+    function(x) {
+      v <- tt[[x]][keep]
+      mean(!is.na(v) & !grepl(not_an_identification, v))
+    },
+    numeric(1)
+  )
 }
 
 cols <- colnames(tt)[grepl("__", colnames(tt))]

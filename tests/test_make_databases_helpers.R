@@ -53,12 +53,35 @@ test_that("derive_mini keeps the first n records, not the first n lines", {
 })
 
 test_that("skip_if_exists is idempotent unless force = TRUE", {
+  input <- tiny_fasta()
   out <- tempfile(fileext = ".fasta")
-  derive_mini(tiny_fasta(), out, n = 1)
-  expect_message(derive_mini(tiny_fasta(), out, n = 4), "already exists")
+  derive_mini(input, out, n = 1)
+  expect_message(derive_mini(input, out, n = 4), "already exists")
   expect_equal(length(read_records(out)), 1)
-  derive_mini(tiny_fasta(), out, n = 4, force = TRUE)
+  derive_mini(input, out, n = 4, force = TRUE)
   expect_equal(length(read_records(out)), 4)
+})
+
+test_that("skip_if_exists reports an output older than its input, keeps it", {
+  input <- tiny_fasta()
+  out <- tempfile(fileext = ".fasta")
+  derive_mini(input, out, n = 1)
+  Sys.setFileTime(out, Sys.time() - 3600)
+  expect_warning(derive_mini(input, out, n = 4), "STALE")
+  expect_equal(length(read_records(out)), 1)
+})
+
+test_that("atomic_output leaves the old file when the writer fails", {
+  out <- tempfile(fileext = ".fasta")
+  writeLines(c(">a", "ACGT"), out)
+  expect_error(atomic_output(out, function(part) {
+    writeLines(">b", part)
+    stop("interrupted")
+  }))
+  expect_equal(readLines(out), c(">a", "ACGT"))
+  expect_false(file.exists(sub("\\.fasta$", ".part.fasta", out)))
+  atomic_output(out, \(part) writeLines(c(">b", "TTTT"), part))
+  expect_equal(readLines(out), c(">b", "TTTT"))
 })
 
 test_that("derive_sintax keeps the kingdom of UNITE general-release headers", {
@@ -245,15 +268,23 @@ test_that("extract_single_fasta handles a zip holding a 7z archive (EUKARYOME v2
 })
 
 test_that("derive_fake_ref takes one record per phylum first, then fills up", {
-  out <- tempfile(fileext = ".fasta")
-  derive_fake_ref(input = tiny_fasta(), output = out, n = 3, seed = 1)
-  recs <- read_records(out)
-  expect_equal(length(recs), 3)
-  phyla <- stringr::str_match(names(recs), "p__\\s*(.*?)\\s*;c__")[, 2]
-  expect_equal(length(unique(phyla)), 3)
+  # Any seed: the single-record phylum (Basidiomycota, record 3) must be
+  # drawn, and the file must hold min(n, records) records (code review §1.2).
+  input <- tiny_fasta()
+  for (seed in 1:20) {
+    out <- tempfile(fileext = ".fasta")
+    derive_fake_ref(input = input, output = out, n = 3, seed = seed)
+    recs <- read_records(out)
+    phyla <- stringr::str_match(names(recs), "p__\\s*(.*?)\\s*;c__")[, 2]
+    expect_equal(length(recs), 3, info = paste("seed", seed))
+    expect_setequal(
+      phyla,
+      c("Ascomycota", "Chordata", "Basidiomycota")
+    )
+  }
 
   out_all <- tempfile(fileext = ".fasta")
-  derive_fake_ref(input = tiny_fasta(), output = out_all, n = 10, seed = 1)
+  derive_fake_ref(input = input, output = out_all, n = 10, seed = 1)
   expect_equal(length(read_records(out_all)), 4)
 })
 

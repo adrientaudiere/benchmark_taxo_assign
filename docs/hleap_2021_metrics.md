@@ -319,6 +319,9 @@ and undercounted every threshold (it gave 138 / 98 and 75 / 0 at 99.5 %).
   (2026-09-17)**: a unit gets the truth of a Sanger sequence when identity ≥
   99.5 % **and** the shorter of the two sequences is covered at ≥ 99.5 %
   (vsearch `id`, `qcov`, `tcov`); ties take the lowest common rank (Q2c).
+- *Revised 2026-10-02 by OD 36 (`docs/objectives_design.md`): a partial
+  overlap of ≥ 100 bp at ≥ 99.5 % also matches, and a unit with no Sanger hit
+  at 90 % is `foreign` and scored aside.*
 - **Q2b — Units without a truth: kept** in `NA_real` **and** in the confusion
   matrix (developer): the aim is a **relative** comparison of database × method
   couples, not Hleap's absolute scores. As in Hleap's code (`NaN != NaN`), such

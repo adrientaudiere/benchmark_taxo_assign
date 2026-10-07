@@ -121,6 +121,37 @@ against (ROADMAP D1c, second caveat).
 | Korhonen wood ×2 | **ITS2** | none | `RepSeq` published | loader + `_ITS2_cut` |
 | Karlsson leaf 2017 | **unknown** | none | fasta published | **read the article's Methods** |
 
+The statuses above date from 2026-09-16; the current state of each dataset is
+in `ROADMAP.md` (D1b, D1c, D1d).
+
+### 4.1 Marker, primers, and whether ITSx speeds up blastn (2026-09-27)
+
+What a unit carries **besides the ITS region** decides the blastn cost: a
+conserved flank (end of 18S, 5.8S, start of 28S) is nearly identical in every
+reference record, so blastn seeds and aligns against almost the whole
+database (the 500 hits of `max_target_seqs` are reached for every real query)
+and its time grows with the database size. ITSx removes those flanks **only
+when it extracts ITS1 or ITS2**; with `itsx_region = "full"` it keeps the
+5.8S and gains nothing. Measured gain = total blastn time on the raw input /
+on the ITSx input, over the six non-full databases, same run
+(`benchmark_costs` of each store; the full databases have no ITSx input).
+
+| Dataset | Marker (region of the units) | Forward / reverse primer | Conserved flanks in the units | `itsx_region` | blastn gain with ITSx | ITSx needed to speed up blastn? |
+|---|---|---|---|---|---|---|
+| Pauvert mock (`P.*`) | ITS1 | ITS1F `CTTGGTCATTTAGAGGAAGTAA` (18S end) / ITS2 `GCTGCGTTCTTCATCGATGC` (5.8S start), Gardes & Bruns 1993, White et al. 1990 | 30–45 bp of 18S; almost no 5.8S | ITS1 | **1.8×** (1.3–2.0 per database; 12.0 → 6.6 min) | Modest gain; blastn is cheap here anyway (0.14 s per real query on `Unite_all_20250219_Fungi`) |
+| Tedersoo Illumina mock (`T.*`) | full ITS | ITS9mun `GTACACACCGCCCGTCG` (18S) / ITS4ngsUni (28S; stored in `config.R` in reading sense `CGCCTSCSCTTANTDATATGC`), Tedersoo et al. 2026 | 154 bp of 18S, the whole 5.8S, 39 bp of 28S | full | not run yet | **Yes, but only with ITS1 or ITS2 extraction**: at `"full"` the 5.8S stays, as for the in silico set |
+| In silico (`S.iss`, D1b) | ITS1 + 5.8S + ITS2 (UNITE records, no primer, OD 29b) | none: InSilicoSeq amplicons of 300–560 bp records | the whole 5.8S | full | **1.1×** (0.9–1.1; 16.9 → 15.7 min) | No gain at `"full"`; would need ITS1/ITS2 extraction |
+| GSSP air (`B.air`) | ITS2 | ITS_S2F (Chen et al. 2010) + ITS3 `GCATCGATGAAGAACGCAGC` mixed 1:1 (5.8S) / ITS4 `TCCTCCGCTTATTGATATGC` (28S), White et al. 1990; Abrego et al. 2019, Ovaskainen et al. 2024 | second half of 5.8S, start of 28S | ITS2 | not measured (the run was stopped before its ITSx computations) | **Yes, expected as for wood** (same primer region) |
+| Korhonen wood (`B.wood`) | ITS2 | ITS3-2024F (5.8S) / ITS4-2409R (28S), Korhonen et al. 2024 (sequences not in the Dryad deposits) | second half of 5.8S, start of 28S | ITS2 | **13.4×** (11.2–14.9 per database; 126.1 → 9.4 min; `EUK_ITS_v2.1_Fungi` 48.6 → 3.3 min) | **Yes**: the raw OTUs hit the 500-hit cap (median 500 hits against 72 after ITSx) |
+
+Consequences: (i) for ITS2 datasets the ITSx input is an order of magnitude
+cheaper for blastn, which is a cost argument for Q4 on top of accuracy;
+(ii) for the full-ITS datasets (Tedersoo, in silico) `itsx_region = "full"`
+brings no speed-up, so a speed argument would need ITS1 and ITS2 extracted
+separately; (iii) the same logic applies on the reference side, where ITSx
+would also remove over-long records (OD 32). Consistent with Tosadori & Bosch
+2026 (*Web Ecology* 26:47), "ITS extraction matters more than ASVs vs. OTUs".
+
 ## 5. The five implications to settle
 
 None of these is an implementation detail: each changes what the benchmark
@@ -232,8 +263,8 @@ dominated by dada2: 53 % of the target time and 53.1 GB of peak memory against
 1.2–1.3 GB for the other three methods.
 
 **Levers already applied** (ROADMAP S8.1–S8.5): one computation per method
-(L1–L4), threads for every method (L5, `config.R::assign_threads_dada2`,
-`assign_threads_fast`, `cv_threads`), the ITSx input restricted to the
+(L1–L4), threads for every method (L5, `config.R::assign_threads`, per
+method since 2026-10-07, and `cv_threads`), the ITSx input restricted to the
 Fungi-filtered databases (L7), cross-validation folds and subsample set to
 their publication values (L6).
 

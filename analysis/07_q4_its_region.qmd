@@ -1,0 +1,427 @@
+---
+title: "07 — Q4: ITS1, ITS2 or full ITS"
+author: "Adrien Taudière"
+---
+
+Does the ITSx region assigned change the accuracy, per method and database,
+and what does it cost? Since OD 34 every dataset is assigned on its ITSx
+inputs only; the datasets sequenced over the whole ITS are assigned three
+times, on the ITS1, the ITS2 and the full ITS that ITSx extracts from the same
+ASVs. This chapter compares those three regions on the two datasets that have
+them and a truth: the **Tedersoo** Illumina mock and the **in silico** set.
+Pauvert (ITS1 only), wood and air (one region, no truth) are not in it.
+Figures: Q4.1 (per-rank × method), Q4.2 (per database), Q4.3 (cost beside
+accuracy), Q4.4 (Tedersoo on the ASVs trimmed in every region); one tab per
+dataset, ASVs, default settings.
+
+**Read the in silico set apart.** Its reads were generated from records of
+`Unite_s_all_20250219`, so on the three UNITE `_s_all` databases the exact
+record of every ASV is in the reference (the positive control of
+`in_silico_simulation.qmd`), and on the EUKARYOME ones it is not (OD 29a). The
+region effect is read within a database, never across.
+
+```{r setup}
+here::i_am("analysis/07_q4_its_region.qmd")  # _quarto.yml would otherwise make here() root = analysis/
+source(here::here("analysis/00_setup.R"))
+region_order <- c("ITS1", "ITS2", "full")
+
+# The scored columns of every dataset with more than one region: Tedersoo
+# from chapter 01's cache, the in silico set from in_silico_simulation.qmd's
+# (kept out of res_comp_tax, OD 29). ASVs, single methods, default settings.
+res_tedersoo <- cache_read("res_comp_tax") |>
+  group_by(dataset) |>
+  filter(n_distinct(region) > 1) |>
+  ungroup()
+insilico_cache <- file.path(cache_dir, "res_insilico.rds")
+res_insilico <- if (!analysis_mini && file.exists(insilico_cache)) {
+  readRDS(insilico_cache) |> mutate(dataset = "insilico")
+} else {
+  NULL
+}
+res_q4 <- bind_rows(res_tedersoo, res_insilico) |>
+  filter(unit == "ASV", !is_consensus) |>
+  filter_default_settings() |>
+  mutate(
+    region = factor(region, levels = region_order),
+    tax_level = factor(tax_level, levels = tax_order),
+    view = factor(dataset, levels = unique(c(res_tedersoo$dataset, "insilico")))
+  )
+q4_datasets <- levels(droplevels(res_q4$view))
+
+# The same scoring restricted to the real ASVs that ITSx trimmed in every
+# region of the dataset (chapter 01, res_paired, Tedersoo only; unit
+# "ASV_common", OD 38), and, for contrast, to every real ASV present in all
+# the regions, trimmed or not ("ASV_common_all", the reading before OD 38).
+res_paired_both <- cache_read("res_paired") |>
+  filter(!is_consensus) |>
+  filter_default_settings() |>
+  mutate(
+    region = factor(region, levels = region_order),
+    tax_level = factor(tax_level, levels = tax_order),
+    view = factor(dataset, levels = q4_datasets)
+  )
+res_paired <- filter(res_paired_both, unit == "ASV_common")
+res_paired_all <- filter(res_paired_both, unit == "ASV_common_all")
+n_common <- unique(res_paired$n_units_kept)
+n_common_all <- unique(res_paired_all$n_units_kept)
+
+# Real units trimmed by ITSx, and untrimmed (assigned on the whole amplicon),
+# per region: the mocks from chapter 01, the in silico set from its stores.
+itsx_trimming <- bind_rows(
+  cache_read("itsx_trimming"),
+  if ("insilico" %in% q4_datasets) {
+    bind_rows(lapply(region_order, function(r) {
+      is_trimmed <- itsx_trimmed(
+        here("store_assign_taxo_insilico"),
+        here("store_dada2_insilico"),
+        r
+      )
+      tibble::tibble(
+        dataset = "insilico",
+        region = r,
+        real_units = length(is_trimmed),
+        trimmed = sum(is_trimmed),
+        untrimmed = sum(!is_trimmed)
+      )
+    }))
+  }
+) |>
+  filter(dataset %in% q4_datasets)
+
+# The benchmark_costs of a dataset's assignment store (Tedersoo through
+# costs_for(); the in silico store is not in analysis_datasets).
+q4_costs <- function(dataset, res) {
+  if (dataset == "insilico") {
+    return(targets::tar_read(
+      benchmark_costs,
+      store = here("store_assign_taxo_insilico")
+    ))
+  }
+  costs_for(dataset, res)
+}
+res_q4_cost <- lapply(q4_datasets, function(d) {
+  rows <- filter(res_q4, dataset == d, metrics == "F1_score")
+  rows |>
+    left_join(
+      q4_costs(d, rows) |> select(phase, wall_time_s),
+      by = c("method_db" = "phase")
+    )
+}) |>
+  bind_rows()
+
+# One panel-tabset with a tab per dataset, in a chunk with results = "asis".
+# As in view_tabs(), fun() must print() a figure before save_fig().
+dataset_tabs <- function(fun) {
+  cat("\n::: {.panel-tabset}\n\n")
+  for (d in q4_datasets) {
+    cat("### ", d, "\n\n", sep = "")
+    fun(filter(res_q4, dataset == d), d)
+    cat("\n\n")
+  }
+  cat(":::\n\n")
+}
+```
+
+## Summary
+
+```{r summary-data}
+#| include: false
+# Computed from the same rows as the tabs below (res_q4, default settings).
+s07_by_region <- res_q4 |>
+  filter(metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp")) |>
+  group_by(view, tax_level, algo, region) |>
+  summarise(value = mean(values), .groups = "drop")
+# Per dataset x rank x method: best minus worst region.
+s07_spread <- s07_by_region |>
+  group_by(view, tax_level, algo) |>
+  summarise(spread = max(value) - min(value), .groups = "drop")
+s07_best_region <- s07_by_region |>
+  group_by(view, tax_level, region) |>
+  summarise(value = mean(value), .groups = "drop")
+s07_genus_best <- filter(s07_best_region, tax_level == "Genus")
+s07_gensp_best <- filter(s07_best_region, tax_level == "Gen_sp")
+s07_genus_spread <- filter(s07_spread, tax_level == "Genus")
+s07_widest <- s07_genus_spread |>
+  slice_max(spread, n = 1, with_ties = FALSE)
+# blastn wall time, summed over the databases, full ITS against each region.
+s07_blastn <- res_q4_cost |>
+  filter(algo == "blastn", tax_level == "Genus", !is.na(wall_time_s)) |>
+  distinct(view, region, db, wall_time_s) |>
+  group_by(view, region) |>
+  summarise(minutes = sum(wall_time_s) / 60, .groups = "drop")
+s07_blastn_gain <- s07_blastn |>
+  group_by(view) |>
+  mutate(gain = minutes[region == "full"] / minutes) |>
+  ungroup() |>
+  filter(region != "full")
+# The same reading on the ASVs trimmed in the three regions (Q4.4).
+s07_paired_by_region <- res_paired |>
+  filter(metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp")) |>
+  group_by(view, tax_level, algo, region) |>
+  summarise(value = mean(values), .groups = "drop")
+s07_paired_best <- s07_paired_by_region |>
+  filter(tax_level == "Genus") |>
+  group_by(view, region) |>
+  summarise(value = mean(value), .groups = "drop")
+s07_paired_spread <- s07_paired_by_region |>
+  filter(tax_level == "Genus") |>
+  group_by(view, algo) |>
+  summarise(spread = max(value) - min(value), .groups = "drop")
+# Words that follow the numbers, so that no adjective outlives the data.
+s07_region_word <- if (max(s07_genus_spread$spread) < 0.03) {
+  "below 0.03 for every method: at Genus the region barely matters"
+} else {
+  "0.03 or more for at least one method: the region matters there"
+}
+```
+
+ASVs, default settings, F1 averaged over the nine reference databases; one
+value per dataset (`r paste(q4_datasets, collapse = ", ")`).
+
+- **Genus**: the best region is `r best_phrase(s07_genus_best, "region")`
+  (mean over the four methods). Best minus worst region per method:
+  `r fmt_range(s07_genus_spread$spread)`, `r s07_region_word`; the widest gap
+  is `r s07_widest$algo` on `r s07_widest$view`
+  (`r format(round(s07_widest$spread, 3), nsmall = 3)`).
+- **Species (Gen_sp)**: the best region is
+  `r best_phrase(s07_gensp_best, "region")`.
+- **On the ASVs trimmed in all three regions** (Tedersoo, `r n_common` of
+  the `r n_common_all` real ASVs common to the regions, Q4.4): the best
+  region at Genus is `r best_phrase(s07_paired_best, "region")`; best minus
+  worst region per method `r fmt_range(s07_paired_spread$spread)`.
+- **blastn cost** (provisional, OD 31): the full ITS takes
+  `r fmt_range(s07_blastn_gain$gain[s07_blastn_gain$region == "ITS1"], 1)`
+  times the ITS1 time and
+  `r fmt_range(s07_blastn_gain$gain[s07_blastn_gain$region == "ITS2"], 1)`
+  times the ITS2 time, summed over the nine databases.
+
+```{r summary-fig}
+#| echo: false
+fig_summary_07_f1_by_region <- s07_by_region |>
+  ggplot(aes(x = region, y = value, colour = algo, group = algo)) +
+  geom_point(size = 2) +
+  geom_line() +
+  facet_grid(tax_level ~ view, scales = "free_y") +
+  labs(
+    x = "ITSx region", y = "F1 (mean over databases)",
+    colour = "Method"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+print(fig_summary_07_f1_by_region)
+save_fig(fig_summary_07_f1_by_region, "fig_summary_07_f1_by_region", width = 9, height = 6)
+```
+
+The regions are cut from the same ASVs, but ITSx does not find every region in
+every ASV. **An ASV whose region ITSx does not find stays in that region's
+input with its whole sequence** (`keep_undetected = TRUE`, OD 38: no unit is
+lost for Q1–Q3 and Q5), and the ASVs that become identical once trimmed are
+merged. So the inputs of a region differ in two ways: they hold different
+numbers of units, and some of their units are the untrimmed amplicon rather
+than the region. On Tedersoo, whose reads carry 18S and 28S flanks around the
+ITS, an untrimmed unit is one whose region ITSx did not detect. Q4.1–Q4.3
+score every unit of each input; Q4.4 scores Tedersoo again on the ASVs ITSx
+trimmed in all three regions.
+
+**The in silico "full" input is not cut by ITSx, and need not be.** Its ASVs
+come from UNITE records that UNITE has already cut to ITS1-5.8S-ITS2, so they
+carry no SSU or LSU flank for ITSx to find: the uncut ASV is the full ITS.
+Its ITS1 and ITS2 inputs are true ITSx regions.
+
+```{r n-real}
+#| echo: false
+itsx_trimming |>
+  mutate(region = factor(region, levels = region_order)) |>
+  arrange(dataset, region) |>
+  knitr::kable(
+    col.names = c(
+      "Dataset", "Region", "Real units", "Trimmed by ITSx",
+      "Untrimmed (whole amplicon)"
+    ),
+    caption = "Real units of each region input: trimmed by ITSx, or kept on their whole sequence because ITSx did not find the region."
+  )
+```
+
+## Q4.1 — Per-rank × method (F1, MCC)
+
+Mean over the nine databases; bar = min–max over the databases.
+
+```{r q4-1, results = "asis"}
+dataset_tabs(function(res, d) {
+  fig_q4_rank <- res |>
+    filter(metrics %in% c("F1_score", "MCC")) |>
+    group_by(metrics, tax_level, algo, region) |>
+    summarise(
+      value = mean(values),
+      lo = min(values),
+      hi = max(values),
+      .groups = "drop"
+    ) |>
+    ggplot(aes(x = tax_level, y = value, colour = region, group = region)) +
+    geom_linerange(
+      aes(ymin = lo, ymax = hi),
+      position = position_dodge(width = 0.5),
+      alpha = 0.5
+    ) +
+    geom_point(position = position_dodge(width = 0.5), size = 2) +
+    geom_line(position = position_dodge(width = 0.5)) +
+    facet_grid(metrics ~ algo) +
+    labs(x = "Rank", y = "Value", colour = "ITSx region") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+  print(fig_q4_rank)
+  save_fig(fig_q4_rank, paste0("fig_q4_rank_", d), width = 14, height = 7)
+})
+```
+
+## Q4.2 — Per method × database (Genus, Gen_sp)
+
+F1 of each region, one bar per database.
+
+```{r q4-2, results = "asis"}
+dataset_tabs(function(res, d) {
+  fig_q4_db <- res |>
+    filter(metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp")) |>
+    mutate(db = factor(db, levels = db_list)) |>
+    ggplot(aes(x = db, y = values, fill = region)) +
+    geom_col(position = position_dodge()) +
+    facet_grid(tax_level ~ algo) +
+    labs(x = NULL, y = "F1", fill = "ITSx region") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+  print(fig_q4_db)
+  save_fig(fig_q4_db, paste0("fig_q4_db_", d), width = 14, height = 7)
+  # Genus F1 of each region minus the full ITS, per method x database.
+  res |>
+    filter(metrics == "F1_score", tax_level == "Genus") |>
+    select(algo, db, region, values) |>
+    pivot_wider(names_from = region, values_from = values) |>
+    mutate(
+      `ITS1 − full` = round(ITS1 - full, 3),
+      `ITS2 − full` = round(ITS2 - full, 3),
+      across(c(ITS1, ITS2, full), \(x) round(x, 3))
+    ) |>
+    arrange(algo, factor(db, levels = db_list)) |>
+    cat_kable(caption = "Genus F1 per region, and the difference to the full ITS.")
+})
+```
+
+## Q4.3 — Cost beside accuracy
+
+**Provisional costs** (OD 31): wall time of one computation (one method × one
+database × one region), measured during the benchmark runs, not in the final
+timing run (ROADMAP M2.4). blastn is the method whose cost depends on the
+query: on wood, removing the conserved flanks with ITSx made it 13.4 times
+faster (`HISTORY.md` §2, 2026-09-27); the full ITS keeps the 5.8S.
+
+```{r q4-3, results = "asis"}
+dataset_tabs(function(res, d) {
+  rows <- filter(res_q4_cost, dataset == d, tax_level == "Genus", !is.na(wall_time_s))
+  fig_q4_cost <- rows |>
+    ggplot(aes(x = wall_time_s / 60, y = values, colour = region, shape = db)) +
+    geom_point(size = 2, alpha = 0.8) +
+    scale_x_log10() +
+    scale_shape_manual(values = db_shapes) +
+    facet_wrap(~algo, nrow = 1) +
+    labs(
+      x = "Wall time of the computation (min, log scale)",
+      y = "Genus F1", colour = "ITSx region", shape = "Database"
+    ) +
+    theme_bw() +
+    theme(legend.position = "bottom", legend.box = "vertical")
+  print(fig_q4_cost)
+  save_fig(fig_q4_cost, paste0("fig_q4_cost_", d), width = 14, height = 6)
+  # blastn per database: minutes per region, the full / region ratio and the
+  # Genus F1 beside it.
+  rows |>
+    filter(algo == "blastn") |>
+    distinct(db, region, wall_time_s, values) |>
+    mutate(minutes = wall_time_s / 60, f1 = round(values, 3)) |>
+    select(db, region, minutes, f1) |>
+    pivot_wider(names_from = region, values_from = c(minutes, f1)) |>
+    # Ratios on the unrounded times: a rounded ITS1 time of 0.0 min gave Inf.
+    mutate(
+      `full / ITS1` = round(minutes_full / minutes_ITS1, 1),
+      `full / ITS2` = round(minutes_full / minutes_ITS2, 1),
+      across(starts_with("minutes_"), \(m) round(m, 1))
+    ) |>
+    arrange(factor(db, levels = db_list)) |>
+    cat_kable(caption = "blastn: minutes per computation and Genus F1, per region.")
+})
+```
+
+## Q4.4 — Tedersoo on the ASVs trimmed in every region
+
+Each region scored again on the `r n_common` real ASVs that ITSx trimmed in
+all three regions (chapter 01, `res_paired`, OD 38), each region keeping its
+own controls. Solid: these ASVs; dotted: the `r n_common_all` ASVs present in
+the three regions, trimmed or not (the untrimmed ones enter every region with
+the same sequence and the same answers, so they dilute the differences);
+dashed: every ASV of the region, as in Q4.1. A region effect that survives on
+the trimmed ASVs is neither a change of unit set nor an untrimmed amplicon.
+
+```{r q4-4}
+#| fig-height: 6
+s07_paired_all_by_region <- res_paired_all |>
+  filter(metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp")) |>
+  group_by(view, tax_level, algo, region) |>
+  summarise(value = mean(values), .groups = "drop")
+q4_paired_lines <- bind_rows(
+  s07_paired_by_region |> mutate(units = "trimmed in every region"),
+  s07_paired_all_by_region |> mutate(units = "common, trimmed or not"),
+  s07_by_region |>
+    filter(view %in% unique(as.character(res_paired$view))) |>
+    mutate(units = "every ASV of the region")
+) |>
+  mutate(
+    units = factor(
+      units,
+      levels = c(
+        "trimmed in every region",
+        "common, trimmed or not",
+        "every ASV of the region"
+      )
+    )
+  )
+fig_q4_paired <- q4_paired_lines |>
+  ggplot(aes(x = region, y = value, colour = algo, linetype = units)) +
+  geom_point(size = 2) +
+  geom_line(aes(group = interaction(algo, units))) +
+  scale_linetype_manual(values = c("solid", "dotted", "dashed")) +
+  facet_wrap(~tax_level, scales = "free_y") +
+  labs(x = "ITSx region", y = "F1 (mean over databases)", colour = "Method", linetype = NULL) +
+  theme_bw() +
+  theme(legend.position = "bottom", legend.box = "vertical")
+print(fig_q4_paired)
+save_fig(fig_q4_paired, "fig_q4_paired_tedersoo_illumina", width = 10, height = 6)
+```
+
+```{r q4-4-table}
+#| echo: false
+res_paired |>
+  filter(metrics == "F1_score", tax_level == "Genus") |>
+  select(algo, db, region, values) |>
+  pivot_wider(names_from = region, values_from = values) |>
+  mutate(
+    `ITS1 − full` = round(ITS1 - full, 3),
+    `ITS2 − full` = round(ITS2 - full, 3),
+    across(c(ITS1, ITS2, full), \(x) round(x, 3))
+  ) |>
+  arrange(algo, factor(db, levels = db_list)) |>
+  knitr::kable(caption = "Tedersoo, ASVs trimmed in the three regions: Genus F1 per region and the difference to the full ITS.")
+```
+
+```{r q4-4-dada2}
+#| include: false
+s07_dada2_paired <- s07_paired_by_region |>
+  filter(tax_level == "Genus", algo == "dada2") |>
+  arrange(desc(value))
+```
+
+For dada2 the three regions lie within
+`r format(round(max(s07_dada2_paired$value) - min(s07_dada2_paired$value), 3), nsmall = 3)`
+of each other (best: `r s07_dada2_paired$region[1]`), less than the spread of
+its Genus F1 across seeds on Pauvert (up to 0.013, `HISTORY.md` §3d, OD 41):
+no region is better than another for dada2. The result is the order of the
+four methods together.
+

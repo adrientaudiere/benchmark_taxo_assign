@@ -5,13 +5,17 @@
 # - dada2: one assignTaxonomy(minBoot = 0, outputBootstraps = TRUE); a row
 #   keeps the ranks whose bootstrap is >= 100 * min_bootstrap, which is what
 #   assignTaxonomy(minBoot = ) does after computing the same bootstraps.
-# - sintax: one assign_sintax(min_bootstrap = 0, behavior = "return_matrix");
+# - sintax: one assign_sintax(min_bootstrap = 0, behavior = "return_matrix",
+#   seed = config.R::sintax_seed, so the draw is reproducible, ROADMAP SA6);
 #   a row sets the values whose bootstrap is < min_bootstrap to NA, as
 #   assign_sintax() does.
 # - lca: one vsearch search whose hits are kept
-#   (assign_vsearch_lca(behavior = "return_hits")); a row computes the LCA at
-#   its lca_cutoff from these hits (assign_vsearch_lca(hits_table = )), which
-#   gives what vsearch --lcaout gives at that cutoff (ROADMAP 0.3).
+#   (assign_vsearch_lca(behavior = "return_hits")), with the common LCA settings
+#   of config.R (lca_top_hits_only, lca_id, lca_maxaccepts, OD 33); a row
+#   computes the LCA at its lca_cutoff from these hits
+#   (assign_vsearch_lca(hits_table = ), same top_hits_only), which gives what
+#   vsearch --lcaout gives at that cutoff (ROADMAP 0.3; checked cell for cell
+#   with the common settings on 2026-09-26).
 # - blastn: one raw blast table (no score filter); a row applies the score
 #   filters (min_id, min_cover) and its vote with assign_blastn(blast_table = ).
 #
@@ -36,13 +40,19 @@ compute_assignment <- function(physeq, method, ref_fasta, nproc = 1) {
       behavior = "return_matrix",
       min_bootstrap = 0,
       clean_pq = FALSE,
-      nproc = nproc
+      nproc = nproc,
+      cmd_args = sintax_cmd_args,
+      seed = sintax_seed
     ),
     lca = MiscMetabar::assign_vsearch_lca(
       physeq,
       ref_fasta = ref_fasta,
       behavior = "return_hits",
       clean_pq = FALSE,
+      top_hits_only = lca_top_hits_only,
+      id = lca_id,
+      maxaccepts = lca_maxaccepts,
+      maxrejects = lca_maxrejects,
       nproc = nproc,
       verbose = FALSE
     ),
@@ -51,7 +61,8 @@ compute_assignment <- function(physeq, method, ref_fasta, nproc = 1) {
       fasta_for_db = ref_fasta,
       unique_per_seq = FALSE,
       score_filter = FALSE,
-      nproc = nproc
+      nproc = nproc,
+      args_blastn = blastn_args
     ),
     stop("Unknown method: ", method)
   )
@@ -72,6 +83,9 @@ derive_assignment <- function(
   lca_cutoff = NA
 ) {
   if (is.null(computed)) {
+    # combine_taxo_assignments() stops on the missing columns later, but
+    # without naming the computation; name it here (2026-09-22 R2).
+    warning("No result for ", sub("^_", "", suffix), ": no column added.")
     return(physeq)
   }
   switch(
@@ -83,6 +97,7 @@ derive_assignment <- function(
       hits_table = computed,
       behavior = "add_to_phyloseq",
       lca_cutoff = lca_cutoff,
+      top_hits_only = lca_top_hits_only,
       suffix = suffix,
       verbose = FALSE
     ),
@@ -127,8 +142,10 @@ derive_dada2_row <- function(physeq, computed, min_bootstrap, suffix) {
 # Same columns as add_new_taxonomy_pq(method = "sintax", min_bootstrap = ).
 derive_sintax_row <- function(physeq, computed, min_bootstrap, suffix) {
   taxo <- computed$taxo_value
-  taxo[computed$taxo_bootstrap < min_bootstrap] <- NA
+  # Only the rank columns are masked: comparing the character column
+  # `taxa_names` with a number worked by accident (code review L2).
   rank_cols <- setdiff(names(taxo), "taxa_names")
+  taxo[rank_cols][computed$taxo_bootstrap[rank_cols] < min_bootstrap] <- NA
   names(taxo)[match(rank_cols, names(taxo))] <- paste0(rank_cols, suffix)
 
   tax_tab <- as.data.frame(as.matrix(physeq@tax_table))

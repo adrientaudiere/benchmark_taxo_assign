@@ -3,7 +3,7 @@
 # `values_map` blocks (the former script_assign_taxo_parallel.R, R/values_map_for_qmd.R
 # and script_cross_val.R).
 #
-# Requires `db_list`, `cv_db_list`, `itsx_db_list`, `mini_db` and `blastn_min_cover` from config.R. The
+# Requires `db_list`, `cv_db_list`, `itsx_regions`, `itsx_units`, `mini_db` and `blastn_min_cover` from config.R. The
 # `min_cover` column is set on blastn rows only (NA elsewhere, dropped by
 # add_new_taxonomy_pq() for the other methods), so changing
 # `blastn_min_cover` reruns the blastn targets only. The `full_name` strings are
@@ -17,7 +17,7 @@
 # placeholder that only exists in their target name.
 build_methods_grid <- function(
   min_bootstrap = c(0.4, 0.5, 0.6),
-  lca_cutoff = c(0.8, 0.9, 1),
+  lca_cutoff = c(0.51, 0.8, 1),
   vote_algorithm = c("rel_majority", "abs_majority", "unanimity"),
   nb_voting = 100,
   min_id = c(90, 92, 95, 97),
@@ -59,25 +59,26 @@ ref_file_target_for <- function(method, db) {
   paste0("ref_", ifelse(method == "dada2", "dada2", "sintax"), "__", db)
 }
 
-# Target name of one assignment: "<method>__<db>___<parameter>". The
-# parameter is min_bootstrap, or lca_cutoff for lca rows ("lca__DB___0.8").
-# blastn rows add their vote, nb_voting and min_id
-# ("blastn__DB___0.5...rel_majority...100...95"). A preprocessed input ("itsx",
-# ROADMAP Q4; "otu", 0.4) prefixes the method ("itsx_sintax__...",
-# "otu_lca__..."), so the chapters parse it as a method of its own and the
-# names of the unprocessed targets do not change. Vectorised.
+# Target name of one assignment: "<input>_<method>__<db>___<parameter>". The
+# input is "<region>_<unit>" (OD 34: "ITS1_asv", "ITS2_otu", "full_asv"...);
+# the parameter is min_bootstrap, or lca_cutoff for lca rows
+# ("ITS1_asv_lca__DB___0.8"). blastn rows add their vote, nb_voting and min_id
+# ("ITS2_asv_blastn__DB___0.5...rel_majority...100...95"). The chapters read
+# the input, method and database from the columns of values_map, joined on
+# full_name, not from the name (C22-S3). `input = NA` gives the bare name.
+# Vectorised.
 full_name_for <- function(
   method,
   db,
   min_bootstrap,
   vote_algorithm = NA,
   nb_voting = NA,
-  preprocess = "none",
+  input = NA,
   min_id = NA,
   lca_cutoff = NA
 ) {
   base <- paste0(
-    ifelse(preprocess == "none", "", paste0(preprocess, "_")),
+    ifelse(is.na(input), "", paste0(input, "_")),
     method,
     "__",
     db,
@@ -102,9 +103,9 @@ full_name_for <- function(
 # (ROADMAP S8.2). dada2 and sintax thresholds, blastn votes and the lca rows
 # (lca ignores min_bootstrap) are applied afterwards to its result by the
 # `full_name` targets, so one computation serves three rows. Vectorised.
-compute_name_for <- function(method, db, preprocess = "none") {
+compute_name_for <- function(method, db, input = NA) {
   paste0(
-    ifelse(preprocess == "none", "", paste0(preprocess, "_")),
+    ifelse(is.na(input), "", paste0(input, "_")),
     "compute_",
     method,
     "__",
@@ -112,50 +113,44 @@ compute_name_for <- function(method, db, preprocess = "none") {
   )
 }
 
-# Name of the phyloseq target an assignment reads, each with its negative
-# controls: the ASVs as denoised ("none"), their ITSx-trimmed copy ("itsx") or
-# the 97 % vsearch OTUs of the DADA2 store ("otu", objectives_design decision
-# 4). Vectorised.
-input_pq_for <- function(preprocess) {
-  dplyr::case_when(
-    preprocess == "none" ~ "d_asv_for_assignation",
-    preprocess == "otu" ~ "d_vs_for_assignation",
-    .default = paste0("d_asv_", preprocess, "_for_assignation")
-  )
+# Name of the phyloseq target an assignment reads: the units of one input
+# ("ITS1_asv": the ITSx-extracted ITS1 of the ASVs; "ITS1_otu": their 97 %
+# vsearch clusters) with their negative controls. Vectorised.
+input_pq_for <- function(input) {
+  paste0("d_", input, "_for_assignation")
 }
 
-# Grid for pipelines/assign_taxo.R and the notebook. The ITSx input is
-# assigned against `itsx_dbs` only (ROADMAP S8.5); every database gets the raw
-# ASVs and the OTUs (objectives_design decisions 4 and 19).
+# Grid for pipelines/assign_taxo.R and the notebook (OD 34): every ITSx region
+# of the dataset (config.R::itsx_regions) x every unit (itsx_units: "asv", and
+# "otu" when the dataset has an OTU input) x every database. The raw ASVs and
+# OTUs are no longer assigned; the ITSx input covers the nine databases,
+# the full releases included (S8.5 reversed).
 build_values_map <- function(
   dbs = db_list,
   mini_db = FALSE,
   methods = build_methods_grid(),
-  preprocess = c("none", "itsx", "otu"),
-  itsx_dbs = itsx_db_list
+  regions = itsx_regions,
+  units = itsx_units
 ) {
-  tidyr::expand_grid(methods, db = dbs, preprocess = preprocess) |>
-    dplyr::filter(preprocess != "itsx" | db %in% itsx_dbs) |>
+  tidyr::expand_grid(methods, db = dbs, region = regions, unit = units) |>
     dplyr::mutate(
-      cutadapted_db = ifelse(grepl("cut", db), "cut", ""),
-      db_filter = ifelse(grepl("Fungi", db), "Fungi", ""),
+      input = paste0(region, "_", unit),
       # `if`, not ifelse(): with a scalar mini_db, ifelse() returns one value
       # that is recycled to every row, so every target used the first database
       # (bug present from 2026-05 to 2026-09-10, ROADMAP S1.5).
       db_name = if (mini_db) paste0("mini_", db) else db,
-      do_clean_pq = method == "dada2",
       db_path = db_path_for(method, db_name),
       ref_file = ref_file_target_for(method, db),
       controller = ifelse(method == "dada2", "dada2_ctrl", "fast_ctrl"),
-      input_pq = input_pq_for(preprocess),
-      compute_name = compute_name_for(method, db, preprocess),
+      input_pq = input_pq_for(input),
+      compute_name = compute_name_for(method, db, input),
       full_name = full_name_for(
         method,
         db,
         min_bootstrap,
         vote_algorithm,
         nb_voting,
-        preprocess,
+        input,
         min_id,
         lca_cutoff
       )

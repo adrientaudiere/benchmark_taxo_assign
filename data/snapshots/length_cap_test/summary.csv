@@ -1,0 +1,17 @@
+"queries","method","reference","fakes","named_at_genus","share","named_via_removed_record","minutes","records"
+"pauvert","blastn","uncapped",97,0,0,0,0.6,1877003
+"pauvert","blastn","capped",97,0,0,0,0.5,1869132
+"pauvert","dada2","uncapped",97,47,0.485,47,17.9,1877003
+"pauvert","dada2","capped",97,0,0,0,20.3,1869132
+"pauvert","lca","uncapped",97,14,0.144,14,16.6,1877003
+"pauvert","lca","capped",97,2,0.021,0,4.6,1869132
+"pauvert","sintax","uncapped",97,0,0,0,3.1,1877003
+"pauvert","sintax","capped",97,0,0,0,3,1869132
+"tedersoo","blastn","uncapped",118,0,0,0,0.6,1877003
+"tedersoo","blastn","capped",118,0,0,0,0.5,1869132
+"tedersoo","dada2","uncapped",118,97,0.822,97,17.9,1877003
+"tedersoo","dada2","capped",118,0,0,0,20.3,1869132
+"tedersoo","lca","uncapped",118,4,0.034,4,16.6,1877003
+"tedersoo","lca","capped",118,0,0,0,4.6,1869132
+"tedersoo","sintax","uncapped",118,0,0,0,3.1,1877003
+"tedersoo","sintax","capped",118,0,0,0,3,1869132

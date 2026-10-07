@@ -44,6 +44,8 @@ data/data_raw/insilico/
 # entry. A glob rather than a line per dataset: the table is meant to grow, and
 # each new entry would otherwise be a silent multi-MB commit.
 data/data_raw/rawseq_*/
+# Published OTU tables of the D1c datasets that skip dada2 (GSSP air ~170 MB).
+data/data_raw/bio_*/
 data/data_intermediate/
 data/data_final/
 
@@ -60,3 +62,9 @@ figures/*
 # Rendered docs (regenerated with quarto from docs/*.md)
 docs/*.html
 docs/*_files/
+
+# Run logs of the production pipelines (C22-S5)
+run_*.log
+
+# Patched dada2 build (patches/install_dada2_patched.R)
+r_lib_patched/

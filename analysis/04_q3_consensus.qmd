@@ -9,10 +9,99 @@ Effect of consensus voting across methods, databases and parameters
 (`nb_agree_threshold` sweep), Q3.5 (method × DB heatmap justifying the
 `preference` strategy).
 
+Every section has one tab per mock and ITSx region (`analysis_views()` in
+`00_setup.R`), on the ASVs: Pauvert ITS1, then Tedersoo ITS1, ITS2 and full.
+The figures are saved once per view, suffixed with it.
+
 ```{r setup}
 here::i_am("analysis/04_q3_consensus.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
-res_comp_tax <- cache_read("res_comp_tax") |> default_view()
+res_all <- cache_read("res_comp_tax")
+views <- analysis_views(res_all)
+```
+
+## Summary
+
+```{r summary-data}
+#| include: false
+# Computed from the same views and filters as the tabs below: the consensus
+# columns of Q3.2 (aside reading, not strict, nb_agree 1) against the single
+# methods at default settings.
+s04_rows <- view_rows(res_all, views) |>
+  filter(metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp"))
+s04_cons <- s04_rows |>
+  filter(is_consensus, !consensus_strict, nb_agree == 1L) |>
+  filter(algo %in% paste0(c("preference", "rel_majority", "abs_majority", "consensus", "unanimity"), "_consensus")) |>
+  transmute(view, tax_level, strategy = sub("_consensus$", "", algo), value = values)
+s04_single <- s04_rows |>
+  filter_default_settings() |>
+  group_by(view, tax_level) |>
+  summarise(best_single = max(values), mean_single = mean(values), .groups = "drop")
+s04_best_cons <- s04_cons |>
+  group_by(view, tax_level) |>
+  slice_max(value, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  left_join(s04_single, by = c("view", "tax_level")) |>
+  mutate(gain_best = value - best_single, gain_mean = value - mean_single)
+s04_g <- filter(s04_best_cons, tax_level == "Genus")
+s04_s <- filter(s04_best_cons, tax_level == "Gen_sp")
+s04_beats <- function(x) {
+  n <- sum(x$gain_best > 0)
+  if (n == 0) {
+    "in no view"
+  } else if (n == nrow(x)) {
+    "in every view"
+  } else {
+    paste0("in ", n, " of ", nrow(x), " views")
+  }
+}
+s04_both <- bind_rows(s04_g, s04_s)
+s04_word <- if (all(s04_both$gain_mean > 0) && mean(s04_both$gain_best > 0) <= 0.5) {
+  "A consensus therefore protects against a poor choice of method and database more than it improves on the best one."
+} else if (all(s04_both$gain_best > 0)) {
+  "A consensus therefore improves on the best single column in every view and rank."
+} else {
+  "The consensus gain is mixed across views and ranks."
+}
+```
+
+ASVs; each consensus votes over the 36 single columns at default settings
+(chapter 01). Compared per view with the best single column and with the mean
+of the 36.
+
+- **Genus**: the best strategy is `r best_phrase(s04_g, "strategy")`.
+  It beats the best single column `r s04_beats(s04_g)` (difference
+  `r fmt_range(s04_g$gain_best)`), and the mean single column by
+  `r fmt_range(s04_g$gain_mean)`.
+- **Species (Gen_sp)**: the best strategy is `r best_phrase(s04_s, "strategy")`.
+  It beats the best single column `r s04_beats(s04_s)` (difference
+  `r fmt_range(s04_s$gain_best)`), and the mean single column by
+  `r fmt_range(s04_s$gain_mean)`.
+- `r s04_word`
+
+```{r summary-fig}
+#| echo: false
+fig_summary_04_consensus <- s04_cons |>
+  mutate(
+    tax_level = factor(tax_level, levels = c("Genus", "Gen_sp")),
+    strategy = factor(strategy, levels = c("preference", "rel_majority", "abs_majority", "consensus", "unanimity"))
+  ) |>
+  ggplot(aes(x = strategy, y = value)) +
+  geom_col(fill = "grey60") +
+  geom_hline(
+    data = mutate(s04_single, tax_level = factor(tax_level, levels = c("Genus", "Gen_sp"))),
+    aes(yintercept = best_single, linetype = "best single column"), colour = "firebrick"
+  ) +
+  geom_hline(
+    data = mutate(s04_single, tax_level = factor(tax_level, levels = c("Genus", "Gen_sp"))),
+    aes(yintercept = mean_single, linetype = "mean of the 36 single columns"), colour = "steelblue"
+  ) +
+  facet_grid(tax_level ~ view) +
+  labs(x = "Consensus strategy", y = "F1", linetype = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+print(fig_summary_04_consensus)
+save_fig(fig_summary_04_consensus, "fig_summary_04_consensus", width = 16, height = 7)
 ```
 
 ## Q3.2 — Consensus vs single-method (F1, MCC)
@@ -20,64 +109,66 @@ res_comp_tax <- cache_read("res_comp_tax") |> default_view()
 Conservatism gradient: preference < rel_majority < abs_majority < consensus <
 unanimity. Single-method bars show mean ± SE across databases.
 
-```{r q3-2}
+```{r q3-2, results = "asis"}
 conservatism_order <- c(
   single_methods,
   "preference", "rel_majority", "abs_majority", "consensus", "unanimity"
 )
 
-fig_q3_data <- bind_rows(
-  res_comp_tax |>
-    filter(metrics %in% c("F1_score", "MCC")) |>
-    filter_default_settings() |>
-    mutate(display_method = algo, type = "single"),
-  res_comp_tax |>
-    filter(metrics %in% c("F1_score", "MCC")) |>
-    filter(algo %in% paste0(c("preference", "rel_majority", "abs_majority", "consensus", "unanimity"), "_consensus")) |>
-    filter(!is_consensus | !consensus_strict) |>
-    filter(nb_agree == 1L) |>
-    mutate(display_method = gsub("_consensus$", "", algo), type = "consensus")
-) |>
-  mutate(
-    tax_level      = factor(tax_level, levels = tax_order),
-    display_method = factor(display_method, levels = conservatism_order)
-  )
+view_tabs(res_all, views, function(res, v) {
+  fig_q3_data <- bind_rows(
+    res |>
+      filter(metrics %in% c("F1_score", "MCC")) |>
+      filter_default_settings() |>
+      mutate(display_method = algo, type = "single"),
+    res |>
+      filter(metrics %in% c("F1_score", "MCC")) |>
+      filter(algo %in% paste0(c("preference", "rel_majority", "abs_majority", "consensus", "unanimity"), "_consensus")) |>
+      filter(!is_consensus | !consensus_strict) |>
+      filter(nb_agree == 1L) |>
+      mutate(display_method = gsub("_consensus$", "", algo), type = "consensus")
+  ) |>
+    mutate(
+      tax_level      = factor(tax_level, levels = tax_order),
+      display_method = factor(display_method, levels = conservatism_order)
+    )
 
-fig_q3_consensus_vs_single <- fig_q3_data |>
-  ggplot(aes(x = display_method, y = values, fill = type)) +
-  stat_summary(fun = mean, geom = "bar", position = position_dodge()) +
-  stat_summary(fun.data = mean_se, geom = "errorbar",
-               position = position_dodge(width = 0.9), width = 0.25) +
-  facet_grid(metrics ~ tax_level) +
-  labs(x = "Method", y = "Value (mean ± SE across DBs)", fill = "Type") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-save_fig(fig_q3_consensus_vs_single, "fig_q3_consensus_vs_single", width = 16, height = 7)
+  fig_q3_consensus_vs_single <- fig_q3_data |>
+    ggplot(aes(x = display_method, y = values, fill = type)) +
+    stat_summary(fun = mean, geom = "bar", position = position_dodge()) +
+    stat_summary(fun.data = mean_se, geom = "errorbar",
+                 position = position_dodge(width = 0.9), width = 0.25) +
+    facet_grid(metrics ~ tax_level) +
+    labs(x = "Method", y = "Value (mean ± SE across DBs)", fill = "Type") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  print(fig_q3_consensus_vs_single)
+  save_fig(fig_q3_consensus_vs_single, paste0("fig_q3_consensus_vs_single_", v$id), width = 16, height = 7)
+})
 ```
 
 ## Q3.3 — rel_majority nb_agree_threshold sweep (1, 2, 3)
 
 Trade-off: higher threshold → fewer FP but more FN. Faceted by rank.
 
-```{r q3-3}
-fig_q3_nb_data <- res_comp_tax |>
-  filter(metrics %in% c("F1_score", "MCC")) |>
-  filter(algo %in% c(
-    "rel_majority_consensus",
-    "rel_majority_nb2_consensus",
-    "rel_majority_nb3_consensus"
-  )) |>
-  mutate(tax_level = factor(tax_level, levels = tax_order))
-
-fig_q3_nb_threshold <- fig_q3_nb_data |>
-  ggplot(aes(x = factor(nb_agree), y = values)) +
-  geom_col() +
-  facet_grid(metrics ~ tax_level) +
-  labs(x = "nb_agree_threshold", y = "Value") +
-  theme_bw()
-
-save_fig(fig_q3_nb_threshold, "fig_q3_nb_threshold", width = 16, height = 7)
+```{r q3-3, results = "asis"}
+view_tabs(res_all, views, function(res, v) {
+  fig_q3_nb_threshold <- res |>
+    filter(metrics %in% c("F1_score", "MCC")) |>
+    filter(algo %in% c(
+      "rel_majority_consensus",
+      "rel_majority_nb2_consensus",
+      "rel_majority_nb3_consensus"
+    )) |>
+    mutate(tax_level = factor(tax_level, levels = tax_order)) |>
+    ggplot(aes(x = factor(nb_agree), y = values)) +
+    geom_col() +
+    facet_grid(metrics ~ tax_level) +
+    labs(x = "nb_agree_threshold", y = "Value") +
+    theme_bw()
+  print(fig_q3_nb_threshold)
+  save_fig(fig_q3_nb_threshold, paste0("fig_q3_nb_threshold_", v$id), width = 16, height = 7)
+})
 ```
 
 ## Q3.5 — Method × DB heatmap justifying the preference strategy
@@ -86,38 +177,42 @@ Which (method, DB) combination does the preference strategy prefer, and is it
 a good choice? The preferred cell (`preference_pattern` in `00_setup.R`, at
 bootstrap 0.5) is highlighted in red; the preference-consensus F1 is annotated.
 
-```{r q3-5}
-heat_data <- res_comp_tax |>
-  filter(metrics == "F1_score", tax_level == "Gen_sp") |>
-  filter_default_settings() |>
-  mutate(is_preferred = algo == preference_method & db == preference_db)
+```{r q3-5, results = "asis"}
+view_tabs(res_all, views, function(res, v) {
+  heat_data <- res |>
+    filter(metrics == "F1_score", tax_level == "Gen_sp") |>
+    filter_default_settings() |>
+    mutate(is_preferred = algo == preference_method & db == preference_db)
 
-pref_f1 <- res_comp_tax |>
-  filter(
-    method_db == "preference_consensus",
-    metrics == "F1_score",
-    tax_level == "Gen_sp"
-  ) |>
-  pull(values)
+  # The consensus `method_db` carries its input ("ITS1_asv_preference_consensus"):
+  # select it by `algo`.
+  pref_f1 <- res |>
+    filter(
+      algo == "preference_consensus",
+      metrics == "F1_score",
+      tax_level == "Gen_sp"
+    ) |>
+    pull(values)
 
-fig_q3_heatmap <- heat_data |>
-  ggplot(aes(x = db, y = algo, fill = values)) +
-  geom_tile(color = "white", linewidth = 0.4) +
-  geom_tile(
-    data = filter(heat_data, is_preferred),
-    fill = NA, color = "red", linewidth = 1.5
-  ) +
-  scale_fill_viridis_c(
-    "F1 (Gen_sp)", option = "plasma", direction = -1,
-    limits = c(0, 1), na.value = "grey90"
-  ) +
-  annotate(
-    "text", x = Inf, y = -Inf, hjust = 1.05, vjust = -0.5, size = 3,
-    label = paste0("preference consensus F1 = ", round(pref_f1, 3))
-  ) +
-  labs(x = "Reference database", y = "Method") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-save_fig(fig_q3_heatmap, "fig_q3_heatmap", width = 12, height = 4)
+  fig_q3_heatmap <- heat_data |>
+    ggplot(aes(x = db, y = algo, fill = values)) +
+    geom_tile(color = "white", linewidth = 0.4) +
+    geom_tile(
+      data = filter(heat_data, is_preferred),
+      fill = NA, color = "red", linewidth = 1.5
+    ) +
+    scale_fill_viridis_c(
+      "F1 (Gen_sp)", option = "plasma", direction = -1,
+      limits = c(0, 1), na.value = "grey90"
+    ) +
+    annotate(
+      "text", x = Inf, y = -Inf, hjust = 1.05, vjust = -0.5, size = 3,
+      label = paste0("preference consensus F1 = ", round(pref_f1, 3))
+    ) +
+    labs(x = "Reference database", y = "Method") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  print(fig_q3_heatmap)
+  save_fig(fig_q3_heatmap, paste0("fig_q3_heatmap_", v$id), width = 12, height = 4)
+})
 ```

@@ -1,0 +1,11 @@
+"db","mode","seconds","queries_matched","pairs","pairs_found"
+"Unite_all_20250219_Fungi","truth (substring)",93.412,54,91,1
+"Unite_all_20250219_Fungi","search_exact",9.246,0,0,0
+"Unite_all_20250219_Fungi","global_default",12.244,55,55,0.593406593406593
+"Unite_all_20250219_Fungi","global_all",158.074,55,93,1
+"Unite_all_20250219_Fungi","global_top",13.629,55,93,1
+"EUK_ITS_v2.1_Fungi","truth (substring)",857.571,132,2468,1
+"EUK_ITS_v2.1_Fungi","search_exact",102.368,0,0,0
+"EUK_ITS_v2.1_Fungi","global_default",120.466,136,136,0.053484602917342
+"EUK_ITS_v2.1_Fungi","global_all",1380.838,189,2662,1
+"EUK_ITS_v2.1_Fungi","global_top",120.125,136,2488,0.999594813614263

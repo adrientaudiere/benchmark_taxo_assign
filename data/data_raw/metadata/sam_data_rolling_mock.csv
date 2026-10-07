@@ -1,0 +1,4 @@
+"Sample_names","platform","community","mix"
+"SRR16904671","illumina_miseq","mock","balanced"
+"SRR16904670","illumina_miseq","mock","extreme1"
+"SRR16904669","illumina_miseq","mock","extreme2"

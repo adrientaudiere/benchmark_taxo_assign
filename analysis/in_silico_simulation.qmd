@@ -6,42 +6,28 @@ format: html
 
 ```{r setup}
 #| message: false
-library("conflicted")
-library("MiscMetabar")
-library("targets")
-library("here")
-library("tibble")
-library("tidyr")
-library("dplyr")
-library("ggplot2")
-library("Biostrings")
-
-conflicted::conflicts_prefer(dplyr::filter)
-
 here::i_am("analysis/in_silico_simulation.qmd")
-source(here("config.R"))
-source(here("R/load_pqverse.R"))
-load_pqverse(c("MiscMetabar", "comparpq"))
+source(here::here("analysis/00_setup.R"))
+source(here("R/mock_truth.R"))
+source(here("R/insilico_input.R"))
+source(here("R/score_assignments.R"))
+# clean_taxo(), add_gen_sp() and build_ranks_df(): the same preparation as
+# chapter 01, shared since 2026-09-23 (C22-S4), so the in silico set is scored
+# exactly like the mocks without entering res_comp_tax (OD 29).
+source(here("R/assignment_helpers.R"))
 
-# Smoke-test switch. config.R derives mini_db from TAR_PROJECT, which is unset
-# when a notebook is rendered, so this file would always run on the full
-# databases (one dada2 assignment against a full reference peaks at 23-45 GB,
-# see docs/diagnostics_cv_and_databases.md). The chapters use
-# BENCHMARK_ANALYSIS_MINI instead (analysis/00_setup.R); honour it here too:
-#   BENCHMARK_ANALYSIS_MINI=TRUE quarto render analysis/in_silico_simulation.qmd
-sim_mini_env <- Sys.getenv("BENCHMARK_ANALYSIS_MINI", unset = NA)
-if (is.na(sim_mini_env)) {
-  sim_mini <- mini_db
-} else {
-  sim_mini <- as.logical(sim_mini_env)
-  if (is.na(sim_mini)) {
-    # An unparseable value (1, yes, "true " with a trailing space) yields NA.
-    # Falling back here would send the render to the full databases, the 45 GB
-    # path, when mini was meant. analysis/00_setup.R stops the same way.
-    stop("BENCHMARK_ANALYSIS_MINI must be TRUE or FALSE.")
-  }
-}
-message("in silico: ", if (sim_mini) "MINI databases" else "full databases")
+insilico_store <- here("store_assign_taxo_insilico")
+insilico_dada2_store <- here("store_dada2_insilico")
+# The in silico set has no mini store: a BENCHMARK_ANALYSIS_MINI render
+# (analysis/00_setup.R) skips the scoring rather than read production stores.
+# The ITSx regions of the set (OD 34): ITS1, ITS2 and full.
+insilico_regions <- dataset_regions("insilico")
+insilico_inputs <- paste0("d_all_taxo_", insilico_regions, "_asv")
+score_insilico <- !analysis_mini &&
+  dir.exists(insilico_store) &&
+  dir.exists(insilico_dada2_store) &&
+  all(targets::tar_exist_objects(insilico_inputs, store = insilico_store))
+message("in silico scoring: ", if (score_insilico) "ON" else "SKIPPED")
 ```
 
 # Overview
@@ -68,33 +54,42 @@ DADA2 + assignment pipeline on the resulting fastqs.
 
 ## Step 1 — Prepare input fasta
 
-Select a curated set of Fungi sequences (50–200 species, spanning ≥ 4 phyla)
-from the general release named by `config.R::insilico_source`
-(`Unite_s_all_20250219`, objectives_design decision 5), keeping the records
-whose kingdom is Fungi. The release is used rather than its dada2-format
-derivation because the truth table is parsed from the `k__`/`p__` prefixes,
-which `derive_dada2()` strips (see docs/reference_databases.md); `sources/` has
-no `mini_*` variant.
+A curated set of 100 Fungi records from the general release named by
+`config.R::insilico_source` (`Unite_s_all_20250219`, objectives_design
+decision 5), chosen by `R/insilico_input.R::select_insilico_records()`
+(developer, 2026-09-23, OD 29). A record is eligible when it has **no
+`Incertae_sedis` or `unclassified` label at any rank**, **a real species
+epithet** (not `<Genus>_sp`) and **an amplicon of 300–560 bp**, which 2 × 300 bp
+reads can merge. One record per species, drawn round-robin over phyla.
+
+Each filter fixes a defect of the first generation (2026-09-16, a random draw
+of 100 Fungi records, archived in `Archives/insilico_gen1_20260916/`): 25 of
+its 48 recovered ASVs had an incertae sedis truth that the cleaned assignments
+could never match, 70 of its 100 records were `<Genus>_sp` and gave no species
+truth, and 24 abundant records were too long to merge. Of the 168 030 Fungi
+records of the release, 32 262 pass the three filters (21 131 species, 4 095
+genera, 14 phyla). **The cost:** the hard, poorly known lineages are excluded
+by construction — Rozellomycota and the placeholder phyla have no eligible
+record — which is acceptable for a positive control and must be said wherever
+it is reported.
+
+The release is used rather than its dada2-format derivation because the truth
+is parsed from the `k__`/`p__` prefixes, which `derive_dada2()` strips (see
+docs/reference_databases.md).
 
 ```{r prepare-iss-input}
-# Output path for the curated input fasta
 iss_input_fasta <- here("data/data_raw/insilico/iss_input_fungi.fasta")
 dir.create(dirname(iss_input_fasta), showWarnings = FALSE, recursive = TRUE)
 
 if (!file.exists(iss_input_fasta)) {
-  # The general UNITE release, not the dada2-format derivation:
-  # parse_unite_taxonomy() below reads the k__/p__ prefixes, which
-  # derive_dada2() strips (checked 2026-09-16: 100 % of the source headers
-  # carry k__, 0 % of the dada2-format ones). Using the dada2 file here would
-  # give an all-NA truth table.
   db_path <- here("data/data_raw/refseq/sources", paste0(insilico_source, ".fasta"))
-  all_seqs <- Biostrings::readDNAStringSet(db_path)
-  all_seqs <- all_seqs[grepl("k__Fungi", names(all_seqs), fixed = TRUE)]
-  set.seed(targets_seed)
-  n_iss <- min(100, length(all_seqs))
-  picks <- sample(length(all_seqs), n_iss)
-  Biostrings::writeXStringSet(all_seqs[picks], iss_input_fasta)
-  message("Wrote ", n_iss, " Fungi sequences to ", iss_input_fasta)
+  picked <- select_insilico_records(
+    Biostrings::readDNAStringSet(db_path),
+    n = 100,
+    seed = targets_seed
+  )
+  Biostrings::writeXStringSet(picked, iss_input_fasta)
+  message("Wrote ", length(picked), " Fungi records to ", iss_input_fasta)
 }
 ```
 
@@ -131,15 +126,37 @@ If you would rather install it locally, `conda create -n issenv -c conda-forge
 -c bioconda insilicoseq` then drop the `docker run` wrapper and the `/mnt`
 prefixes.
 
-Outputs: `data/data_raw/insilico/iss_seed{1,2,3}_R{1,2}.fastq.gz`
+Outputs: `data/data_raw/insilico/iss_seed{1,2,3}_R{1,2}.fastq` — **uncompressed**,
+as InSilicoSeq 2.0.0 writes them (5000 reads per file, generated 2026-09-23
+from the curated input of Step 1). `MiscMetabar::list_fastq_files()` finds all
+three pairs with `pattern_R1 = "_R1"`, so nothing has to be gzipped.
+InSilicoSeq leaves empty `*.iss.tmp.*.vcf` files next to the fastqs: delete
+them **before** running `dada2_insilico`, because the raw folder is a file
+target and any change to it afterwards outdates the whole DADA2 store.
+
+**No forward primer site.** ITS1F (`CTTGGTCATTTAGAGGAAGTAA`) occurs in 0 input
+records and 0 reads (checked on both generations): the records begin inside
+ITS1, so the reads are amplicons by construction. The usual
+`cutadapt_remove_primers()` with `--discard-untrimmed` would drop essentially
+everything, the failure S6.9 hit on the `_Fungi_cut` databases, so the
+`insilico` row of `config.R::bio_datasets` has `fw_primer = NA` and
+`pipelines/dada2_bio.R` skips primer removal (OD 29b).
+
+**What survives the pipeline** (2026-09-23): 15 000 reads, 10 510 merged and
+chimera-free, **71 ASVs**. 68 match exactly one input record at the mock rule
+(99.5 % identity and cover) and get a Species truth; 3 sit at 97–98 %
+identity to one record or below and stay without truth. Every input record is
+300–560 bp, so no pair is lost for being too long to merge — the defect of the
+first generation, which lost 24 abundant records that way.
 
 ## Step 3 — Process with existing DADA2 + assignment pipeline
 
-Once fastqs exist, add two projects to `_targets.yaml` (`dada2_insilico`,
-`assign_taxo_insilico`) reusing `pipelines/dada2.R` and
-`pipelines/assign_taxo.R` with dedicated stores, point the raw-read folder
-and sample metadata at `data/data_raw/insilico/` (a per-dataset switch in
-`config.R` is still to be designed, see ROADMAP D1d), then:
+The per-dataset switch this step once called "still to be designed" **exists
+since 2026-09-16**: `config.R::bio_datasets` holds one row per dataset and
+`bio_cfg` is selected from `TAR_PROJECT`, exactly as D1c does for
+`tedersoo_illumina`. Adding the in silico set means one row there plus two
+projects in `_targets.yaml` (`dada2_insilico` using `pipelines/dada2_bio.R`,
+`assign_taxo_insilico`), each with its own store, then:
 
 ```r
 Sys.setenv(TAR_PROJECT = "dada2_insilico");       targets::tar_make()
@@ -149,41 +166,194 @@ Sys.setenv(TAR_PROJECT = "assign_taxo_insilico"); targets::tar_make()
 ## Step 4 — Truth table
 
 The ground truth of D1b-A is the taxonomy of the records InSilicoSeq generated
-the reads from, parsed out of the UNITE headers of `iss_input_fasta`. It gives
-one lineage per input record, which is the per-unit truth the scoring of
-`comparpq::tc_metrics_unit()` takes (`R/score_assignments.R`, chapter 01);
-matching the ASVs back to the input records follows the rule of
-`R/mock_truth.R::sanger_matches()`, the input fasta playing the part of the
-Sanger reads.
+the reads from, parsed out of the UNITE headers of `iss_input_fasta`. Each
+record plays the part of a mock strain: `R/mock_truth.R::mock_truth_table()`
+matches every ASV back to the records by the mock rule (99.5 % identity, the
+shorter sequence covered at 99.5 %), so an ASV gets the lineage of the record
+it came from, the lowest common rank of several, or no truth.
 
+Two choices differ from the mocks. The names are **UNITE's own**, with no GBIF
+accepted name (`Genus_accepted` and `Species_accepted` are NA): the truth comes
+from the same release as three of the databases, so there is no submitted name
+to reconcile. And the species goes through `species_name()`, like a strain
+name. The input was curated so that neither step removes anything (Step 1): no
+rank of any record is missing, incertae sedis or unclassified.
 
 ```{r parse-taxonomy-fn}
-# Extracts the k__/p__/.../s__ taxonomy string from UNITE general-release headers.
-# Headers: "ID|acc|SH|type|k__Kingdom;p__Phylum;...;s__Species"
-parse_unite_taxonomy <- function(headers) {
+# Lineage of UNITE general-release headers
+# ("ID|acc|SH|type|k__Kingdom;p__Phylum;...;s__Genus_species"), one column per
+# rank of `ranks`, NA when a rank is absent.
+parse_unite_taxonomy <- function(headers, ranks = truth_ranks) {
+  prefixes <- c(
+    Kingdom = "k__",
+    Phylum = "p__",
+    Class = "c__",
+    Order = "o__",
+    Family = "f__",
+    Genus = "g__",
+    Species = "s__"
+  )
   tax_str <- sub(".*\\|", "", headers)
-  ranks   <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
-  prfx    <- c("k__",     "p__",    "c__",   "o__",   "f__",    "g__",   "s__")
-
-  result <- lapply(tax_str, function(h) {
-    parts <- strsplit(h, ";")[[1]]
-    vapply(seq_along(ranks), function(i) {
-      hit <- grep(paste0("^", prfx[i]), parts, value = TRUE)
-      if (length(hit) == 0) { return(NA_character_) }
-      sub(prfx[i], "", hit[1])
-    }, character(1))
+  out <- lapply(ranks, function(rank) {
+    prefix <- prefixes[[rank]]
+    value <- sub(paste0("^.*", prefix, "([^;]*).*$"), "\\1", tax_str)
+    value[!grepl(prefix, tax_str, fixed = TRUE)] <- NA_character_
+    value
   })
-
-  df <- as.data.frame(do.call(rbind, result), stringsAsFactors = FALSE)
-  names(df)    <- ranks
-  rownames(df) <- headers
-  df
+  tibble::as_tibble(stats::setNames(out, ranks))
 }
 ```
 
-
 ```{r truth-table}
+#| eval: !expr score_insilico
 input_seqs <- Biostrings::readDNAStringSet(iss_input_fasta)
-insilico_truth <- parse_unite_taxonomy(names(input_seqs))
-head(insilico_truth)
+iss_records <- tibble(
+  strain = sprintf("rec_%03d", seq_along(input_seqs)),
+  name = names(input_seqs),
+  sequence = as.character(input_seqs)
+)
+iss_lineage <- bind_cols(
+  iss_records["strain"],
+  parse_unite_taxonomy(iss_records$name)
+) |>
+  mutate(
+    Species = species_name(Species),
+    Genus_accepted = NA_character_,
+    Species_accepted = NA_character_
+  )
+stopifnot(!anyNA(iss_lineage[truth_ranks]))
+
+insilico_truth <- mock_truth_table(
+  tar_read(d_asv, store = insilico_dada2_store)@refseq,
+  iss_records,
+  iss_lineage
+)
+insilico_truth |>
+  count(truth_depth, n_strains)
+```
+
+## Step 5 — Scoring
+
+The assignments of `assign_taxo_insilico` are prepared and scored exactly as
+chapter 01 prepares and scores the mocks: `clean_taxo()`, `add_gen_sp()`,
+`build_ranks_df()`, then `score_assignments()`, which groups the columns by
+what their database does with the `external_` controls. Since 2026-09-27 the
+grid assigns the ITSx inputs only (OD 34), and this set covers the whole ITS,
+so it has three: **ITS1, ITS2 and full**. Only their ASV inputs are scored —
+the question here is whether the pipeline recovers a known truth, not Q5 — and
+no consensus column is built. The truth is the same for the three regions:
+`itsx_pq()` keeps the name of the most abundant ASV when it merges ASVs that
+became identical once trimmed. The result stays in this chapter: it never
+enters `res_comp_tax` or the Q figures (OD 29).
+
+```{r score}
+#| eval: !expr score_insilico
+insilico_vm <- values_map_for("insilico")
+score_insilico_region <- function(region) {
+  input <- paste0(region, "_asv")
+  d <- tar_read_raw(paste0("d_all_taxo_", input), store = insilico_store) |>
+    clean_taxo() |>
+    add_gen_sp()
+  score_assignments(
+    d,
+    build_ranks_df(
+      d,
+      insilico_vm$full_name[insilico_vm$input == input],
+      ranks = tax_order
+    ),
+    insilico_truth,
+    db_meta,
+    external_truth = external_control_truth(taxa_names(d)),
+    truth_ranks = truth_ranks
+  ) |>
+    mutate(unit = "ASV")
+}
+
+res_insilico <- bind_rows(lapply(insilico_regions, score_insilico_region)) |>
+  # Same relabelling as chapter 01: the last rank read the Gen_sp columns.
+  mutate(tax_level = ifelse(tax_level == "Species", "Gen_sp", tax_level)) |>
+  enrich_metrics()
+saveRDS(res_insilico, file.path(cache_dir, "res_insilico.rds"))
+
+res_insilico |>
+  count(region, external_scoring)
+```
+
+### The positive control
+
+The reads were generated from records of `Unite_s_all_20250219`, so on the
+three databases built from that release every truthed ASV has its own record
+in the reference: a working pipeline must recover them. At Genus and default
+settings, the counts over the 71 ASVs:
+
+```{r positive-control}
+#| eval: !expr score_insilico
+res_insilico |>
+  filter_default_settings() |>
+  filter(
+    grepl("^Unite_s_all", db),
+    tax_level %in% c("Genus", "Gen_sp"),
+    metrics %in% c("TP", "FP", "FN")
+  ) |>
+  select(region, algo, db, tax_level, metrics, values) |>
+  pivot_wider(names_from = metrics, values_from = values) |>
+  arrange(tax_level, region, db, algo) |>
+  knitr::kable()
+```
+
+*Reading of 2026-10-05, on the ITSx regions (OD 34), the patched dada2 and the
+common LCA (OD 33).* The truthed ASVs are 68 in ITS1 and full, 67 in ITS2 (ITSx
+does not extract ITS2 from one of them); the 3 truthless ASVs stay in the
+matrix and count as FP when assigned, as on the mocks (Q2b). The three
+`Unite_s_all_20250219` databases give the same TP and FN; on `_Fungi` the
+`external_` controls, scored in the matrix there, add at most one FP. **It
+passes for sintax and dada2**: both name the right genus for every truthed ASV
+in ITS1 and full, and for 66 of 67 in ITS2. Two methods miss genera even with
+the exact record in the reference:
+
+- **lca** names the right genus for 53 of 68 (ITS1), 49 of 67 (ITS2) and 46
+  of 68 (full), and a wrong one for 5 to 7. At the common LCA settings
+  (consensus 0.51 over at most 10 hits at ≥ 80 % identity), the exact record
+  weighs one hit among ten: every missed ASV has a 100 % hit, but its genus
+  holds at most half of the accepted hits, so a larger neighbouring genus
+  outvotes it or no genus reaches the majority. This is the trade-off measured
+  when lca left stampa (`HISTORY.md` §2, OD 33: in silico genus 0.91 correct
+  with stampa against 0.57 with the common LCA at 0.51).
+- **blastn** names the right genus for 59 of 68 (ITS1), 58 of 67 (ITS2) and 58
+  of 68 (full). At `rel_majority` and `min_id = 95`, a unit whose top hits span
+  several genera gets no vote; its species rate stays low on every database
+  (Gen_sp NA_real 0.34 to 0.57).
+
+**dada2 no longer collapses on the full releases.** The reading of 2026-09-23
+(42 TP and 18 FN on the full `Unite_s_all_20250219`, no genus at all on the
+full `EUK_ITS_v2.1`) was the k-mer overflow of dada2 1.40.0 on references
+beyond 65 536 taxonomies, not a breadth effect (`HISTORY.md` §2, 2026-09-30):
+on the patched build dada2 names 66–68 genera on the full `Unite_s_all` and
+53–58 on the full `EUK_ITS_v2.1`.
+
+### Every database
+
+F1 at Genus and species, default settings. **Do not read UNITE against
+EUKARYOME here**: the leak is asymmetric (OD 29a), so the UNITE columns are the
+positive control and the EUKARYOME ones only show what a database without the
+exact records gives on a community of known lineages.
+
+```{r f1-grid}
+#| eval: !expr score_insilico
+#| fig-height: 11
+res_insilico |>
+  filter_default_settings() |>
+  filter(tax_level %in% c("Genus", "Gen_sp"), metrics == "F1_score") |>
+  mutate(db = factor(db, levels = db_list)) |>
+  ggplot(aes(x = algo, y = db, fill = values)) +
+  geom_tile(colour = "white") +
+  geom_text(
+    aes(label = sprintf("%.2f", values), colour = values < 0.3),
+    size = 3
+  ) +
+  scale_colour_manual(values = c("black", "white"), guide = "none") +
+  scale_fill_viridis_c(limits = c(0, 1), na.value = "grey85") +
+  facet_grid(region ~ factor(tax_level, levels = tax_order)) +
+  labs(x = NULL, y = NULL, fill = "F1") +
+  theme_minimal()
 ```

@@ -1,0 +1,545 @@
+---
+title: "09 — Species by exact match"
+author: "Adrien Taudière"
+---
+
+The benchmark measures taxonomic assignment as a whole; its primary
+endpoints are F1 and PPV at **Genus** (OD 43). Species gets this chapter of
+its own, because a species name read from a bootstrap classifier at its
+threshold is not what a careful user would publish: a species is named here
+only when the query is found **at 100 %** in a reference record. Three
+methods do that (`pipelines/species.R`, project `species`):
+
+- `dada2::assignSpecies()` on `species_format/` (records naming a species
+  only), which accepts a query found as an exact substring of a record;
+- vsearch `--usearch_global --id 1 --query_cov 1 --maxaccepts 0
+  --maxrejects 32` on the sintax files, a hit kept only when the query is an
+  exact substring of the record (vsearch counts a base against an ambiguity
+  code as identical);
+- blastn hits at 100 % identity over the whole query, read from the raw
+  tables of the main grid.
+
+**From exact hits to a species call** (developer, 2026-10-07, OD 43): a query
+is named a species when every exact hit that names a species gives the same
+binomial; hits naming no species ("sp.", no epithet) do not block the call;
+several binomials give no species.
+
+**What to expect.** Exact matching names fewer species than a bootstrap
+classifier at its threshold, trading recall for precision (OD 43). This
+chapter measures both against the Species rank of the main grid (chapter 01,
+the `Gen_sp` rows), with the same truth and the same scoring functions: a
+dada2 column scored here alone gives the cached value of chapter 01.
+
+```{r setup}
+here::i_am("analysis/09_species_exact.qmd")  # _quarto.yml would otherwise make here() root = analysis/
+source(here::here("analysis/00_setup.R"))
+source(here("R/mock_truth.R"))
+source(here("R/score_assignments.R"))
+source(here("R/assignment_helpers.R"))
+source(here("R/species_exact.R"))
+source(here("R/species_scoring.R"))
+source(here("R/autometric_helpers.R"))
+
+exact_methods <- c("assignSpecies", "vsearch", "blastn")
+method_levels <- unique(c(exact_methods, single_methods))
+store_species <- here(if (analysis_mini) "store_species_mini" else "store_species")
+species_queries <- tar_read(species_queries, store = store_species)
+calls <- species_calls(
+  tar_read(species_assign_all, store = store_species),
+  tar_read(species_vsearch_all, store = store_species),
+  tar_read(species_blastn_all, store = store_species),
+  queries = names(species_queries$seqs)
+)
+blastn_hits <- tar_read(species_blastn_all, store = store_species)
+
+# The inputs of the species store that have a truth (the mocks of chapter
+# 01): one tab each.
+species_views <- species_queries$map |>
+  distinct(dataset, input) |>
+  filter(dataset %in% analysis_datasets$dataset) |>
+  mutate(
+    region = sub("_.*$", "", input),
+    unit = toupper(sub("^.*_", "", input)),
+    region = factor(region, levels = c("ITS1", "ITS2", "full")),
+    dataset = factor(dataset, levels = analysis_datasets$dataset)
+  ) |>
+  arrange(dataset, region, unit) |>
+  mutate(
+    across(c(dataset, region), as.character),
+    id = paste0(dataset, "_", input),
+    view = paste(dataset, region, unit)
+  )
+stopifnot(nrow(species_views) > 0)
+
+# The truth of one input, as chapter 01 builds it: the ASVs from the DADA2
+# store, the OTUs from their trimmed sequences.
+truth_for <- function(dataset, input) {
+  ds <- analysis_datasets[analysis_datasets$dataset == dataset, ]
+  cfg <- mock_sanger_tables[mock_sanger_tables$dataset == dataset, ]
+  physeq <- if (grepl("_asv$", input)) {
+    tar_read(d_asv, store = ds$dada2_store)
+  } else {
+    tar_read_raw(paste0("d_", input, "_real"), store = ds$store)
+  }
+  build_mock_truth(physeq, cfg)
+}
+
+# One input scored: the exact-match columns (Species rows only, see
+# add_exact_columns()) and everything the sections below need about it.
+score_exact_input <- function(v) {
+  ds <- analysis_datasets[analysis_datasets$dataset == v$dataset, ]
+  physeq <- tar_read_raw(
+    paste0("d_", v$input, "_for_assignation"),
+    store = ds$store
+  )
+  map <- filter(species_queries$map, dataset == v$dataset, input == v$input)
+  truth <- truth_for(v$dataset, v$input)
+  external <- external_control_truth(taxa_names(physeq))
+  added <- add_exact_columns(physeq, calls, map, v$input)
+  res <- score_assignments(
+    added$physeq,
+    added$ranks_df,
+    truth,
+    db_meta,
+    external_truth = external,
+    truth_ranks = truth_ranks
+  ) |>
+    filter(tax_level == "Species") |>
+    mutate(
+      tax_level = "Gen_sp",
+      algo = sub("^.*_(assignSpecies|vsearch|blastn)__.*$", "\\1", method_db),
+      db = assignment_db(method_db),
+      approach = "exact match"
+    )
+  list(view = v, res = res, truth = truth, map = map)
+}
+scored <- lapply(seq_len(nrow(species_views)), \(i) score_exact_input(species_views[i, ]))
+names(scored) <- species_views$id
+
+# The exact rows of every input, and the Species rows of the main grid for
+# the same inputs (chapter 01): the four methods, every setting.
+res_exact <- bind_rows(lapply(scored, function(s) {
+  mutate(s$res, dataset = s$view$dataset, input = s$view$input, view = s$view$view)
+}))
+res_grid <- cache_read("res_comp_tax") |>
+  filter(tax_level == "Gen_sp", !is_consensus, algo %in% single_methods) |>
+  mutate(input = paste0(region, "_", tolower(unit))) |>
+  inner_join(select(species_views, dataset, input, view), by = c("dataset", "input")) |>
+  mutate(
+    approach = case_when(
+      algo %in% c("dada2", "sintax") ~ paste0("bootstrap ", bootstrap_num),
+      algo == "lca" ~ paste0("lca cutoff ", lca_cutoff),
+      TRUE ~ paste0(vote_algorithm, " ", min_id, " %")
+    )
+  )
+res_grid_default <- filter_default_settings(res_grid) |>
+  mutate(approach = "main grid, default")
+res_both <- bind_rows(res_exact, res_grid_default) |>
+  mutate(
+    algo = factor(algo, levels = method_levels),
+    db = factor(db, levels = db_list)
+  )
+
+# One panel-tabset with a tab per input; fun() must print() a figure before
+# save_fig(), as in view_tabs().
+species_tabs <- function(fun) {
+  cat("\n::: {.panel-tabset}\n\n")
+  for (id in species_views$id) {
+    cat("### ", species_views$view[species_views$id == id], "\n\n", sep = "")
+    fun(scored[[id]], id)
+    cat("\n\n")
+  }
+  cat(":::\n\n")
+}
+```
+
+## Summary
+
+```{r summary-data}
+#| include: false
+# Means over the nine databases, per input and method.
+s09_means <- res_both |>
+  filter(metrics %in% c("F1_score", "PPV", "TPR", "TP", "FP")) |>
+  group_by(view, approach, algo, metrics) |>
+  summarise(value = mean(values), .groups = "drop") |>
+  tidyr::pivot_wider(names_from = metrics, values_from = value) |>
+  mutate(named = TP + FP)
+s09_exact <- filter(s09_means, approach == "exact match")
+s09_default <- filter(s09_means, approach == "main grid, default")
+# The three exact methods: the same call (a species or none) on every
+# (query, db)? Their statuses may differ without consequence: assignSpecies
+# cannot see the records that name no species.
+s09_agree <- calls |>
+  select(db, query, method, status, call) |>
+  tidyr::pivot_wider(names_from = method, values_from = c(status, call)) |>
+  mutate(
+    same = coalesce(call_assignSpecies, "") == coalesce(call_vsearch, "") &
+      coalesce(call_vsearch, "") == coalesce(call_blastn, ""),
+    same_vsearch_blastn = status_vsearch == status_blastn
+  )
+s09_fake <- res_exact |>
+  filter(metrics == "NA_fake") |>
+  mutate(named = 1 - values)
+s09_bootstrap_ppv <- filter(s09_default, algo %in% c("dada2", "sintax"))
+```
+
+Datasets in the species store with a truth:
+`r paste(unique(species_views$dataset), collapse = ", ")` (inputs:
+`r paste(species_views$view, collapse = "; ")`). Means over the nine
+databases; the main grid at its default settings (bootstrap 0.5).
+
+- **The three exact methods give the same call** on `r sum(s09_agree$same)`
+  of `r nrow(s09_agree)` (query, database) pairs; vsearch and blastn also
+  agree on the status of `r sum(s09_agree$same_vsearch_blastn)`.
+- **Precision**: exact matching reaches a PPV of
+  `r fmt_range(s09_exact$PPV)` at Species, against
+  `r fmt_range(s09_bootstrap_ppv$PPV)` for dada2 and sintax at bootstrap 0.5.
+- **Recall**: it names `r fmt_range(s09_exact$named, 1)` real units per
+  database, against `r fmt_range(s09_bootstrap_ppv$named, 1)` for dada2 and
+  sintax; its TPR is `r fmt_range(s09_exact$TPR)` against
+  `r fmt_range(s09_bootstrap_ppv$TPR)`, and its F1
+  `r fmt_range(s09_exact$F1_score)` against
+  `r fmt_range(s09_bootstrap_ppv$F1_score)`.
+- **Shuffled controls named**: `r fmt_range(s09_fake$named)` by exact
+  matching.
+
+## S1 — Agreement of the three exact methods
+
+The three methods apply the same criterion through different searches:
+assignSpecies scans every record naming a species, vsearch stops after 32
+rejected candidates, blastn keeps 500 hits per query. Number of queries
+(distinct sequences of every input of the store, controls included) per
+status, method and database.
+
+```{r s1}
+#| echo: false
+calls |>
+  count(db, method, status) |>
+  tidyr::pivot_wider(names_from = status, values_from = n, values_fill = 0) |>
+  mutate(
+    db = factor(db, levels = db_list),
+    method = factor(method, levels = exact_methods)
+  ) |>
+  arrange(db, method) |>
+  knitr::kable(caption = "Queries per status of the species call (all queries of the species store).")
+```
+
+```{r s1-disagree}
+#| echo: false
+s09_disagree <- filter(s09_agree, !same | !same_vsearch_blastn)
+if (nrow(s09_disagree) == 0) {
+  cat("No (query, database) pair where the calls, or the vsearch and blastn statuses, differ.\n")
+} else {
+  s09_disagree |>
+    select(db, query, starts_with("status_"), starts_with("call_")) |>
+    knitr::kable(caption = "Pairs where the calls, or the vsearch and blastn statuses, differ.")
+}
+s09_capped <- blastn_hits |>
+  filter(n_hits >= 500) |>
+  distinct(db, query)
+```
+
+blastn keeps 500 hits per query; `r nrow(s09_capped)` (query, database)
+pairs reach that cap, where an exact record beyond the 500th could be
+missing.
+
+## S2 — Precision and recall against the main grid
+
+Species (`Gen_sp`) scores of the exact-match columns beside the four methods
+of the main grid at every setting (dada2 and sintax bootstrap 0.4, 0.5, 0.6;
+lca cutoffs; blastn votes and identities). One point per database.
+
+```{r s2, results = "asis"}
+species_tabs(function(s, id) {
+  rows <- bind_rows(
+    filter(res_exact, view == s$view$view),
+    filter(res_grid, view == s$view$view)
+  ) |>
+    filter(metrics %in% c("PPV", "TPR")) |>
+    select(algo, approach, db, metrics, values) |>
+    tidyr::pivot_wider(names_from = metrics, values_from = values) |>
+    mutate(
+      family = ifelse(approach == "exact match", "exact match", "main grid"),
+      algo = factor(algo, levels = method_levels)
+    ) |>
+    # PPV is undefined for a column that names no unit.
+    filter(!is.na(PPV), !is.na(TPR))
+  fig_species_ppv_tpr <- rows |>
+    ggplot(aes(x = TPR, y = PPV, colour = algo, shape = family)) +
+    geom_point(size = 2.2, alpha = 0.75) +
+    scale_shape_manual(values = c("exact match" = 17, "main grid" = 1)) +
+    coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) +
+    labs(
+      x = "TPR (truthed units named right)",
+      y = "PPV (named units named right)",
+      colour = "Method",
+      shape = NULL
+    ) +
+    theme_bw() +
+    theme(legend.position = "bottom", legend.box = "vertical")
+  print(fig_species_ppv_tpr)
+  save_fig(fig_species_ppv_tpr, paste0("fig_species_ppv_tpr_", id), width = 8, height = 7)
+
+  bind_rows(
+    filter(res_exact, view == s$view$view),
+    filter(res_grid_default, view == s$view$view)
+  ) |>
+    filter(metrics %in% c("F1_score", "PPV", "TPR", "TP", "FP")) |>
+    select(approach, algo, db, metrics, values) |>
+    tidyr::pivot_wider(names_from = metrics, values_from = values) |>
+    mutate(
+      algo = factor(algo, levels = method_levels),
+      db = factor(db, levels = db_list),
+      across(c(F1_score, PPV, TPR), \(x) round(x, 3))
+    ) |>
+    arrange(db, algo) |>
+    cat_kable(caption = "Species: exact match and the main grid at default settings, per database.")
+})
+```
+
+## S3 — Why exact matching names few species
+
+Each real unit of the input with a species truth, against each database, by
+what the exact search found for it (vsearch; the three methods give the same
+calls, S1). "right species" counts the true binomial or its accepted name.
+The second table reads, for the units not named right, the nearest record of
+their own species in the raw blastn table of the main grid (500 hits per
+query): is the true species a few bases away, or does its record miss part
+of the query?
+
+```{r s3, results = "asis"}
+species_tabs(function(s, id) {
+  truthed <- s$truth |>
+    filter(!is.na(Species), !foreign, taxon %in% s$map$taxon) |>
+    select(taxon, Species, any_of("Species_accepted"))
+  if (!"Species_accepted" %in% names(truthed)) {
+    truthed$Species_accepted <- NA_character_
+  }
+  outcome <- calls |>
+    filter(method == "vsearch") |>
+    inner_join(s$map, by = "query", relationship = "many-to-many") |>
+    inner_join(truthed, by = "taxon") |>
+    mutate(
+      outcome = case_when(
+        status == "one species" &
+          (call == Species | call == coalesce(Species_accepted, "")) ~ "right species",
+        status == "one species" ~ "wrong species",
+        TRUE ~ as.character(status)
+      ),
+      outcome = factor(
+        outcome,
+        levels = c("right species", "wrong species", species_status_levels[-1])
+      ),
+      db = factor(db, levels = db_list)
+    )
+  fig_species_outcome <- outcome |>
+    count(db, outcome) |>
+    ggplot(aes(x = db, y = n, fill = outcome)) +
+    geom_col() +
+    scale_fill_brewer(palette = "Set2", drop = FALSE) +
+    labs(x = NULL, y = "Real units with a species truth", fill = NULL) +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+  print(fig_species_outcome)
+  save_fig(fig_species_outcome, paste0("fig_species_outcome_", id), width = 9, height = 6)
+  outcome |>
+    count(db, outcome) |>
+    tidyr::pivot_wider(names_from = outcome, values_from = n, values_fill = 0) |>
+    arrange(db) |>
+    cat_kable(caption = paste0(
+      "Real units of the input with a species truth (", nrow(truthed),
+      "), by what vsearch found."
+    ))
+
+  # The nearest record of the unit's own species among its blastn hits.
+  store <- analysis_datasets$store[analysis_datasets$dataset == s$view$dataset]
+  missed <- filter(outcome, outcome != "right species")
+  near <- bind_rows(lapply(levels(missed$db), function(db) {
+    table <- tar_read_raw(
+      paste0(s$view$input, "_compute_blastn__", db),
+      store = store
+    )
+    hits <- tibble::tibble(
+      taxon = table[["Query name"]],
+      binomial = binomial_of_sintax_header(table[["Taxa name"]]),
+      id = table[["% id. match"]],
+      cover = table[["Query cover"]]
+    )
+    filter(missed, db == !!db) |>
+      select(db, taxon, Species, Species_accepted) |>
+      left_join(hits, by = "taxon", relationship = "many-to-many") |>
+      mutate(
+        own = !is.na(binomial) &
+          (binomial == Species | binomial == coalesce(Species_accepted, ""))
+      ) |>
+      group_by(db, taxon) |>
+      summarise(
+        nearest = case_when(
+          !any(own) ~ "no record of its species",
+          any(own & id == 100 & cover < 100) ~ "100 % over part of the query",
+          any(own & cover == 100 & id >= 99) ~ "99 % or more over the whole query",
+          TRUE ~ "below 99 %, or over part of the query"
+        ),
+        .groups = "drop"
+      )
+  }))
+  near |>
+    count(db, nearest) |>
+    tidyr::pivot_wider(names_from = nearest, values_from = n, values_fill = 0) |>
+    arrange(db) |>
+    cat_kable(caption = "Units not named right: the nearest blastn record of their own species.")
+})
+```
+
+## S4 — Controls
+
+The shuffled controls (`fake_`) hold no real sequence, so an exact match on
+one is an error by construction. `NA_fake` is the share of them left
+unnamed; `ext_correct` and `ext_fungi` read the non-fungal `external_`
+controls as in chapter 01.
+
+```{r s4}
+#| echo: false
+res_both |>
+  filter(metrics %in% c("NA_fake", "ext_correct", "ext_fungi")) |>
+  group_by(view, approach, algo, metrics) |>
+  summarise(value = round(mean(values, na.rm = TRUE), 3), .groups = "drop") |>
+  tidyr::pivot_wider(names_from = metrics, values_from = value) |>
+  arrange(view, approach, algo) |>
+  knitr::kable(caption = "Controls at Species, mean over the nine databases.")
+```
+
+## S5 — Time and memory of the three methods
+
+What each method costs to name species against each database, on the same
+queries. Sources:
+
+- **assignSpecies and vsearch**: the targets of the species project, one call
+  per database on the distinct sequences of every input of the store pooled
+  (autometric logs, `with_autometric()`); assignSpecies has no thread option
+  and runs on one core, vsearch on `r assign_threads[["lca"]]`.
+- **blastn**: the blastn searches of the main grid, summed over the inputs of
+  the store (`benchmark_costs` of each assignment store), on
+  `r assign_threads[["blastn"]]` threads since 2026-10-07 and on 1 thread
+  before (`config.R::assign_threads`): the table gives the threads of the run
+  it shows. The species section reads their
+  stored tables, so for a user who runs blastn for the main assignment the
+  species calls cost nothing more; the time below is what blastn costs when
+  it is run for species alone.
+
+Memory is the peak of the R worker **and its child processes** (vsearch,
+BLAST+), sampled every second (`peak_tree_mb`, `R/sample_tree.R`). Runs
+logged before the sampler (2026-10-07) only have the R process, which sits
+idle while vsearch or BLAST+ work: their memory is shown as not measured.
+CPU is the CPU time of the worker and of its children. Provisional, as every
+cost before M2.4 (OD 31): the machine was not reserved for these runs.
+
+```{r s5-data}
+#| include: false
+species_autometric <- here(
+  "data/data_final/autometric",
+  sub("^store_", "", basename(store_species))
+)
+# assignSpecies and vsearch: the newest run of each species target.
+s09_cost_exact <- read_autometric_dir(species_autometric) |>
+  summarise_autometric_costs() |>
+  add_tree_costs(species_autometric) |>
+  filter(grepl("^species_(assign|vsearch)__", phase)) |>
+  transmute(
+    method = ifelse(grepl("^species_assign__", phase), "assignSpecies", "vsearch"),
+    db = sub("^species_[a-z]+__", "", phase),
+    wall_s = coalesce(wall_s, wall_time_s),
+    cpu_s = cpu_self_s + cpu_child_s,
+    peak_mb = peak_tree_mb,
+    threads = ifelse(method == "assignSpecies", 1L, as.integer(assign_threads[["lca"]]))
+  )
+# blastn: the main grid's searches of the same inputs, summed per database.
+s09_cost_blastn <- bind_rows(lapply(unique(species_views$dataset), function(d) {
+  inputs <- species_views$input[species_views$dataset == d]
+  store <- analysis_datasets$store[analysis_datasets$dataset == d]
+  costs <- tar_read(benchmark_costs, store = store)
+  for (col in c("wall_s", "cpu_self_s", "cpu_child_s", "peak_tree_mb")) {
+    if (!col %in% names(costs)) {
+      costs[[col]] <- NA_real_
+    }
+  }
+  costs |>
+    distinct(compute_name, .keep_all = TRUE) |>
+    filter(method == "blastn", input %in% inputs)
+})) |>
+  group_by(db) |>
+  summarise(
+    wall_s = sum(coalesce(wall_s, wall_time_s)),
+    cpu_s = sum(cpu_self_s + cpu_child_s),
+    peak_mb = max(peak_tree_mb),
+    n_searches = n(),
+    .groups = "drop"
+  ) |>
+  # A run logged before 2026-10-07 has no CPU file: it ran on one thread
+  # (assign_threads_fast, the setting until config.R::assign_threads).
+  mutate(
+    method = "blastn",
+    threads = ifelse(is.na(cpu_s), 1L, as.integer(assign_threads[["blastn"]]))
+  )
+s09_cost <- bind_rows(s09_cost_exact, s09_cost_blastn) |>
+  mutate(
+    method = factor(method, levels = exact_methods),
+    db = factor(db, levels = db_list)
+  ) |>
+  arrange(method, db)
+s09_cost_total <- s09_cost |>
+  group_by(method) |>
+  summarise(
+    minutes = sum(wall_s) / 60,
+    cpu_minutes = sum(cpu_s) / 60,
+    peak_mb = max(peak_mb),
+    .groups = "drop"
+  )
+fmt_mb <- function(x) {
+  ifelse(is.na(x), "not measured", paste(format(round(x), big.mark = " "), "MB"))
+}
+```
+
+Over the nine databases: assignSpecies
+`r round(s09_cost_total$minutes[s09_cost_total$method == "assignSpecies"], 1)`
+min, vsearch
+`r round(s09_cost_total$minutes[s09_cost_total$method == "vsearch"], 1)` min,
+blastn `r round(s09_cost_total$minutes[s09_cost_total$method == "blastn"], 1)`
+min of wall time. Peak memory: assignSpecies
+`r fmt_mb(s09_cost_total$peak_mb[s09_cost_total$method == "assignSpecies"])`,
+vsearch
+`r fmt_mb(s09_cost_total$peak_mb[s09_cost_total$method == "vsearch"])`,
+blastn
+`r fmt_mb(s09_cost_total$peak_mb[s09_cost_total$method == "blastn"])`.
+
+```{r s5-fig}
+#| echo: false
+#| fig-height: 5
+fig_species_cost <- s09_cost |>
+  select(method, db, `Wall time (min)` = wall_s, `Peak memory (MB)` = peak_mb) |>
+  mutate(`Wall time (min)` = `Wall time (min)` / 60) |>
+  tidyr::pivot_longer(-c(method, db), names_to = "measure", values_to = "value") |>
+  filter(!is.na(value)) |>
+  ggplot(aes(x = db, y = value, fill = method)) +
+  geom_col(position = position_dodge(preserve = "single")) +
+  facet_wrap(~measure, scales = "free_y") +
+  labs(x = NULL, y = NULL, fill = "Method") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+print(fig_species_cost)
+save_fig(fig_species_cost, "fig_species_cost", width = 12, height = 5)
+```
+
+```{r s5-table}
+#| echo: false
+s09_cost |>
+  transmute(
+    method,
+    db,
+    threads,
+    minutes = round(wall_s / 60, 2),
+    `CPU minutes` = round(cpu_s / 60, 2),
+    `peak memory` = fmt_mb(peak_mb)
+  ) |>
+  knitr::kable(caption = "Time and memory per method and database (blastn: the main grid's searches of the same inputs, summed).")
+```

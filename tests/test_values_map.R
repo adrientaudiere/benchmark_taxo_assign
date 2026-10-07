@@ -45,26 +45,35 @@ test_dbs <- c("DB_A", "DB_B_v2.1_Fungi_cut")
 # min_id (ROADMAP 0.4).
 rows_per_db <- 21
 
-test_that("build_values_map keeps the legacy names of dada2 and sintax, and names lca and blastn rows by their parameters", {
-  vm <- build_values_map(dbs = test_dbs, mini_db = FALSE, itsx_dbs = test_dbs)
-  expect_equal(nrow(vm), rows_per_db * length(test_dbs) * 3)
+test_that("build_values_map names every row <input>_<legacy name>, the input being <region>_<unit>", {
+  vm <- build_values_map(
+    dbs = test_dbs,
+    mini_db = FALSE,
+    regions = "ITS1",
+    units = c("asv", "otu")
+  )
+  expect_equal(nrow(vm), rows_per_db * length(test_dbs) * 2)
   expect_false(any(duplicated(vm$full_name)))
-  raw <- vm[vm$preprocess == "none", ]
-  bootstrap_rows <- raw[raw$method %in% c("dada2", "sintax"), ]
+  asv <- vm[vm$input == "ITS1_asv", ]
+  bootstrap_rows <- asv[asv$method %in% c("dada2", "sintax"), ]
   expect_equal(
     bootstrap_rows$full_name,
-    legacy_full_name(
-      bootstrap_rows$method,
-      bootstrap_rows$db,
-      bootstrap_rows$min_bootstrap,
-      NA,
-      NA
+    paste0(
+      "ITS1_asv_",
+      legacy_full_name(
+        bootstrap_rows$method,
+        bootstrap_rows$db,
+        bootstrap_rows$min_bootstrap,
+        NA,
+        NA
+      )
     )
   )
-  blastn_rows <- raw[raw$method == "blastn", ]
+  blastn_rows <- asv[asv$method == "blastn", ]
   expect_equal(
     blastn_rows$full_name,
     paste0(
+      "ITS1_asv_",
       legacy_full_name(
         "blastn",
         blastn_rows$db,
@@ -78,63 +87,56 @@ test_that("build_values_map keeps the legacy names of dada2 and sintax, and name
   )
   expect_true(all(
     c(
-      "dada2__DB_A___0.5",
-      "sintax__DB_B_v2.1_Fungi_cut___0.4",
-      "lca__DB_A___0.8",
-      "lca__DB_A___1",
-      "blastn__DB_B_v2.1_Fungi_cut___0.5...rel_majority...100...95",
-      "blastn__DB_A___0.5...unanimity...100...90"
+      "ITS1_asv_dada2__DB_A___0.5",
+      "ITS1_asv_sintax__DB_B_v2.1_Fungi_cut___0.4",
+      "ITS1_asv_lca__DB_A___0.51",
+      "ITS1_asv_lca__DB_A___0.8",
+      "ITS1_asv_lca__DB_A___1",
+      "ITS1_asv_blastn__DB_B_v2.1_Fungi_cut___0.5...rel_majority...100...95",
+      "ITS1_otu_blastn__DB_A___0.5...unanimity...100...90"
     ) %in%
-      raw$full_name
+      vm$full_name
   ))
   expect_setequal(
-    raw$lca_cutoff[raw$method == "lca"],
-    rep(c(0.8, 0.9, 1), length(test_dbs))
+    asv$lca_cutoff[asv$method == "lca"],
+    rep(c(0.51, 0.8, 1), length(test_dbs))
   )
-  expect_true(all(is.na(raw$min_bootstrap[raw$method == "lca"])))
+  expect_true(all(is.na(asv$min_bootstrap[asv$method == "lca"])))
   expect_setequal(unique(blastn_rows$min_id), c(90, 92, 95, 97))
   expect_equal(
     nrow(build_values_map(dbs = db_list)),
-    rows_per_db * (2 * length(db_list) + length(itsx_db_list))
+    rows_per_db * length(db_list) * length(itsx_regions) * length(itsx_units)
   )
+  expect_equal(full_name_for("sintax", "DB_A", 0.5), "sintax__DB_A___0.5")
 })
 
-test_that("OTU rows run on every database, prefix the method and read d_vs_for_assignation", {
-  vm <- build_values_map(dbs = test_dbs, itsx_dbs = "DB_A")
-  otu <- vm[vm$preprocess == "otu", ]
-  raw <- vm[vm$preprocess == "none", ]
-  expect_setequal(unique(otu$db), test_dbs)
-  expect_setequal(otu$full_name, paste0("otu_", raw$full_name))
-  expect_equal(unique(otu$input_pq), "d_vs_for_assignation")
-  expect_true("otu_compute_lca__DB_B_v2.1_Fungi_cut" %in% otu$compute_name)
-})
-
-test_that("the ITSx input runs on itsx_dbs only, the Fungi databases of config.R", {
-  vm <- build_values_map(dbs = test_dbs, itsx_dbs = "DB_B_v2.1_Fungi_cut")
-  expect_equal(unique(vm$db[vm$preprocess == "itsx"]), "DB_B_v2.1_Fungi_cut")
-  expect_setequal(unique(vm$db[vm$preprocess == "none"]), test_dbs)
-  expect_equal(sum(vm$preprocess == "itsx"), rows_per_db)
-  expect_true(all(itsx_db_list %in% db_list))
-  expect_setequal(
-    itsx_db_list,
-    benchmark_dbs$db[benchmark_dbs$simplification %in% c("Fungi", "Fungi+rep")]
+test_that("every input (region x unit) runs on every database and reads its own phyloseq", {
+  vm <- build_values_map(
+    dbs = test_dbs,
+    regions = c("ITS1", "ITS2", "full"),
+    units = c("asv", "otu")
   )
-})
-
-test_that("ITSx rows prefix the method and read the ITSx phyloseq", {
-  vm <- build_values_map(dbs = test_dbs, itsx_dbs = test_dbs)
-  itsx <- vm[vm$preprocess == "itsx", ]
-  raw <- vm[vm$preprocess == "none", ]
-  expect_equal(nrow(itsx), nrow(raw))
-  expect_setequal(itsx$full_name, paste0("itsx_", raw$full_name))
-  expect_true(
-    "itsx_blastn__DB_A___0.5...rel_majority...100...95" %in% itsx$full_name
+  inputs <- c(
+    "ITS1_asv",
+    "ITS1_otu",
+    "ITS2_asv",
+    "ITS2_otu",
+    "full_asv",
+    "full_otu"
   )
-  expect_equal(unique(itsx$input_pq), "d_asv_itsx_for_assignation")
-  expect_equal(unique(raw$input_pq), "d_asv_for_assignation")
+  expect_setequal(unique(vm$input), inputs)
+  for (i in inputs) {
+    rows <- vm[vm$input == i, ]
+    expect_setequal(unique(rows$db), test_dbs)
+    expect_equal(nrow(rows), rows_per_db * length(test_dbs))
+    expect_equal(unique(rows$input_pq), paste0("d_", i, "_for_assignation"))
+    expect_true(all(startsWith(rows$full_name, paste0(i, "_"))))
+  }
+  expect_equal(vm$input, paste0(vm$region, "_", vm$unit))
+  expect_true("ITS2_otu_compute_lca__DB_B_v2.1_Fungi_cut" %in% vm$compute_name)
   expect_equal(
-    nrow(build_values_map(dbs = test_dbs, preprocess = "none")),
-    nrow(raw)
+    nrow(build_values_map(dbs = test_dbs, regions = "ITS2", units = "asv")),
+    rows_per_db * length(test_dbs)
   )
 })
 
@@ -206,15 +208,19 @@ test_that("each reference file has one file target, named without the mini prefi
 })
 
 test_that("one compute target per method × database × input serves all its rows", {
-  vm <- build_values_map(dbs = test_dbs, itsx_dbs = test_dbs)
+  vm <- build_values_map(
+    dbs = test_dbs,
+    regions = c("ITS1", "ITS2"),
+    units = c("asv", "otu")
+  )
   counts <- table(vm$compute_name)
-  expect_equal(length(counts), 4 * length(test_dbs) * 3)
+  expect_equal(length(counts), 4 * length(test_dbs) * 4)
   expect_true(all(counts[grepl("compute_blastn__", names(counts))] == 12))
   expect_true(all(counts[!grepl("compute_blastn__", names(counts))] == 3))
   expect_true(all(
     c(
-      "compute_dada2__DB_A",
-      "itsx_compute_blastn__DB_B_v2.1_Fungi_cut"
+      "ITS1_asv_compute_dada2__DB_A",
+      "ITS2_otu_compute_blastn__DB_B_v2.1_Fungi_cut"
     ) %in%
       names(counts)
   ))
@@ -224,7 +230,7 @@ test_that("one compute target per method × database × input serves all its row
     compute_name,
     method,
     db,
-    preprocess,
+    input,
     input_pq,
     ref_file,
     controller
@@ -336,7 +342,12 @@ test_that("config: sources, benchmarked databases and special picks are consiste
     ]) %in%
       names(rep_kingdom_min_records)
   ))
-  expect_true(all(bio_datasets$itsx_region %in% c("ITS1", "ITS2", "full")))
+  expect_true(all(
+    unlist(strsplit(bio_datasets$itsx_region, ",")) %in%
+      c("ITS1", "ITS2", "full")
+  ))
+  expect_true(all(itsx_regions %in% c("ITS1", "ITS2", "full")))
+  expect_true(all(itsx_units %in% c("asv", "otu")))
   expect_true(all(c(preference_db, seed_taxonomy_db) %in% db_list))
   expect_true(fake_ref_source %in% reference_sources$source)
   expect_true(

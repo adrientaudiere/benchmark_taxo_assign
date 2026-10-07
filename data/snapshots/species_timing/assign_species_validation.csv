@@ -1,0 +1,4 @@
+"dataset","input","db","lengths","predicted_s","measured_s","assigned"
+"air","ITS2_asv","Unite_all_20250219_Fungi",215,139.362350993377,145.814,637
+"air","ITS2_asv","EUK_ITS_v2.1_Fungi",215,311.496523178808,297.306,1250
+"tedersoo","full_asv","EUK_ITS_v2.1",188,430.669291390729,398.488,52

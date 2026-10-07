@@ -1,0 +1,11 @@
+--- a/src/taxonomy.cpp	2026-04-28 20:19:52.000000000 +0200
++++ b/src/taxonomy.cpp	2026-09-30 15:27:38.460650217 +0200
+@@ -82,7 +82,7 @@
+   std::uniform_real_distribution<> cunif(0.0, 1.0);
+   
+   for(g=0;g<ngenus;g++) {
+-    lgk_v = &lgk_probability[g*n_kmers];
++    lgk_v = &lgk_probability[(size_t) g * n_kmers];
+     logp = 0.0;
+ 
+     // Take the product of the probabilitys -> sum of logs

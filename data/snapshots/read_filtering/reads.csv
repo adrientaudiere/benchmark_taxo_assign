@@ -1,0 +1,7 @@
+"arm","fastq","raw","filtered","merged","final"
+"current","ITSEnz_DikA_R1.fastq",42542,42481,39919,38841
+"current","ITSEnz_DikB_R1.fastq",55358,55263,51102,49576
+"current","ITSEnz_DikC_R1.fastq",42665,42502,38905,37966
+"rolling","ITSEnz_DikA_R1.fastq",42542,41609,39024,38094
+"rolling","ITSEnz_DikB_R1.fastq",55358,53852,50841,49404
+"rolling","ITSEnz_DikC_R1.fastq",42665,40983,38606,37560

@@ -32,3 +32,47 @@ dada2_tedersoo_illumina:
 assign_taxo_tedersoo_illumina:
   script: pipelines/assign_taxo.R
   store: store_assign_taxo_tedersoo_illumina
+# In silico reads (D1b, InSilicoSeq). Same pair as a biological dataset: the
+# reads come from data/data_raw/insilico and carry no primer site, so
+# config.R::bio_datasets gives them fw_primer = NA and dada2_bio.R skips
+# cutadapt (OD 29). Positive control only: the reads are generated from records
+# of Unite_s_all_20250219, which is also a benchmarked database, so a
+# UNITE-vs-EUKARYOME contrast on this set would measure the leak (OD 29).
+dada2_insilico:
+  script: pipelines/dada2_bio.R
+  store: store_dada2_insilico
+assign_taxo_insilico:
+  script: pipelines/assign_taxo.R
+  store: store_assign_taxo_insilico
+# Third mock (OD 42): Rolling et al. 2022, ITS1F / 5.8S-1R, reads of both
+# orientations in R1 (cutadapt --revcomp, config.R::bio_datasets).
+dada2_rolling_mock:
+  script: pipelines/dada2_bio.R
+  store: store_dada2_rolling_mock
+assign_taxo_rolling_mock:
+  script: pipelines/assign_taxo.R
+  store: store_assign_taxo_rolling_mock
+# Species by exact match (OD 43): reads the inputs and blastn tables of every
+# assignment store, so it runs after them. species_mini: Pauvert and Tedersoo
+# against Unite_all_20250219_Fungi only.
+species:
+  script: pipelines/species.R
+  store: store_species
+species_mini:
+  script: pipelines/species.R
+  store: store_species_mini
+# Published OTU tables (D1c, OD 30): the dada2_ project of these datasets runs
+# pipelines/load_bio.R, which builds d_asv from the deposit instead of fastq,
+# into the same store name, so assign_taxo_<dataset> is unchanged.
+dada2_gssp_air:
+  script: pipelines/load_bio.R
+  store: store_dada2_gssp_air
+assign_taxo_gssp_air:
+  script: pipelines/assign_taxo.R
+  store: store_assign_taxo_gssp_air
+dada2_korhonen_wood:
+  script: pipelines/load_bio.R
+  store: store_dada2_korhonen_wood
+assign_taxo_korhonen_wood:
+  script: pipelines/assign_taxo.R
+  store: store_assign_taxo_korhonen_wood

@@ -1,0 +1,326 @@
+---
+title: "08 — Q5: ASVs or OTUs"
+author: "Adrien Taudière"
+---
+
+Does clustering the ASVs into 97 % OTUs change the accuracy, per method and
+database? Three units are scored on each ITSx region (chapter 01):
+
+- `ASV`: the ITSx-extracted ASVs;
+- `OTU`: their 97 % clusters, assigned directly ("cluster then assign");
+- `OTU_derived`: the same clusters, their taxonomy resolved from the member
+  ASVs by unanimity ("assign then cluster", decision 25).
+
+Tosadori & Bosch (2026, "Decoding fungal communities: ITS extraction matters
+more than ASVs vs. OTUs", *Web Ecology* 26:47–59,
+<https://doi.org/10.5194/we-26-47-2026>) compared ASVs and OTUs through six
+pipelines on in silico communities; this chapter repeats the comparison on
+mocks with a per-sequence truth (`reviews/literature_2026-09-22.md`). Figures: Q5.1
+(per-rank × method), Q5.2 (per database), Q5.3 (ASVs subsampled to the OTU
+count); one tab per mock and ITSx region, default settings.
+
+**What the comparison measures.** The scoring counts units, not reads: an OTU
+is one unit however many ASVs it holds, so the OTU inputs have fewer units, the
+ones carried by the non-representative ASVs are gone, and a difference in F1
+mixes the assignment of each sequence with the change of unit set (`HISTORY.md`
+§2 Q5, 2026-09-15). Q5.3 separates the two with ASVs subsampled to the OTU
+count (chapter 01). The `OTU` truth is built on the OTU sequences, the
+`OTU_derived` one on the ASVs that name the clusters, so the two can differ by
+a unit.
+
+```{r setup}
+here::i_am("analysis/08_q5_units.qmd")  # _quarto.yml would otherwise make here() root = analysis/
+source(here::here("analysis/00_setup.R"))
+unit_order <- c("ASV", "OTU", "OTU_derived")
+res_all <- cache_read("res_comp_tax")
+views <- analysis_views(res_all)
+
+# Every unit of one view (default_view() keeps a single unit), single methods,
+# default settings.
+unit_rows <- function(dataset_id, region_id) {
+  res_all |>
+    filter(dataset == dataset_id, region == region_id, !is_consensus) |>
+    filter_default_settings() |>
+    mutate(
+      unit = factor(unit, levels = unit_order),
+      tax_level = factor(tax_level, levels = tax_order)
+    )
+}
+res_q5 <- lapply(seq_len(nrow(views)), function(i) {
+  unit_rows(views$dataset[i], views$region[i]) |>
+    mutate(view = views$label[i], view_id = views$id[i])
+}) |>
+  bind_rows() |>
+  mutate(view = factor(view, levels = views$label))
+
+# ASVs subsampled to the OTU count (chapter 01, res_subsample): F1 mean over
+# the nine databases, one value per draw, and its 95 % interval over the draws.
+# The observed units are averaged the same way.
+subsample_schemes <- c("ASV_random", "ASV_one_per_cluster")
+s08_draws <- cache_read("res_subsample") |>
+  filter(!is_consensus, metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp")) |>
+  filter_default_settings() |>
+  inner_join(select(views, dataset, region, view = label), by = c("dataset", "region")) |>
+  group_by(view, tax_level, algo, unit, draw) |>
+  summarise(value = mean(values), .groups = "drop") |>
+  mutate(
+    view = factor(view, levels = views$label),
+    tax_level = factor(tax_level, levels = tax_order),
+    unit = factor(unit, levels = subsample_schemes)
+  )
+s08_interval <- s08_draws |>
+  group_by(view, tax_level, algo, unit) |>
+  summarise(
+    lo = quantile(value, 0.025),
+    median = median(value),
+    hi = quantile(value, 0.975),
+    .groups = "drop"
+  )
+s08_observed <- res_q5 |>
+  filter(metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp")) |>
+  group_by(view, tax_level, algo, unit) |>
+  summarise(value = mean(values), .groups = "drop")
+
+# One panel-tabset with a tab per view, in a chunk with results = "asis".
+# As in view_tabs(), fun() must print() a figure before save_fig().
+unit_tabs <- function(fun) {
+  cat("\n::: {.panel-tabset}\n\n")
+  for (i in seq_len(nrow(views))) {
+    cat("### ", views$label[i], "\n\n", sep = "")
+    fun(filter(res_q5, view_id == views$id[i]), views[i, ])
+    cat("\n\n")
+  }
+  cat(":::\n\n")
+}
+```
+
+## Summary
+
+```{r summary-data}
+#| include: false
+# Computed from the same rows as the tabs below (res_q5, default settings).
+s08_f1 <- res_q5 |>
+  filter(metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp"))
+s08_by_unit <- s08_f1 |>
+  group_by(view, tax_level, algo, unit) |>
+  summarise(value = mean(values), .groups = "drop")
+s08_unit_mean <- s08_by_unit |>
+  group_by(view, tax_level, unit) |>
+  summarise(value = mean(value), .groups = "drop")
+s08_genus_best <- filter(s08_unit_mean, tax_level == "Genus")
+s08_gensp_best <- filter(s08_unit_mean, tax_level == "Gen_sp")
+# Paired per method x database column: each OTU unit minus the ASVs.
+s08_paired <- s08_f1 |>
+  filter(tax_level == "Genus") |>
+  select(view, algo, db, unit, values) |>
+  pivot_wider(names_from = unit, values_from = values) |>
+  mutate(otu_gain = OTU - ASV, derived_gain = OTU_derived - ASV)
+s08_n_cols <- nrow(s08_paired)
+s08_otu_better <- sum(s08_paired$otu_gain > 0)
+s08_derived_better <- sum(s08_paired$derived_gain > 0)
+# Each observed unit against the 95 % interval of the subsampled ASVs, per
+# view x method (Genus F1 mean over the databases).
+s08_vs_null <- s08_observed |>
+  filter(tax_level == "Genus") |>
+  select(view, algo, unit, value) |>
+  pivot_wider(names_from = unit, values_from = value) |>
+  left_join(
+    s08_interval |>
+      filter(tax_level == "Genus") |>
+      select(view, algo, unit, lo, median, hi) |>
+      pivot_wider(names_from = unit, values_from = c(lo, median, hi)),
+    by = c("view", "algo")
+  )
+s08_n_null <- nrow(s08_vs_null)
+s08_asv_in_random <- with(s08_vs_null, sum(ASV >= lo_ASV_random & ASV <= hi_ASV_random))
+s08_otu_above_random <- with(s08_vs_null, sum(OTU > hi_ASV_random))
+s08_otu_above_cluster <- with(s08_vs_null, sum(OTU > hi_ASV_one_per_cluster))
+s08_cluster_gain <- with(s08_vs_null, median_ASV_one_per_cluster - ASV)
+# Words that follow the numbers, so that no adjective outlives the data.
+s08_count_word <- if (s08_asv_in_random == s08_n_null) {
+  "in every pair, so the unit count alone does not move the score"
+} else {
+  paste0(
+    "in ", s08_asv_in_random, " of them: the unit count alone moves the ",
+    "score in the others"
+  )
+}
+s08_derived_vs_otu <- s08_paired |>
+  group_by(view) |>
+  summarise(value = mean(OTU_derived - OTU), .groups = "drop")
+# Words that follow the numbers, so that no adjective outlives the data.
+s08_share_word <- function(n) {
+  if (n == 0) {
+    "none"
+  } else if (n < s08_n_cols / 2) {
+    "a minority"
+  } else {
+    "a majority"
+  }
+}
+```
+
+Default settings, F1 averaged over the four methods and nine reference
+databases; one value per view (`r paste(views$label, collapse = ", ")`).
+
+- **Genus**: the best unit is `r best_phrase(s08_genus_best, "unit")`.
+  Column by column (method × database × view, `r s08_n_cols` columns), `OTU`
+  beats the ASVs on `r s08_otu_better` (`r s08_share_word(s08_otu_better)`)
+  and `OTU_derived` on `r s08_derived_better`
+  (`r s08_share_word(s08_derived_better)`). Genus F1 gain over the ASVs,
+  per column: `r fmt_range(s08_paired$otu_gain)` for `OTU`,
+  `r fmt_range(s08_paired$derived_gain)` for `OTU_derived`.
+- **Cluster then assign, or assign then cluster**: `OTU_derived` minus `OTU`,
+  mean Genus F1 per view, `r fmt_range(s08_derived_vs_otu$value)`.
+- **Species (Gen_sp)**: the best unit is `r best_phrase(s08_gensp_best, "unit")`.
+- **ASVs subsampled to the OTU count** (Q5.3, Genus, `r s08_n_null` view ×
+  method pairs, 95 % interval of the draws): the full ASV set falls inside the
+  interval of the random draws `r s08_count_word`; `OTU` lies above the random draws in
+  `r s08_otu_above_random` and above the one-per-cluster draws in
+  `r s08_otu_above_cluster`. One ASV per cluster already gains
+  `r fmt_range(s08_cluster_gain)` over the full ASV set (median of the
+  draws).
+
+```{r summary-fig}
+#| echo: false
+fig_summary_08_f1_by_unit <- s08_by_unit |>
+  ggplot(aes(x = unit, y = value, colour = algo, group = algo)) +
+  geom_point(size = 2) +
+  geom_line() +
+  facet_grid(tax_level ~ view, scales = "free_y") +
+  labs(x = "Unit", y = "F1 (mean over databases)", colour = "Method") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+print(fig_summary_08_f1_by_unit)
+save_fig(fig_summary_08_f1_by_unit, "fig_summary_08_f1_by_unit", width = 14, height = 6)
+```
+
+Real units scored per unit type (`n_real`, Genus):
+
+```{r n-real}
+#| echo: false
+res_q5 |>
+  filter(metrics == "n_real", tax_level == "Genus") |>
+  distinct(view, unit, values) |>
+  pivot_wider(names_from = unit, values_from = values) |>
+  knitr::kable(caption = "Real units scored per view and unit (n_real, Genus).")
+```
+
+## Q5.1 — Per-rank × method (F1, MCC)
+
+Mean over the nine databases; bar = min–max over the databases.
+
+```{r q5-1, results = "asis"}
+unit_tabs(function(res, v) {
+  fig_q5_rank <- res |>
+    filter(metrics %in% c("F1_score", "MCC")) |>
+    group_by(metrics, tax_level, algo, unit) |>
+    summarise(
+      value = mean(values),
+      lo = min(values),
+      hi = max(values),
+      .groups = "drop"
+    ) |>
+    ggplot(aes(x = tax_level, y = value, colour = unit, group = unit)) +
+    geom_linerange(
+      aes(ymin = lo, ymax = hi),
+      position = position_dodge(width = 0.5),
+      alpha = 0.5
+    ) +
+    geom_point(position = position_dodge(width = 0.5), size = 2) +
+    geom_line(position = position_dodge(width = 0.5)) +
+    facet_grid(metrics ~ algo) +
+    labs(x = "Rank", y = "Value", colour = "Unit") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+  print(fig_q5_rank)
+  save_fig(fig_q5_rank, paste0("fig_q5_rank_", v$id), width = 14, height = 7)
+})
+```
+
+## Q5.2 — Per method × database (Genus, Gen_sp)
+
+F1 of each unit, one bar per database; the table gives the Genus F1 of each
+OTU unit minus the ASVs.
+
+```{r q5-2, results = "asis"}
+unit_tabs(function(res, v) {
+  fig_q5_db <- res |>
+    filter(metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp")) |>
+    mutate(db = factor(db, levels = db_list)) |>
+    ggplot(aes(x = db, y = values, fill = unit)) +
+    geom_col(position = position_dodge()) +
+    facet_grid(tax_level ~ algo) +
+    labs(x = NULL, y = "F1", fill = "Unit") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+  print(fig_q5_db)
+  save_fig(fig_q5_db, paste0("fig_q5_db_", v$id), width = 14, height = 7)
+  res |>
+    filter(metrics == "F1_score", tax_level == "Genus") |>
+    select(algo, db, unit, values) |>
+    pivot_wider(names_from = unit, values_from = values) |>
+    mutate(
+      `OTU − ASV` = round(OTU - ASV, 3),
+      `OTU_derived − ASV` = round(OTU_derived - ASV, 3),
+      across(c(ASV, OTU, OTU_derived), \(x) round(x, 3))
+    ) |>
+    arrange(algo, factor(db, levels = db_list)) |>
+    cat_kable(caption = "Genus F1 per unit, and the difference to the ASVs.")
+})
+```
+
+## Q5.3 — ASVs subsampled to the OTU count
+
+Chapter 01 draws the ASVs 100 times without replacement, on the ASV truth and
+the default settings, every control kept: `ASV_random` keeps as many real ASVs
+as there are OTU clusters, `ASV_one_per_cluster` one random member of each
+cluster. Boxes: Genus and species F1 of each draw, mean over the nine
+databases; points: the full ASV set and the two OTU units, averaged the same
+way. An OTU point above the `ASV_random` box is not explained by the unit
+count; above the `ASV_one_per_cluster` box, not by the cluster structure with
+a random representative either.
+
+```{r q5-3}
+#| fig-height: 8
+fig_q5_subsample <- ggplot() +
+  geom_boxplot(
+    data = s08_draws,
+    aes(x = algo, y = value, fill = unit),
+    outlier.size = 0.5,
+    alpha = 0.6
+  ) +
+  geom_point(
+    data = s08_observed,
+    aes(x = algo, y = value, shape = unit),
+    size = 2.5,
+    position = position_dodge(width = 0.4)
+  ) +
+  scale_shape_manual(values = c(ASV = 16, OTU = 17, OTU_derived = 4)) +
+  facet_grid(tax_level ~ view, scales = "free_y") +
+  labs(
+    x = "Method", y = "F1 (mean over databases)",
+    fill = "Subsampled ASVs (100 draws)", shape = "Observed unit"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom", legend.box = "vertical")
+print(fig_q5_subsample)
+save_fig(fig_q5_subsample, "fig_q5_subsample", width = 14, height = 8)
+```
+
+```{r q5-3-table}
+#| echo: false
+s08_vs_null |>
+  transmute(
+    view,
+    algo,
+    ASV = round(ASV, 3),
+    `ASV_random (95 %)` = paste0(round(lo_ASV_random, 3), "–", round(hi_ASV_random, 3)),
+    `one per cluster (95 %)` = paste0(
+      round(lo_ASV_one_per_cluster, 3), "–", round(hi_ASV_one_per_cluster, 3)
+    ),
+    OTU = round(OTU, 3),
+    OTU_derived = round(OTU_derived, 3)
+  ) |>
+  knitr::kable(caption = "Genus F1, mean over the nine databases: the observed units against the 95 % interval of the 100 subsampled ASV draws.")
+```

@@ -7,6 +7,9 @@ library("testthat")
 library("here")
 
 here::i_am("tests/test_assign_compute.R")
+# config.R: the lca search settings (lca_top_hits_only, lca_id,
+# lca_maxaccepts, OD 33) and sintax_seed that compute_assignment() reads.
+source(here("config.R"))
 source(here("R/load_pqverse.R"))
 load_pqverse(c("MiscMetabar", "tidypq"))
 source(here("R/assign_compute.R"))
@@ -27,11 +30,11 @@ new_columns <- function(res, suffix) {
   df[, grep(paste0(suffix, "$"), names(df), value = TRUE), drop = FALSE]
 }
 
-test_that("lca rows derived from one search equal add_new_taxonomy_pq() at each lca_cutoff", {
+test_that("lca rows derived from one search equal a direct vsearch --lcaout search at each lca_cutoff", {
   skip_if_not(MiscMetabar::is_vsearch_installed(), "vsearch not available")
   computed <- compute_assignment(pq, "lca", ref_fasta = ref)
   expect_named(computed, c("query", "id", "target"))
-  for (cutoff in c(0.8, 1)) {
+  for (cutoff in c(0.51, 1)) {
     suffix <- paste0("_lca_", cutoff)
     derived <- derive_assignment(
       pq,
@@ -40,13 +43,17 @@ test_that("lca rows derived from one search equal add_new_taxonomy_pq() at each 
       suffix,
       lca_cutoff = cutoff
     )
-    direct <- MiscMetabar::add_new_taxonomy_pq(
+    direct <- MiscMetabar::assign_vsearch_lca(
       pq,
       ref_fasta = ref,
-      method = "lca",
+      behavior = "add_to_phyloseq",
       suffix = suffix,
       clean_pq = FALSE,
-      lca_cutoff = cutoff
+      top_hits_only = lca_top_hits_only,
+      id = lca_id,
+      maxaccepts = lca_maxaccepts,
+      lca_cutoff = cutoff,
+      verbose = FALSE
     )
     expect_equal(new_columns(derived, suffix), new_columns(direct, suffix))
   }

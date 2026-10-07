@@ -1,4 +1,4 @@
-# DADA2 denoising of the mock-community fastqs -> d_asv (plus OTU variants).
+# DADA2 denoising of the mock-community fastqs -> d_asv.
 #
 # Run with:
 #   Sys.setenv(TAR_PROJECT = "dada2"); targets::tar_make()
@@ -21,6 +21,8 @@ source(here("config.R"))
 source(here("R/load_pqverse.R"))
 source(here("R/create_fake_pq_from_refseq.R"))
 source(here("R/autometric_helpers.R"))
+source(here("R/dada2_patched.R"))
+assert_dada2_patched()
 load_pqverse("MiscMetabar")
 
 tar_option_set(seed = targets_seed)
@@ -215,21 +217,6 @@ tar_plan(
       as.matrix(tax_tab, dimnames = rownames(tax_tab))
     ))
   )),
-  ## > Create post-clustering ASV into OTU using vsearch
-  tar_target(d_vs, asv2otu(
-    d_asv,
-    method = "vsearch", tax_adjust = 0
-  )),
-  ## > Create post-clustering ASV into OTU using clusterize
-  tar_target(d_idtaxa, asv2otu(
-    d_asv,
-    method = "clusterize", tax_adjust = 0
-  )),
-  ## > Clean post-clustering OTU using mumu
-  tar_target(d_asv_mumu, mumu_pq(d_asv)$new_physeq),
-  tar_target(d_vs_mumu, mumu_pq(d_vs)$new_physeq),
-  tar_target(d_idtaxa_mumu, mumu_pq(d_idtaxa)$new_physeq),
-
   tar_target(track_df, track_wkflow(
     list(
       "Raw Forward sequences" = unlist(list_fastq_files(fastq_files_folder,
@@ -240,12 +227,7 @@ tar_plan(
       "Paired sequences" = seq_tab_Pairs,
       "Paired sequences without chimera" = seqtab_wo_chimera,
       "Paired sequences without chimera and longer than 200bp" = seqtab,
-      "ASV denoising" = d_asv,
-      "OTU after vsearch reclustering at 97%" = d_vs,
-      "OTU after idtaxa reclustering at 97%" = d_idtaxa,
-      "ASV mumu cleaning algorithm" = d_asv_mumu,
-      "OTU vs after mumu cleaning algorithm" = d_vs_mumu,
-      "OTU idtaxa after mumu cleaning algorithm" = d_idtaxa_mumu
+      "ASV denoising" = d_asv
     )
   )),
 
@@ -264,6 +246,7 @@ tar_plan(
       track_df
       list(
         pqverse = pqverse_versions(),
+        project = project_version(),
         session = sessioninfo::session_info()
       )
     }

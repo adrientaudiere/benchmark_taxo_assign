@@ -12,33 +12,57 @@
 # is what `summarise_autometric_costs()` uses to pick the latest run; the phase
 # part of the name is documentation only, because a file can hold samples of a
 # phase other than the one it is named after (S1.6).
+#
+# autometric samples the R process only, so it misses the external programs
+# that sintax, lca (vsearch) and blastn (BLAST+) run as children of the worker:
+# their peak memory read as the idle R session (~0.9 GB) and their CPU as ~0
+# (code review §1.3). Two files beside each log fill that gap, read by
+# add_tree_costs():
+#   <phase>__<stamp>__tree.csv  memory of the worker and all its descendants,
+#                               sampled from another process (R/sample_tree.R);
+#   <phase>__<stamp>__cpu.csv   CPU seconds of the worker and of the children
+#                               it waited for (proc.time()), and wall seconds.
 
 # Run `expr` while logging this process' CPU / memory every `seconds` seconds
-# under the phase name `phase`. Returns the value of `expr`.
+# under the phase name `phase`, and the memory and CPU of its process tree.
+# Returns the value of `expr`.
 with_autometric <- function(phase, expr, dir, seconds = 1) {
   dir.create(dir, showWarnings = FALSE, recursive = TRUE)
   path <- file.path(
     dir,
     paste0(phase, "__", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
   )
-  # S1.6, deferred on purpose: a leaked logger from a previous target of this
-  # crew worker (one interrupted before the on.exit() below) is never cleared
-  # here, and `autometric::log_start()` is *silently ignored* when a logger is
-  # already running in the process, so the next target writes no file at all
-  # and its samples land in the previous target's file under its own phase
-  # label. summarise_autometric_costs() recovers that case, which is why this
-  # is deferred rather than urgent. The fix is one line immediately below,
-  #   autometric::log_stop()
-  # (a stop with nothing running is a no-op). It is not applied yet because
-  # changing this function's *code* invalidates 604 targets — every
-  # computation, a 3 h 32 re-run — while the aggregation fix invalidated
-  # `benchmark_costs` alone. Apply it in the same commit as the next
-  # production run. Comments are dropped when targets hashes a function, so
-  # this note costs no invalidation; the call would.
+  # S1.6a: a logger leaked by a previous target of this worker (interrupted
+  # before the on.exit() below) would make log_start() a silent no-op; a stop
+  # with nothing running does nothing.
+  autometric::log_stop()
   autometric::log_start(path = path, seconds = seconds)
   on.exit(autometric::log_stop(), add = TRUE)
   autometric::log_phase_set(phase)
-  force(expr)
+  sampler <- processx::process$new(
+    file.path(R.home("bin"), "Rscript"),
+    c(
+      here::here("R/sample_tree.R"),
+      Sys.getpid(),
+      sub("\\.txt$", "__tree.csv", path),
+      seconds
+    )
+  )
+  on.exit(sampler$kill(), add = TRUE)
+  cpu0 <- proc.time()
+  value <- force(expr)
+  cpu <- proc.time() - cpu0
+  utils::write.csv(
+    data.frame(
+      phase = phase,
+      cpu_self_s = cpu[["user.self"]] + cpu[["sys.self"]],
+      cpu_child_s = cpu[["user.child"]] + cpu[["sys.child"]],
+      wall_s = cpu[["elapsed"]]
+    ),
+    sub("\\.txt$", "__cpu.csv", path),
+    row.names = FALSE
+  )
+  value
 }
 
 # Read every log file of `dir` into one tibble (autometric defaults: time in
@@ -140,4 +164,54 @@ summarise_autometric_costs <- function(log_df) {
     )
   })
   dplyr::bind_rows(out)
+}
+
+# Adds to the rows of summarise_autometric_costs() the cost of each phase's
+# process tree, from the newest `__cpu.csv` of that phase in `dir` and the
+# `__tree.csv` of the same run (written by with_autometric()):
+#   wall_s        elapsed seconds around the computation (proc.time()), valid
+#                 also below the 1 s sampling interval;
+#   cpu_self_s    CPU seconds of the R worker;
+#   cpu_child_s   CPU seconds of the children it waited for (vsearch, BLAST+);
+#   peak_tree_mb  highest summed RSS of the worker and its descendants (an
+#                 upper bound: shared pages count once per process);
+#   n_tree_samples number of memory samples behind that peak.
+# Phases logged before these files existed get NA. A phase shorter than the
+# 1 s sampling interval has no autometric row but keeps its tree costs: the
+# join is full, so its autometric columns are NA and `wall_s` is not.
+add_tree_costs <- function(costs, dir) {
+  cpu_files <- list.files(dir, pattern = "__cpu\\.csv$", full.names = TRUE)
+  empty <- tibble::tibble(
+    phase = character(),
+    wall_s = numeric(),
+    cpu_self_s = numeric(),
+    cpu_child_s = numeric(),
+    peak_tree_mb = numeric(),
+    n_tree_samples = integer()
+  )
+  tree <- if (length(cpu_files) == 0) {
+    empty
+  } else {
+    cpu <- dplyr::bind_rows(lapply(cpu_files, function(f) {
+      df <- utils::read.csv(f)
+      df$stamp <- sub("^.*__(\\d{8}_\\d{6})__cpu\\.csv$", "\\1", basename(f))
+      df$tree_file <- sub("__cpu\\.csv$", "__tree.csv", f)
+      df
+    }))
+    cpu <- cpu |>
+      dplyr::group_by(phase) |>
+      dplyr::slice_max(stamp, n = 1, with_ties = FALSE) |>
+      dplyr::ungroup()
+    peaks <- lapply(cpu$tree_file, function(f) {
+      samples <- if (file.exists(f)) utils::read.csv(f) else NULL
+      if (is.null(samples) || nrow(samples) == 0) {
+        return(c(NA_real_, 0))
+      }
+      c(max(samples$rss_mb), nrow(samples))
+    })
+    cpu$peak_tree_mb <- vapply(peaks, `[`, numeric(1), 1)
+    cpu$n_tree_samples <- as.integer(vapply(peaks, `[`, numeric(1), 2))
+    dplyr::select(cpu, dplyr::all_of(names(empty)))
+  }
+  dplyr::full_join(costs, tree, by = "phase")
 }

@@ -6,7 +6,7 @@ measured, on which data, and what it implies. The scripts are in
 `analysis/sandbox/` and are runnable from the project root with `Rscript`.
 
 Related: `ROADMAP.md` (items S1.3, S6.9, S8.6, D1a, Q5),
-`critique_fable/07_results_validity.md` (defects B21–B24), `CONTEXT.md`
+`reviews/critique_fable/07_results_validity.md` (defects B21–B24), `CONTEXT.md`
 (glossary entries *CV reference pool*, *trimmed CV queries*).
 
 ## 1. The cross-validation reference is the drawn pool, not the database
@@ -128,7 +128,19 @@ Secondary: the CV passes `min_cover` but leaves `min_id` at the
 `assign_blastn()` default of 95, which costs about 24 points even against the
 full database (82.5 % → 58.5 %).
 
-## 4. dada2 on the full EUKARYOME release: bootstrap collapse, not format
+## 4. dada2 on the full EUKARYOME release: an overflow in dada2, not format or breadth
+
+**Corrected 2026-10-05.** The cause first given below, taxonomic breadth, is
+wrong. dada2 1.40.0 computes the offset of a taxonomy's k-mer profile in 32
+bits (`src/taxonomy.cpp`, `get_best_genus()`), so on a reference with more than
+65 536 distinct taxonomies (full `EUK_ITS_v2.1`: 206 399) taxonomies g,
+g + 65 536, … are all scored with the profile of g mod 65 536, tie, and are
+drawn at random: that is the low bootstrap measured here. With the offset
+fixed (`patches/dada2_1.40.0_taxonomy_overflow.patch`, the build every run has
+used since 2026-09-30), dada2 leaves 4 % of the Pauvert ASVs without a genus
+on the full `EUK_ITS_v2.1`, against 100 % before. Full account in `HISTORY.md`
+§2 ("the dada2 collapse on the full EUKARYOME is a 32-bit overflow"). The
+measurements below stand; the readings marked *withdrawn* do not.
 
 On the mock community, `dada2__EUK_ITS_v2.1___0.5` gives a genus to 0 % of the
 195 ASVs (Kingdom 10.8 %), against 95.4 % on `EUK_ITS_v2.1_Fungi`. Neither the
@@ -149,26 +161,31 @@ file format nor the organelle records explain it.
 | Kingdom | 31 | 100 |
 | Genus | 17 | 68 |
 
-- **The driver is taxonomic breadth**: 336 distinct kingdom values and 26 637
-  genera in the full release, against 1 and 6 801 in `_Fungi`; 47.4 % of its
-  records are `unclassified` at Genus (40.6 % in `_Fungi`). With many
-  competing non-fungal taxa, no candidate wins enough bootstrap replicates.
-- **Consistent with a controlled test** (`analysis/sandbox/check_dada2_long_refs.R`,
-  195 mock ASVs, `minBoot = 50`, reference = 10 000 Fungi records of
-  `mini_EUK_ITS_v2.1_Fungi`): 96.4 % genus alone; 50.8 % after adding the 7 871
-  records > 5 kb; 9.7 % after adding 7 871 random non-Fungi records ≤ 5 kb.
-  Breadth hurts more than length. The lengths of the added short records were
-  not controlled, so the two factors are not fully separated.
+- *Withdrawn: "the driver is taxonomic breadth".* The full release has 336
+  distinct kingdom values and 26 637 genera, against 1 and 6 801 in `_Fungi`,
+  and 47.4 % of its records are `unclassified` at Genus (40.6 % in `_Fungi`);
+  but the low bootstrap is the tie of the overflow above, and the patched build
+  assigns on the same broad file.
+- *Withdrawn: the controlled test as support for breadth*
+  (`analysis/sandbox/check_dada2_long_refs.R`, 195 mock ASVs, `minBoot = 50`,
+  reference = 10 000 Fungi records of `mini_EUK_ITS_v2.1_Fungi`): 96.4 % genus
+  alone; 50.8 % after adding the 7 871 records > 5 kb; 9.7 % after adding 7 871
+  random non-Fungi records ≤ 5 kb. Its fungal arm is the first 10 000 records
+  of the `_Fungi` file (44 taxonomies, almost none of the Pauvert genera), so
+  it measured an unrepresentative mini reference, not breadth (`HISTORY.md`
+  §2).
 
 Organelle content of `EUK_ITS_v2.1`, for the record: 2 010 `_mitochondrion`
 records (0.11 %, median 30 050 bp) and 118 `_plastid` (median 3 682 bp), i.e.
 3.2 % of the nucleotides and 1 248 of the 1 309 records > 10 kb. Decision
 2026-09-16: keep the release as it is.
 
-**Implication for the manuscript.** dada2 is the only method whose bootstrap
-makes it abstain on a broad reference; sintax (97.4 %), blastn (99.5 %) and
-lca (66.2 %) still assign on the same file. This is a Q2 result, not a
-pipeline defect.
+**Implication for the manuscript** (corrected 2026-10-05). Not a Q2 result:
+dada2 abstained on the full release because of a defect in dada2 1.40.0, which
+hits any reference with more than 65 536 taxonomies (also the full
+`Unite_s_all_20250219` and `EUK_ITS_v2.1_Fungi_rep`). It is reported as a
+finding for the users of dada2 with large references (upstream report in
+`patches/dada2_issue_overflow.md`); the benchmark runs the patched build.
 
 ## 5. sintax cross-validation compared shuffled rows (fixed)
 

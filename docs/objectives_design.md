@@ -42,7 +42,7 @@ decisions below.**
 | `T.otu` | `d_vs` (`pipelines/dada2_bio.R:300`) | Tedersoo Illumina mock | full ITS | 180 OTUs (142 / 122 after MUMU) | same | **decided: assigned directly** |
 | `T.itsx` | `d_asv_itsx` | Tedersoo Illumina mock | full ITS extracted | — | same | decided (ITSx everywhere); needs a per-dataset `itsx_region` (`experimental_design.md` §5.1) |
 | `S.iss` | D1b: InSilicoSeq reads → DADA2 | in silico | ITS | 100 input records, 3 seeds | the input records (per-sequence) | fastq generated, no targets project. **Source decided: `Unite_s_all_20250219`** (with singletons), which is what the code already reads (`config.R:79`) |
-| `B.*` | loaders not written | biological (GSSP air, Korhonen wood ×2 = ITS2; GloSED soil = full ITS; leaf undecided) | ITS2 / full | unmeasured | **none** | proposed |
+| `B.*` | `d_asv` (`store_dada2_gssp_air`, `store_dada2_korhonen_wood`), built from the published OTUs by `pipelines/load_bio.R` (OD 30) | biological: GSSP air, Korhonen wood (two deposits pooled); GloSED soil, leaf and Tedersoo soil a later round | ITS2 | air 2000 of 27 954 OTUs (seeded draw), wood 918 | **none** | built, not assigned |
 | `CV` | records of the benchmarked database | cross-validation | ITS1 amplicon (queries trimmed ITS1F–ITS2) | 5 000 queries × folds | the database labels (per-sequence) | built |
 
 **Dropped (scope decision):** `S.mia`, the miaSim / Hubbell branch of
@@ -338,7 +338,7 @@ One computation per method × database × input serves all parameter rows
 |---|---|---|---|
 | `dada2` | `min_bootstrap` ∈ {0.4, 0.5, 0.6} (built) | other `assignTaxonomy()` arguments at their defaults | free |
 | `sintax` | `min_bootstrap` ∈ {0.4, 0.5, 0.6} (built) | `--sintax_random` | free |
-| `lca` | **`lca_cutoff` ∈ {0.8, 0.9, 1}** (decision 9) | `id = 0.5`, `top_hits_only = TRUE`, `maxaccepts = 0`, `maxrejects = 32` (`MiscMetabar/R/vsearch.R:1655-1659`) | **free after one change** — see below |
+| `lca` | **`lca_cutoff` ∈ {0.51, 0.8, 1}**, default 0.51 (OD 33; was {0.8, 0.9, 1}, decision 9) | common LCA of QIIME 2 / Bokulich et al. 2018: `top_hits_only = FALSE`, `id = 0.8`, `maxaccepts = 10`, `maxrejects = 32` (`config.R`, OD 33; was stampa: `id = 0.5`, `top_hits_only = TRUE`, `maxaccepts = 0`) | free: the LCA is computed in R from one stored search |
 | `blastn` | `vote_algorithm` ∈ {rel_majority, abs_majority, unanimity} (built); **`min_id` ∈ {90, 92, 95, 97}** (decisions 10, 17) | `min_cover = 80` (`config.R`, decision 18); `min_bit_score = 50`, `min_e_value = 1e-30` (`MiscMetabar/R/blast.R:969-972`) | free: filters apply to the stored raw hits |
 
 **lca: how the cutoff sweep can be free.** `assign_vsearch_lca()` already runs
@@ -526,9 +526,13 @@ together shows whether it removes errors or only answers.
 
 **Q2.** The fungi filter has one specific risk — non-fungal sequences called
 fungal once their relatives are removed — and only `ext_fungi` measures it;
-`fungi + rep` is the attempt to fix it. dada2 on the full EUKARYOME already
-gives a Q2 result: 0 % genus, because its bootstrap collapses on a broad
-reference (ROADMAP "Databases building").
+`fungi + rep` is the attempt to fix it. The 0 % genus dada2 first gave on the
+full EUKARYOME is not a Q2 result: it was a 32-bit overflow in dada2 1.40.0,
+which scores every taxonomy beyond the 65 536th with the wrong k-mer profile,
+not the breadth of the reference; on the patched build the project runs since
+2026-09-30, dada2 names a genus for 96 % of the Pauvert ASVs there
+(`HISTORY.md` §2, "the dada2 collapse on the full EUKARYOME is a 32-bit
+overflow").
 
 **Q5.** Assigning `d_vs` directly removes the derivation from member ASVs but
 not the unit problem: TP / FP are still counted on 196 ASVs vs 143 OTUs and FN
@@ -752,6 +756,437 @@ The developer's answers, verbatim after **>>**, with what each changes.
     decided later, from the results on the mock communities.
 
     → §1.3; the CV grid stays as it is until then.
+
+28. **Cross-validation is deferred to the end of the project** (developer,
+    2026-09-22): D1a is no longer a blocking objective. It is kept as an idea
+    and revisited at the end, and run only if it is then judged to deserve its
+    compute cost. Nothing about the CV design is retracted — the Bokulich
+    reference design (`cv_reduce_reference = FALSE`, 3 folds), the trimmed
+    queries (decision 24) and the `_cut` query rule stay as implemented, and
+    the code is untouched.
+
+    Two facts behind the deferral. **Cost:** the full-reference CV has never
+    completed. Its dada2 × `EUK_ITS_v2.1` cells need about 58 GB each on a
+    62 GB machine (measured on the assignment side once S1.6 was fixed; the
+    earlier 45 GB was a lower bound read off a killed run), so they only run
+    with the machine otherwise idle, one at a time. **Value:** the mock
+    communities already carry a per-unit truth, and the CV answers a different
+    and narrower question — the consistency of each method with each database's
+    own labels at a fixed reference size (C22-P12) — which is a secondary
+    claim in a manuscript whose primary endpoint is mock accuracy.
+
+    → the D1a bullets of `docs/parked.md` §1 and the CV halves of S6.5, S6.9
+    and S8.6 are deferred with it; `store_cross_val` keeps the results of
+    2026-09-15, which measure a reduced reference (B24) and are not
+    publishable as they stand.
+
+29. **The in silico set (D1b) is a positive control, and its reads carry no
+    primers** (developer, 2026-09-22). Two answers settled together, because
+    they are one question about what the dataset is for.
+
+    **(a) Positive control only.** InSilicoSeq generated the reads from records
+    of `insilico_source` = `Unite_s_all_20250219`, which is also three of the
+    nine benchmarked databases. Reads from record X assigned against a
+    reference containing X are the `leaked` variant of the cross-validation by
+    construction, and the leak is **asymmetric**: UNITE holds those records,
+    EUKARYOME does not. A UNITE-vs-EUKARYOME contrast on this dataset would
+    therefore measure the leak and not the databases. The set is reported as a
+    sanity check — the pipeline recovers a known truth — and **does not enter
+    the Q2 database comparison**. A dataset able to carry a Q2 or novelty claim
+    would have to be generated from records absent from every benchmarked
+    database, which is the one-species-out design of C22-P7.
+
+    **(b) No primer removal.** ITS1F (`CTTGGTCATTTAGAGGAAGTAA`) is in **0 of
+    the 100 input records** and 0 reads; the reverse ITS2 site is in 61 of 100.
+    The records begin inside ITS1, so the reads are amplicons already. Running
+    `cutadapt_remove_primers()` with `--discard-untrimmed` on them would drop
+    essentially everything — the failure S6.9 hit on the `_Fungi_cut`
+    databases. A dataset declares this with `fw_primer = NA` in
+    `config.R::bio_datasets`; `pipelines/dada2_bio.R` then passes the raw files
+    through its `cutadapt` target and reads the raw folder, and the
+    "Forward wo primers" row of `track_df` repeats the raw row.
+
+    **(c) Curated input, regenerated 2026-09-23** (developer). The first
+    generation (2026-09-16, a random draw of 100 Fungi records, archived in
+    `Archives/insilico_gen1_20260916/`) had three defects: 25 of its 48
+    recovered ASVs carried an `Incertae_sedis` label in their truth, which
+    `clean_taxo()` erases on the assignment side, so a method giving the exact
+    UNITE label was scored as missing it; 70 of its 100 records were
+    `<Genus>_sp`, so only 13 ASVs had a species truth; and 24 abundant records
+    exceeded the ~588 bp merge limit of 2 × 300 bp reads, removing 22 genera
+    non-randomly. `R/insilico_input.R::select_insilico_records()` now keeps
+    only records with **no `Incertae_sedis` or `unclassified` label at any
+    rank, a real species epithet and a 300–560 bp amplicon**, one per species,
+    drawn round-robin over phyla (32 262 of the 168 030 Fungi records of the
+    release are eligible: 21 131 species, 14 phyla). Result: 100 records of
+    100 species over 14 phyla, **71 ASVs, 68 with a Species truth and 0
+    incertae sedis**; the 3 others sit at 97–98 % identity to one record or
+    below, error variants or chimeras DADA2 kept, and stay in the matrix
+    without truth like the mocks' truthless units. **Cost of the curation, to
+    state wherever the set is reported:** the poorly known lineages are
+    excluded by construction (Rozellomycota and the placeholder phyla have no
+    eligible record), and the round-robin draw flattens the phyla (Ascomycota
+    12 records, Mortierellomycota 11), so the set is phylogenetically broad on
+    purpose and shaped like no real community. The selection does not touch
+    the leak of (a), nor the external-control truth (`ROADMAP.md` SA4).
+
+    → `_targets.yaml` projects `dada2_insilico` / `assign_taxo_insilico`,
+    `config.R::bio_datasets` row `insilico`, `R/insilico_input.R` (tests in
+    `tests/test_insilico_input.R`), `analysis/in_silico_simulation.qmd`
+    steps 1 to 3.
+
+30. **D1c starts with two published-OTU datasets, air and wood, 2000 OTUs
+    each, on the ASV and ITSx inputs only** (developer, 2026-09-23).
+
+    **(a) Datasets.** The Global Spore Sampling Project (air, Ovaskainen et
+    al. 2024, Zenodo 11125610) and Korhonen et al. 2024 (wood, Dryad
+    `3j9kd51s7` deciduous debris + `44j0zpcng` spruce, pooled as one dataset
+    because they share lab, primers and platform). Both are ITS2 on Illumina
+    and publish the representative sequence of every OTU, so they skip dada2:
+    `pipelines/load_bio.R` builds `d_asv` from the deposit
+    (`R/bio_loaders.R`) into `store_dada2_<dataset>`, and
+    `assign_taxo_<dataset>` is unchanged. GloSED, a leaf dataset and the
+    Tedersoo soil are a later round.
+
+    **Wood pooling rules** (2026-09-24, loader defaults). The two deposits
+    share the authors' hash `OTU_ID`, so an OTU found in both is one taxon
+    (78 of the 918 kept). Only OTUs present in at least one sample are kept:
+    the deciduous tables list 155 OTUs present nowhere, 4 of them absent from
+    its taxonomy, and its taxonomy file covers 5 630 OTUs of the whole run.
+    Every published sample is kept (100 debris replicates, 20 birch logs, 93
+    spruce samples); the 3 replicates the authors flag as outliers carry
+    `outlier = TRUE`, since the benchmark reads NA rates per OTU and does no
+    ecology.
+
+    **(b) The common OTUs, not a random draw** (revised by the developer on
+    2026-09-26; the first version drew 2000 OTUs at random, half of them
+    singletons). An OTU is kept when it occurs in at least `min_occur`
+    samples (`config.R::bio_datasets$min_occur`, `R/bio_loaders.R::common_units()`):
+    **air 10 of 2 768 samples → 2 590 OTUs** over the 2 065 samples that keep
+    one; **wood 1, i.e. every OTU present somewhere → 918 OTUs**, all of them,
+    because wood is presence / absence (no read counts) and small (213
+    samples). A reads threshold was considered and left out: on air it only
+    bites from 1 000 reads up, and wood has none. The counts behind the choice
+    are in `analysis/sandbox/check_bio_otu_filters.R`
+    (`data/data_final/bio_otu_filter_grid.csv`). The selection is written to
+    `data/data_final/selected_units_<dataset>.csv` (in `data/data_raw/metadata/` before 2026-10-07) with the published
+    taxonomy, which stays out of the scoring (plain rank names in the
+    tax_table, which `assignment_labels()` ignores). Wood's object is
+    unchanged by the revision, so its 2026-09-26 run stands.
+
+    **(c) No OTU input.** The published OTUs are already species-level
+    clusters; re-clustering them at 97 % would cost a third of the grid and
+    answer nothing, since Q5 does not apply to pre-clustered data. The ITSx
+    input runs on ITS2 (`bio_datasets$itsx_region`). No `_ITS2_cut` database
+    is derived: trimmed references are out of the grid (decisions 24, 25).
+
+    **Cost:** about 3 985 units for air (2 590 OTUs, 1 295 `fake_` at
+    `prop_fake = 0.5`, 100 `external_`) and 1 477 for wood (918, 459, 100),
+    against 394 on the Pauvert mock (196 ASVs, 98, 100). Wood took about
+    11.5 h with 2 workers (2026-09-25/26); lca (~4 h per computation) and
+    blastn (~2 h) dominate on these inputs, which the timing benchmark of
+    2026-09-26 investigates before air is rerun.
+
+    → `config.R::bio_datasets` rows `gssp_air` and `korhonen_wood`,
+    `_targets.yaml` projects `dada2_<dataset>` / `assign_taxo_<dataset>`,
+    `R/bio_loaders.R`, `tests/test_bio_loaders.R`.
+
+31. **The cost figures come from one final run on a medium computer, one
+    computation at a time** (developer, 2026-09-24). Time and memory weigh in
+    the conclusions, and the framing is sobriety: this machine (6 cores,
+    62 GB) is an ordinary one, of the kind a low-budget research team can
+    afford, so the benchmark should say what such a machine achieves. The
+    final run of every project uses **a single worker for both job queues**
+    (dada2 and the fast methods), so no two computations share the CPU or the
+    memory, with **a fixed number of threads per method**, reported in the
+    Methods. The desktop is closed for the dada2 computations; if that is not
+    enough to keep dada2 × full `EUK_ITS_v2.1` (~57 GB) out of swap, a little
+    swap is accepted and stated, in keeping with the medium-computer framing,
+    rather than moving that run to a larger machine. Every cost measured
+    before this run is provisional. → `ROADMAP.md` M2.4
+
+32. **Records over 5 kb are dropped from `EUK_ITS_v2.1_Fungi` and
+    `EUK_ITS_v2.1_Fungi_rep`** (developer, 2026-09-24), representatives
+    included, and the problem that led to it is **also reported as a finding**
+    (`HISTORY.md` §2, "sintax and one Laccaria clone"). A 32 568 bp *Laccaria
+    bicolor* genomic clone (`AC156603`) made sintax name 92–100 % of the
+    shuffled controls and 85 % of the non-fungal ones on those two databases.
+    The cap (`config.R::max_record_length`, applied by
+    `make_databases.R::cap_record_length()` after the kingdom filter and to the
+    representative draw) removed 61 records from `_Fungi` and, with the
+    redrawn representatives, the 345 over-long records of `_Fungi_rep`. The
+    full release is left as published: it is the "database as downloaded"
+    level of Q2, and its organelle genomes do not produce the magnet (their
+    votes split). UNITE needs no cap (longest record 3 173 bp). The finding
+    is also **an argument for running ITSx on the reference database**: an
+    ITS-extracted reference cannot hold a 32 kb record. The stored targets
+    built on the two databases were deleted from the three `assign_taxo`
+    stores on 2026-09-24 (154 each, `targets::tar_delete()`); `store_cross_val`
+    was left as is (deferred, OD 28), its cells on the old file being outdated
+    anyway. → `ROADMAP.md` SA5
+
+33. **lca is the common LCA of QIIME 2, not stampa** (developer, 2026-09-26).
+    The grid ran `assign_vsearch_lca()` at MiscMetabar's defaults, the stampa
+    algorithm (`top_hits_only = TRUE`, `id = 0.5`, `maxaccepts = 0`), which is
+    little known outside that lineage. It is replaced by the most widely used
+    LCA on vsearch: QIIME 2's `classify-consensus-vsearch`, whose defaults are
+    the "balanced" configuration Bokulich et al. 2018 (*Microbiome* 6:90)
+    optimised on 16S and fungal ITS — `top_hits_only = FALSE`, `id = 0.8`,
+    `maxaccepts = 10`, consensus 0.51 — with vsearch's `maxrejects = 32`
+    (`config.R::lca_top_hits_only`, `lca_id`, `lca_maxaccepts`). The sweep
+    becomes `lca_cutoff ∈ {0.51, 0.8, 1}` (0.51 the QIIME 2 value, 1 vsearch's
+    strict default), **default row 0.51**. Why: on real ITS queries stampa is
+    near-exhaustive (4.5–4.75 s per query against 102 137 records, 25–40 times
+    the common LCA; ~4 h per computation on air) and names 62 % of the
+    non-fungal controls. The cost, measured before switching and kept in
+    `HISTORY.md` §2 ("stampa against the common LCA"): the common LCA is less
+    accurate on long ITS (in silico genus correct 0.57 / wrong 0.13 against
+    0.91 / 0.03 for stampa). The one-search / R-side LCA design still holds:
+    checked cell for cell against vsearch `--lcaout` at the three cutoffs.
+    Changing `compute_assignment()` outdates every computation of every store.
+    **Confirmed 2026-10-05 (developer)** after the full in silico rescoring,
+    where lca names the right genus for only 46–53 of 67–68 ASVs although the
+    exact record is in the reference (the true genus holds at most half of the
+    ≤ 10 hits and is outvoted): the common LCA stays, because stampa needs far
+    more compute. → `HISTORY.md` §6.2 (D1c), §2 D1b
+
+34. **The final analyses run on the ITSx inputs only** (developer,
+    2026-09-27): the ITSx version of `d_asv` and of the OTUs (`d_vs`), for
+    every dataset. ITSx is judged relevant everywhere, and without it blastn
+    is an order of magnitude slower on some markers (`HISTORY.md` §2, wood
+    13.4×). Of the raw-input rows measured before, **only the timing evidence
+    is clean**: their accuracy columns mix stampa lca, an unseeded sintax and
+    the uncapped EUKARYOME, and the EUKARYOME `_Fungi` targets were deleted
+    (OD 32, 33, SA6), so they support the cost argument, not an accuracy
+    comparison raw vs ITSx; Q4 becomes ITS1 vs ITS2 vs full. ITSx moved into
+    MiscMetabar as `itsx_pq()` (2026-09-27), which also records ITSx's
+    "putative origin" of each unit;
+    that origin call becomes a comparison of its own on the non-fungal
+    controls (phylum / kingdom false positives of ITSx against those of the
+    assignment methods). **Open, to settle before the grid is rebuilt**: the
+    full databases (today they get no ITSx input, S8.5), the region of the
+    full-ITS datasets (Tedersoo mock and in silico: `"full"` keeps the 5.8S
+    and gives blastn no speed-up), and the OTUs (cluster the ITSx sequences,
+    or run ITSx on the clusters). → `ROADMAP.md` Q4
+
+    **Threads, revising OD 31** (same day): in the final timing run each
+    computation still runs alone, but uses **all the cores of the machine**
+    — the machine is an input of the problem, and each method is run as fast
+    as it can go on it.
+
+    **Answers of 2026-09-27 (developer)**: the full-ITS datasets (Tedersoo
+    mock, in silico) are extracted as **ITS1 and ITS2** instead of `"full"`
+    (how the two are fed to the grid: see `ROADMAP.md` Q4); the OTUs are the
+    **97 % clusters of the ITSx-extracted sequences**; in the final run
+    **sintax stays at 1 thread** (seeded, reproducible: 0 of 206 units change
+    genus at 1 thread against 3 of 206 at 6), dada2, lca and blastn get all
+    the cores. **The ITSx inputs are assigned against all nine databases**,
+    the three full releases included (reverses S8.5, which kept them to the
+    six Fungi-filtered ones to save compute). ITSx only ever trims the
+    queries; the references stay the untrimmed releases (trimming them with
+    cutadapt was rejected, decisions 24 and 25, and running ITSx on a
+    reference would be far too long).
+
+    **Regions, decided 2026-09-27 (developer)**: a dataset whose amplicon
+    covers the whole ITS (Tedersoo mock, in silico) gets **three ITSx
+    inputs**: ITS1, ITS2 and the full region (ITS1 + 5.8S + ITS2, ITSx
+    `"full"`), each assigned against the nine untrimmed databases. ITS1 against
+    ITS2 compares the two markers on the same sequences, which separates the
+    region from the community (C22-P9); full against ITS1 / ITS2 measures what
+    assigning both regions together gains or loses. The other datasets can
+    only give the region their amplicon holds: ITS1 for Pauvert, ITS2 for air
+    and wood. **The OTU input is built for every region too** (developer, same
+    day): Q5 (ASV vs OTU) is crossed with the region, so the full-ITS datasets
+    carry six inputs (ASV and OTU × ITS1, ITS2, full). Cost: six inputs
+    instead of one for those two datasets, and
+    the full-region input keeps the 5.8S, so blastn gets no speed-up on it
+    (`HISTORY.md` §2).
+
+35. **The 5 000 bp record cap also applies to the whole `EUK_ITS_v2.1`
+    release** (developer, 2026-10-01; revises OD 32, which left the full
+    release as published). Once dada2's overflow was fixed (`HISTORY.md` §2,
+    `patches/`), the full release showed the magnet OD 32 had not seen there:
+    dada2 gave a genus to 43–86 % of the shuffled controls (Pauvert ITS1 ASV
+    55 of 97, wood 188 of 437, Tedersoo full-ITS 102 of 118) and lca to
+    3–15 %, every one of them resting on a record over 5 kb, mostly plant
+    mitochondrial genomes of 32 759 bp (*Solanum lycopersicum*, *Silene
+    noctiflora*); sintax named 1 fake and blastn none. The cap removes 7 871
+    records (0.42 %, 1 877 003 → 1 869 132; 205 305 distinct taxonomies)
+    from the dada2 and sintax files (`make_databases.R` step 2a-bis,
+    `config.R::max_record_length`); the `_Fungi` / `_Fungi_rep` variants were
+    already capped and do not move. UNITE is unaffected (longest record
+    3 173 bp). Consequence for Q2: the "full" level of EUKARYOME becomes the
+    release minus its records over 5 kb, stated in the Methods. **The article
+    justifies it with a dedicated test on the `fake_` controls only**
+    (`analysis/sandbox/check_length_cap_fakes.R`): each control's uncapped
+    answer (snapshot `data/snapshots/uncapped_EUK_ITS_v2.1_2026-10-01/`)
+    against its capped one, per method, default settings. Every computation
+    on the full `EUK_ITS_v2.1` (four methods, every dataset) reruns; the
+    reference-file targets outdate them by themselves (checked: only those
+    computations and their downstream targets). → `ROADMAP.md` §1
+
+36. **Units foreign to the mock are scored aside, and a partial overlap at
+    99.5 % gives the truth** (developer, 2026-10-02; revises Q2a and Q2b of
+    `docs/hleap_2021_metrics.md`). Found on Tedersoo, whose Genus F1 sat at
+    0.52–0.59 for every method and database: 105 of its 238 ASVs reach no
+    Sanger read at 90 % identity (75 of them at 50–70 %: plants, protists,
+    Rozellomycota, fungi absent from the mock), and F1 charged each of them 1
+    whatever the method did. A unit with no Sanger hit at
+    `foreign_identity` = 90 % is now `foreign`: out of the matrix at every
+    rank, reported by `foreign_named` (share given a value) and `n_foreign`
+    (comparpq `tc_metrics_unit()`, optional `foreign` column of the truth).
+    Units with a hit between 90 and 99.5 % keep Q2b (in the matrix, no truth):
+    they are mock members with errors or variants, where the methods' answers
+    differ. Pauvert has 3 foreign ASVs. Second, a unit also matches a strain
+    when they share an aligned overlap of `min_overlap` = 100 bp at ≥ 99.5 %
+    identity with neither holding the other: Tedersoo amplicons starting
+    inside the Sanger read (16 ASVs) and, above all, Pauvert ITS1 OTUs longer
+    than a short Sanger read (36 of 150 had lost their truth with the OD 34
+    trimmed inputs). Measured before choosing 100 bp: the accepted overlaps
+    run from 133 to 440 bp, each lands on one strain (two ties within a genus),
+    and the second-best strain sits at 90–95.7 %. `R/mock_truth.R`
+    (`sanger_hits()`, `sanger_matches()`, `mock_truth_table()`);
+    `analysis/sandbox/check_tedersoo_truth.R`. → `HISTORY.md` §2
+
+37. **Primary endpoints: F1 and PPV at Genus and Species** (developer,
+    2026-10-05; settles C22-P2 of `docs/manuscript_framing.md`, supersedes
+    decision 5 and narrows decision 31 as that item proposed). Four co-primary
+    numbers, read on the ASVs of the two mocks (Pauvert, Tedersoo): F1 and PPV
+    at Genus and at Species (the `Gen_sp` rank of the chapters). Every other
+    metric, rank, unit and dataset is secondary or exploratory and labelled so
+    in the manuscript. Chosen over a single Genus F1 because F1 alone hides
+    whether a method errs or abstains, and Species carries the resolution
+    question; the cost is four endpoints instead of one, to be kept in mind
+    when conclusions are stated. → `HISTORY.md` §3d
+
+38. **Q4 is scored on the units ITSx trimmed in every region; the units it
+    did not detect stay in every input** (developer, 2026-10-06; answers Q1
+    and Q3 of `reviews/code_review_2026-10-05.md` §11, completes OD 34).
+    `itsx_pq(keep_undetected = TRUE)` keeps a unit whose region ITSx does not
+    find, on its whole sequence. That stays for Q1–Q3 and Q5, so no unit is
+    lost. But it mixes regions in Q4: on Tedersoo, 22 / 35 / 47 units of the
+    ITS1 / ITS2 / full inputs are the untrimmed amplicon. The paired reading
+    of Q4 therefore keeps only the units trimmed in all three regions (150 of
+    the 183 common ASVs; re-scored on them, full > ITS1 > ITS2 at Genus
+    holds). The in silico "full" input stays as it is: ITSx cut none of its
+    ASVs, because their UNITE templates are already ITS1-5.8S-ITS2 and offer
+    no SSU or LSU flank, so the uncut ASV is the full ITS; chapter 07 says so
+    in one sentence. → `reviews/code_review_2026-10-05.md` §1.1, `ROADMAP.md` §2
+
+39. **The external controls are redrawn in M2.4 with a fixed draw**
+    (developer, 2026-10-06; answers Q2 of `reviews/code_review_2026-10-05.md` §11).
+    `make_databases.R::derive_fake_ref()` never draws a phylum that holds a
+    single record (`sample()` on a length-one vector), so the 100 controls
+    cover 65 of the 73 eligible phyla and miss the 8 rarest. The code is
+    fixed before M2.4, which regenerates the controls and then the
+    `_Fungi_rep` representatives, since these exclude the candidates close
+    to a control (decision 35 of `HISTORY.md` §3d). `ext_fungi` and
+    `ext_correct` change with them; `NA_fake` does not. →
+    `reviews/code_review_2026-10-05.md` §1.2, `ROADMAP.md` §4
+
+40. **The final zoom reuses the representative draw of `_Fungi_rep`**
+    (developer, 2026-10-06; answers Q8 of `reviews/code_review_2026-10-05.md` §11,
+    specifies the `fungi + rep cut` database of decision 16, moved to the
+    final zoom by decisions 24 and 25, ROADMAP 0.11b). `fungi + rep cut` is the `_Fungi_cut` records plus the
+    untrimmed representatives of the same source's `_Fungi_rep`, read from
+    `sources/<db>_reps.csv`, both under the OD 32 cap. Same draw, so
+    `fungi + rep` against `fungi + rep cut` differs only by the cutting. It is
+    built after M2.4, which redraws the representatives (OD 39). Nothing
+    exists yet: no UNITE `_Fungi_cut`, no derivation, and the
+    `EUK_ITS_v2.1_Fungi_cut` on disk predates the cap and must be rebuilt.
+    → `reviews/code_review_2026-10-05.md` §1.6, `ROADMAP.md` §4
+
+41. **Denoising keeps dada2's default read filtering, and the seed spread
+    of the k-mer methods is reported as their noise floor** (developer,
+    2026-10-06; answers Q4, Q9 and Q10 of `reviews/code_review_2026-10-05.md` §11).
+    *Seed spread* (`analysis/sandbox/test_seed_spread.R`, Pauvert ITS1 ASV,
+    three databases, the stored run and seeds 1–3): at default settings,
+    dada2 and sintax move by up to 0.013 at Genus and 0.014 at Species, and
+    sintax by up to 0.045 at other thresholds; lca and blastn draw nothing.
+    Differences below these ranges are not interpreted. dada2's tie-break
+    stays unseeded (`std::random_device`): no second patch, since it changes
+    1–2 Species calls at a fixed seed and would be one more patch to defend.
+    *Read filtering* (`analysis/sandbox/test_read_filtering.R`, Pauvert, two
+    zoom databases × four methods): the settings Rolling et al. 2022
+    recommend for fungal ITS (`maxEE = 8`, `truncQ = 8`) change nothing on
+    the units both settings keep; their Genus gain on all units comes from
+    the unit set (17 units dropped, 11 of them without a truth). The
+    pipelines keep `filterAndTrim()`'s defaults with `trimLeft = 1,
+    trimRight = 1`. Testing the Rolling et al. settings on other datasets is
+    a side question (`docs/parked.md` §3). → `ROADMAP.md` §1
+
+42. **A third mock: Rolling et al. 2022** (developer, 2026-10-06; dataset
+    `rolling_mock`). The fungal ITS1 mock of Rolling et al. 2022 (JCI Insight
+    7:e151663; SRA PRJNA779405): 11 strains of 9 medically relevant species
+    (*Aspergillus*, *Candida*, *Meyerozyma*, *Malassezia*, *Saccharomyces*,
+    *Nakaseomyces*), amplified with ITS-1-F / 5.8S-1R and sequenced on a
+    MiSeq 2 × 300. It complements Pauvert (environmental fungi, same forward
+    primer) and Tedersoo (full ITS) with species pairs whose ITS1 differs by
+    1 to 3 bases. Three runs with the standard ITS-1-F, **used as replicates
+    of one community**: balanced, extreme1 and extreme2 differ only in the
+    proportions, which presence-only scoring ignores; the wobble-primer and
+    *S. cerevisiae*-enriched runs are left out. The truth is the expected
+    ITS1 amplicon of each strain published by the authors (12 sequences: two
+    *C. parapsilosis* strains and two *S. cerevisiae* ITS1 variants), not a
+    Sanger read; GBIF accepts *Candida glabrata* as *Nakaseomyces glabratus*.
+    The library mixes both read orientations, so primer removal runs
+    `cutadapt --revcomp` (98.7 % of the pairs kept against 49.9 % without).
+    Inputs as for Pauvert: ITS1 × ASV and OTU. Caveat for the Results: 9
+    species, mostly Saccharomycetes, all well represented in the references.
+    → `ROADMAP.md` §1, `config.R::bio_datasets`
+
+43. **The paper benchmarks taxonomic assignment as a whole; species
+    assignment gets a section of its own, by exact match** (developer,
+    2026-10-06; revises OD 37). The article states that it does not focus on
+    species assignment. **Primary endpoints: F1 and PPV at Genus** on the ASVs
+    of the mocks. Species F1 and PPV leave the primary endpoints and move to
+    the species section, where a species is named by an exact (100 %) match:
+    - `dada2::assignSpecies()` against `data/data_raw/refseq/species_format/`
+      (`make_databases.R::derive_species()`: ">ID Genus epithet", records
+      naming a species only), which assigns a query found as an exact
+      substring of a record;
+    - vsearch `--usearch_global --id 1 --query_cov 1 --maxaccepts 0
+      --maxrejects 32`. Not `--search_exact`: it reports full-length identity
+      only, so it matched 0 of the 387 Pauvert ITS1 queries (ITSx-cut queries
+      against whole-ITS records). The chosen setting found every true
+      (query, record) pair on `Unite_all_20250219_Fungi` and
+      `EUK_ITS_v2.1_Fungi` as fast as the default; it also counts a base
+      matching an ambiguity code (N, Y) of the record, so its hits are kept
+      only when the query is an exact substring of the record;
+    - blastn hits at 100 % identity over the whole query, from the raw blast
+      tables already stored.
+    Expected (developer): exact matching names fewer species than a
+    bootstrap classifier at its threshold (dada2 `assignTaxonomy()`, sintax),
+    trading recall for precision; the section measures it against the
+    Species rank of the main grid. Cost on the 16 current inputs × 9
+    databases, one call per database with all inputs pooled: about 80 min
+    for `assignSpecies()` (one scan of the reference per distinct query
+    length: 490), about 10 min for vsearch, nothing for blastn
+    (`analysis/sandbox/timing_species_assignment.R`,
+    `check_vsearch_exact_species.R`, `data/snapshots/species_timing/`).
+    **From exact hits to a species call** (developer, 2026-10-07): a query is
+    named a species when every exact hit that names a species gives the same
+    binomial; hits naming no species (no epithet, "sp.") do not block the
+    call. Several binomials give no species. vsearch and blastn follow this
+    rule on their hit tables; `assignSpecies()` follows it by construction,
+    since `species_format/` holds only the records that name a species.
+    → `ROADMAP.md` §2, `HISTORY.md` §3d
+
+    **Near matches** (developer, 2026-10-07): beside the exact match, the
+    species layer reads two relaxations with vsearch and blastn
+    (`assignSpecies()` has none): **at most one difference** over the whole
+    query (a substitution, an indel, an ambiguity code of the record, or a
+    query base beyond the end of the record), and **a stretch of at least
+    90 % of the query found exactly** in the record. The question is whether
+    F1 rises much once the match is loosened. Each search only proposes
+    (query, record) pairs (vsearch `--id 0.9 --query_cov 0.9`, blastn
+    megablast at ≥ 90 % identity over ≥ 89 % of the query); whether a pair
+    passes is decided from the two sequences, the same way for both methods
+    (`R/species_exact.R`, `near_hit_columns()`). The call rule is the one
+    above, at each match level. blastn runs its own search, up to 10 000
+    records per query, instead of reading the grid's tables (500 hits, no
+    alignment coordinates); its exact match is the pairs with no difference.
+    → `ROADMAP.md` §2, `HISTORY.md` §3d
 
 ---
 

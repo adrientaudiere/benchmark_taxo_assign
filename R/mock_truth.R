@@ -3,13 +3,18 @@
 # mocks here only came with a set of expected taxa, so each ASV (or OTU) is
 # matched against the Sanger sequences of the strains of its mock.
 #
-# The rule, confirmed by the developer (Q2a): a unit gets the truth of a Sanger
-# sequence when their identity is at least `min_identity` AND the shorter of
-# the two sequences is covered at `min_cover` — the inclusion goes both ways
-# (the Pauvert ASVs sit inside the Sanger reads, the Tedersoo Sanger reads
-# inside the ASVs). A unit matching several strains keeps their lowest common
-# rank (Q2c) and leaves the matrix below it; a unit matching none stays in the
-# matrix with no truth (Q2b).
+# The rule, confirmed by the developer (Q2a, widened by OD 36 on 2026-10-02):
+# a unit gets the truth of a Sanger sequence when their identity is at least
+# `min_identity` AND either the shorter of the two sequences is covered at
+# `min_cover` — the inclusion goes both ways (the Pauvert ASVs sit inside the
+# Sanger reads, the Tedersoo Sanger reads inside the ASVs) — or they overlap
+# over `min_overlap` bp or more, each running past an end of the other (a
+# Pauvert Sanger read shorter than the trimmed ITS1 OTU, a Tedersoo amplicon
+# starting inside the read). A unit matching several strains keeps their
+# lowest common rank (Q2c) and leaves the matrix below it. A unit matching
+# none stays in the matrix with no truth (Q2b), unless no Sanger sequence
+# reaches `foreign_identity`: it is then `foreign` to the mock and scored
+# aside (OD 36).
 #
 # Names (hleap §6): the submitted name of the strain is the truth, the GBIF
 # accepted name counts as correct too at Genus and Species, and the ranks above
@@ -24,7 +29,10 @@
 # Measured on the production stores (2026-09-22), which is what the developer
 # confirmed in hleap §6: 149 of the 196 Pauvert ASVs get a truth (12 ties) and
 # 99 of the 238 Tedersoo ASVs (3 ties); on the OTUs, 126 of 143 and 74 of 180.
-# Two Pauvert units stop above Genus for a reason worth knowing: one matches a
+# With OD 36 (2026-10-02): Pauvert 150 of 196 ASVs, 3 foreign; ITS1 OTUs 129
+# of 150 (93 before: their Sanger reads are often shorter than the trimmed
+# OTU), 3 foreign. Tedersoo 115 of 238 ASVs, 105 foreign; OTUs 75-78 of
+# 175-180 per region, 93-96 foreign. Two Pauvert units stop above Genus for a reason worth knowing: one matches a
 # strain named only to class (Sordariomycetes sp) and one ties with a
 # genus-only name (Fusarium sp) that GBIF places in another class. Ten more
 # stop at Genus because their strain is named "Genus sp": species_name()
@@ -120,6 +128,10 @@ genus_name <- function(name) {
 # at Genus instead, exactly as a tie between two species of the same genus
 # does.
 placeholder_epithets <- c("sp", "spp", "cf", "aff", "indet", "incertae")
+
+# Labels that clean_taxo() (R/assignment_helpers.R) turns into NA on the
+# assignment side: a truth must not hold them either.
+placeholder_label <- "_[Ii]ncertae_sedis$|^unclassified|^$"
 
 # Species of a taxon name: its binomial, or NA when the name carries no
 # epithet or a placeholder one. Vectorised.
@@ -247,22 +259,13 @@ lineage_disagreements <- function(lineage, sanger_raw, ranks = truth_ranks) {
   )
 }
 
-# Strains whose Sanger sequence matches each unit of `seqs` (a named
-# DNAStringSet: the refseq slot of the input being scored). vsearch keeps every
-# hit at `search_id` or more, and a hit is a match when the identity reaches
-# `min_identity` and the shorter of the two sequences is covered at
-# `min_cover`; only the hits of highest identity of a unit are kept. Returns a
-# tibble: `taxon`, `strain`, `identity`, `qcov`, `tcov`.
-sanger_matches <- function(
-  seqs,
-  sanger,
-  min_identity = 0.995,
-  min_cover = 0.995,
-  search_id = 0.9,
-  nproc = 1
-) {
+# Every hit of the units of `seqs` (a named DNAStringSet: the refseq slot of
+# the input being scored) on the Sanger sequences, down to `search_id`.
+# Returns a tibble: `taxon`, `strain`, `identity`, `qcov`, `tcov` (vsearch,
+# in %) and `overlap`, the aligned length in bp.
+sanger_hits <- function(seqs, sanger, search_id = 0.9, nproc = 1) {
   if (!dbpq::is_vsearch_installed()) {
-    stop("sanger_matches() needs vsearch.")
+    stop("sanger_hits() needs vsearch.")
   }
   query_file <- tempfile(fileext = ".fasta")
   db_file <- tempfile(fileext = ".fasta")
@@ -288,11 +291,12 @@ sanger_matches <- function(
       "--maxrejects",
       "0",
       "--userfields",
-      "query+target+id+qcov+tcov",
+      "query+target+id+qcov+tcov+ql",
       "--userout",
       shQuote(out_file),
       "--threads",
       nproc,
+      "--notrunclabels",
       "--quiet"
     ),
     stdout = FALSE,
@@ -307,24 +311,39 @@ sanger_matches <- function(
       strain = character(),
       identity = numeric(),
       qcov = numeric(),
-      tcov = numeric()
+      tcov = numeric(),
+      overlap = numeric()
     ))
   }
-  hits <- utils::read.delim(
+  utils::read.delim(
     out_file,
     header = FALSE,
     quote = "",
-    col.names = c("taxon", "strain", "identity", "qcov", "tcov")
-  )
-  hits |>
+    col.names = c("taxon", "strain", "identity", "qcov", "tcov", "ql")
+  ) |>
     tibble::as_tibble() |>
+    dplyr::mutate(overlap = round(qcov * ql / 100)) |>
+    dplyr::select(-ql)
+}
+
+# The hits of sanger_hits() that are matches: identity at `min_identity` or
+# more, and either the shorter of the two sequences covered at `min_cover`
+# (one sequence holds the other) or an aligned overlap of `min_overlap` bp or
+# more (each runs past an end of the other: a Sanger read shorter than the
+# trimmed unit, or an amplicon starting inside the read; OD 36). Only the hits
+# of highest identity of a unit are kept.
+sanger_matches <- function(
+  hits,
+  min_identity = 0.995,
+  min_cover = 0.995,
+  min_overlap = 100
+) {
+  hits |>
     dplyr::filter(
       identity >= 100 * min_identity,
-      pmax(qcov, tcov) >= 100 * min_cover
+      pmax(qcov, tcov) >= 100 * min_cover | overlap >= min_overlap
     ) |>
-    dplyr::group_by(taxon) |>
-    dplyr::filter(identity == max(identity)) |>
-    dplyr::ungroup()
+    dplyr::slice_max(identity, n = 1, with_ties = TRUE, by = taxon)
 }
 
 # Truth of every unit of `seqs`, one row per unit (ROADMAP 0.6):
@@ -337,15 +356,29 @@ sanger_matches <- function(
 #   `truth_depth` and left out of the matrix below it;
 # - `Genus_accepted` and `Species_accepted` hold the GBIF accepted name, which
 #   counts as correct too (kept only when every matched strain agrees);
+# - `foreign` is TRUE for a unit with no hit at `foreign_identity` or more on
+#   any Sanger sequence: an organism foreign to the mock, which
+#   comparpq::tc_metrics_unit() leaves out of the matrix (OD 36). vsearch
+#   searches down to that identity only, the matches lying far above it;
 # - `n_strains` and `strains` record what matched.
 mock_truth_table <- function(
   seqs,
   sanger,
   lineage,
   ranks = truth_ranks,
-  ...
+  min_identity = 0.995,
+  min_cover = 0.995,
+  min_overlap = 100,
+  foreign_identity = 0.9,
+  nproc = 1
 ) {
-  matches <- sanger_matches(seqs, sanger, ...)
+  hits <- sanger_hits(seqs, sanger, search_id = foreign_identity, nproc = nproc)
+  matches <- sanger_matches(
+    hits,
+    min_identity = min_identity,
+    min_cover = min_cover,
+    min_overlap = min_overlap
+  )
   lineage <- lineage[match(sanger$strain, lineage$strain), ]
   rows <- lapply(names(seqs), function(taxon) {
     strains <- matches$strain[matches$taxon == taxon]
@@ -382,6 +415,7 @@ mock_truth_table <- function(
       !!!as.list(values),
       !!!as.list(accepted),
       truth_depth = depth,
+      foreign = !taxon %in% hits$taxon,
       n_strains = length(strains),
       strains = paste(sort(strains), collapse = "|")
     )
@@ -419,6 +453,13 @@ build_mock_truth <- function(physeq, cfg, base_dir = here::here(), ...) {
 # `taxon` column and one column per rank, ready for
 # comparpq::tc_metrics_unit(external_truth = ). Species values are the
 # binomials of the `Gen_sp_*` columns.
+#
+# Placeholder labels ("*_Incertae_sedis", "unclassified*", empty) become NA
+# at their own rank only, since clean_taxo() erases them on the assignment
+# side and the scoring could never match them; the real names below them are
+# kept. comparpq counts `ext_correct` over the controls with a truth at the
+# rank, so these controls are left out there, as a mock unit is below its
+# truth depth (ROADMAP SA4, decision D of 2026-09-30).
 external_control_truth <- function(
   taxa,
   ranks = truth_ranks,
@@ -439,6 +480,7 @@ external_control_truth <- function(
     field <- paste0(letters_of[[rank]], "__")
     value <- sub(paste0("^.*", field, "([^;|]*).*$"), "\\1", taxa)
     value[!grepl(field, taxa)] <- NA_character_
+    value[grepl(placeholder_label, value)] <- NA_character_
     out[[rank]] <- if (rank == "Species") species_name(value) else value
   }
   out

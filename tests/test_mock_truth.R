@@ -173,11 +173,32 @@ test_that("a unit takes the truth of the strain it matches, in both inclusion di
   expect_equal(tie$Genus_accepted, "Gamma")
   expect_true(is.na(tie$Species_accepted))
 
-  # No match: the unit stays in the table with no truth (Q2b).
+  # No hit at all, even at 90 %: no truth, and foreign to the mock (OD 36).
   none <- truth[truth$taxon == "unrelated", ]
   expect_equal(none$n_strains, 0L)
   expect_true(is.na(none$truth_depth))
   expect_true(all(is.na(none[truth_ranks])))
+  expect_true(none$foreign)
+  expect_false(any(truth$foreign[truth$taxon != "unrelated"]))
+})
+
+test_that("a partial overlap at 99.5 % gives the truth when it is long enough", {
+  skip_if_not(dbpq::is_vsearch_installed(), "vsearch not available")
+  # Each runs past an end of the other, as an amplicon starting inside the
+  # Sanger read (OD 36): 200 bp shared, 60 bp past the end of the read.
+  units <- Biostrings::DNAStringSet(c(
+    overlapping = paste0(
+      substr(strain_seqs[["s_alpha"]], 201, 400),
+      rand_seq(60)
+    )
+  ))
+  truth <- mock_truth_table(units, sanger, lineage)
+  expect_equal(truth$truth_depth, "Species")
+  expect_equal(truth$Species, "Alpha_unus")
+  expect_false(truth$foreign)
+
+  short <- mock_truth_table(units, sanger, lineage, min_overlap = 250)
+  expect_true(is.na(short$truth_depth))
 })
 
 test_that("a unit matching two strains of the same species is not a tie", {
@@ -204,7 +225,13 @@ test_that("a stricter cover rule drops the unit included in a longer Sanger read
   units <- Biostrings::DNAStringSet(c(
     inside = substr(strain_seqs[["s_alpha"]], 30, 380)
   ))
-  strict <- mock_truth_table(units, sanger, lineage, min_cover = 1.001)
+  strict <- mock_truth_table(
+    units,
+    sanger,
+    lineage,
+    min_cover = 1.001,
+    min_overlap = Inf
+  )
   expect_true(is.na(strict$truth_depth))
 })
 
@@ -225,8 +252,18 @@ test_that("external_control_truth reads the lineage from the control names", {
   expect_equal(ext$Order[1], "Sporadotrichida")
   # "s__Oxytrichidae_sp" names no species: the control has no species truth.
   expect_true(is.na(ext$Species[1]))
-  expect_equal(ext$Genus[1], "Oxytrichidae_gen_Incertae_sedis")
+  # A placeholder the scoring erases is no truth; the ranks above it stay.
+  expect_true(is.na(ext$Genus[1]))
+  expect_equal(ext$Family[1], "Oxytrichidae")
   expect_true(all(is.na(ext[2, truth_ranks])))
+
+  # A real name below a placeholder is kept.
+  below <- external_control_truth(paste0(
+    "external_x|A1|SH1|reps|k__Fungi;p__Ascomycota;",
+    "c__Ascomycota_cls_Incertae_sedis;o__Pleosporales;f__f;g__g;s__g_sp"
+  ))
+  expect_true(is.na(below$Class))
+  expect_equal(below$Order, "Pleosporales")
 })
 
 test_that("a strain named to the genus only stops the truth at Genus", {

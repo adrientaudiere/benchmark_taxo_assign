@@ -1,10 +1,11 @@
 # Full analysis pipeline — sourcing this file (re)builds EVERYTHING in order:
-# reference databases, then the three production projects (hours).
+# reference databases, then every dataset of the paper (a day or more; at
+# night, run_bio_night.R does the same per dataset, with a log).
 #
-# Pipelines are named projects in _targets.yaml (dada2, assign_taxo, cross_val,
-# plus assign_taxo_mini / cross_val_mini for smoke tests on the mini_* databases
-# with their own stores). run_project() (R/run_project.R) selects one, builds it
-# and prunes the objects that no longer belong to it.
+# Pipelines are named projects in _targets.yaml (assign_taxo_mini for smoke
+# tests on the mini_* databases with its own store). run_project()
+# (R/run_project.R) selects one, builds it and prunes the objects that no
+# longer belong to it.
 #
 # To run a single project, do not source this file; instead:
 #   source("R/run_project.R")
@@ -20,13 +21,9 @@ source("make_databases.R")
 download_reference_sources()
 derive_all_variants()
 
-# Step 1: DADA2 denoising → d_asv (and OTU variants).
-run_project("dada2")
-
-# Step 2: Taxonomic assignment (all method × db combinations in parallel).
-run_project("assign_taxo")
-
-# Step 3: Cross-validation.
-# WARNING: full run (cv_fold_number folds) takes many hours.
-# The cross_val_mini project uses 2 folds / 200 sequences (config.R).
-run_project("cross_val")
+# Step 1: per dataset, its DADA2 (or published-OTU) store → d_asv, then its
+# assignment grid; the species section (OD 43) last. Cross-validation is
+# parked (OD 28) and not run here.
+for (project in unlist(lapply(production_datasets(), dataset_projects))) {
+  run_project(project)
+}

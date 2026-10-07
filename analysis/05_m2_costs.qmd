@@ -9,27 +9,97 @@ comes from the per-target {autometric} logs written inside the crew workers
 mean CPU of the newest run of each target. M2.2 converts wall time to CO₂eq
 with `greenAlgoR`.
 
-Until the production rerun that follows S1.1, this chapter reads a
-`benchmark_costs` object computed from the legacy 2025-02 log; treat the
-figures as placeholders (ROADMAP, M2 re-validation).
+The costs read here come from the current assignment stores, but every
+cost measured before the final run of OD 31 (one computation at a time, fixed
+threads, the desktop closed) is **provisional**: treat these figures as
+placeholders, not as a recommendation (ROADMAP M2.4).
+
+Every section has one tab per mock and ITSx region (`analysis_views()` in
+`00_setup.R`), on the ASVs: Pauvert ITS1, then Tedersoo ITS1, ITS2 and full.
+Each view reads the costs of its own dataset's assignment store
+(`costs_for()`); the figures are saved once per view, suffixed with it.
 
 ```{r setup}
 here::i_am("analysis/05_m2_costs.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
-res_comp_tax <- cache_read("res_comp_tax") |> default_view()
-benchmark_costs <- tar_read(benchmark_costs, store = store_assign_taxo)
+res_all <- cache_read("res_comp_tax")
+views <- analysis_views(res_all)
 
-# benchmark_costs joins res_comp_tax on the assignment names. A store built
-# before the 2026-09-17 grid holds other names, and the join would come back
-# empty without any error: stop instead.
-matched <- sum(benchmark_costs$phase %in% res_comp_tax$method_db)
-if (matched == 0) {
-  stop(
-    "No assignment of benchmark_costs matches res_comp_tax: ",
-    basename(store_assign_taxo),
-    " predates the current grid. Rerun the assign_taxo project."
-  )
+# Default-setting F1 of one view, at every rank.
+f1_all_ranks <- function(res) {
+  res |>
+    filter(metrics == "F1_score") |>
+    filter_default_settings() |>
+    mutate(tax_level = factor(tax_level, levels = tax_order))
 }
+```
+
+## Summary
+
+```{r summary-data}
+#| include: false
+# Computed from the same views and filters as the tabs below: Genus F1 of the
+# default columns joined to the wall time of the computation behind each.
+s05_rows <- view_rows(res_all, views) |>
+  filter(metrics == "F1_score", tax_level == "Genus") |>
+  filter_default_settings()
+s05 <- lapply(seq_len(nrow(views)), function(i) {
+  rows <- filter(s05_rows, view_id == views$id[i])
+  rows |>
+    left_join(
+      costs_for(views$dataset[i], rows) |> select(phase, wall_time_s),
+      by = c("method_db" = "phase")
+    )
+}) |>
+  bind_rows() |>
+  filter(!is.na(wall_time_s))
+s05_by_algo <- s05 |>
+  group_by(view, algo) |>
+  summarise(minutes = mean(wall_time_s) / 60, f1 = mean(values), .groups = "drop")
+s05_fast <- s05_by_algo |>
+  group_by(view) |>
+  slice_min(minutes, n = 1, with_ties = FALSE) |>
+  ungroup()
+s05_slow <- s05_by_algo |>
+  group_by(view) |>
+  slice_max(minutes, n = 1, with_ties = FALSE) |>
+  ungroup()
+s05_best <- s05_by_algo |>
+  group_by(view) |>
+  slice_max(f1, n = 1, with_ties = FALSE) |>
+  ungroup()
+s05_ratio <- s05_slow$minutes / s05_fast$minutes
+```
+
+**Provisional costs** (OD 31): measured on this workstation during the
+benchmark runs, not in the final one-computation-at-a-time run. Read the
+orders of magnitude, not a recommendation. ASVs, default settings, wall time
+of one computation (one method × one database) averaged over the nine
+databases.
+
+- **Fastest**: `r best_phrase(mutate(s05_fast, value = -minutes), "algo", show_value = FALSE)`
+  — `r fmt_range(s05_fast$minutes, 1)` min per computation.
+- **Slowest**: `r best_phrase(mutate(s05_slow, value = minutes), "algo", show_value = FALSE)`
+  — `r fmt_range(s05_slow$minutes, 1)` min, `r fmt_range(s05_ratio, 0)` times
+  the fastest.
+- **Most accurate at Genus**: `r best_phrase(mutate(s05_best, value = f1), "algo")`,
+  at `r fmt_range(s05_best$minutes, 1)` min per computation.
+
+```{r summary-fig}
+#| echo: false
+fig_summary_05_f1_vs_time <- s05 |>
+  ggplot(aes(x = wall_time_s / 60, y = values, colour = algo)) +
+  geom_point(size = 2, alpha = 0.8) +
+  scale_x_log10() +
+  facet_wrap(~view, nrow = 1) +
+  labs(
+    x = "Wall time of the computation (min, log scale)",
+    y = "Genus F1", colour = "Method"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+print(fig_summary_05_f1_vs_time)
+save_fig(fig_summary_05_f1_vs_time, "fig_summary_05_f1_vs_time", width = 16, height = 5)
 ```
 
 ## M2.1 — Accuracy vs cost (F1 × wall time)
@@ -37,42 +107,38 @@ if (matched == 0) {
 The manuscript's practical recommendation: which method gives the best
 accuracy per unit of compute? Default settings only.
 
-```{r m2-1}
-f1_all_ranks <- res_comp_tax |>
-  filter(metrics == "F1_score") |>
-  filter_default_settings() |>
-  mutate(tax_level = factor(tax_level, levels = tax_order))
+```{r m2-1, results = "asis"}
+view_tabs(res_all, views, function(res, v) {
+  accuracy_vs_cost <- f1_all_ranks(res) |>
+    left_join(
+      costs_for(v$dataset, res) |>
+        select(phase, wall_time_s, peak_resident_mb, mean_cpu_pct),
+      by = c("method_db" = "phase")
+    )
 
-accuracy_vs_cost <- f1_all_ranks |>
-  left_join(
-    benchmark_costs |> select(phase, wall_time_s, peak_resident_mb, mean_cpu_pct),
-    by = c("method_db" = "phase")
-  )
+  fig_m2_cost_species <- accuracy_vs_cost |>
+    filter(tax_level == "Gen_sp", !is.na(wall_time_s)) |>
+    ggplot(aes(x = wall_time_s / 3600, y = values, color = algo)) +
+    geom_point(size = 3, alpha = 0.85) +
+    ggrepel::geom_label_repel(aes(label = db), size = 2.2, max.overlaps = 20,
+                              show.legend = FALSE) +
+    labs(x = "Wall time (hours)", y = "F1 score (Gen_sp rank)", color = "Method") +
+    theme_bw()
+  print(fig_m2_cost_species)
+  save_fig(fig_m2_cost_species, paste0("fig_m2_cost_species_", v$id), width = 8, height = 6)
 
-fig_m2_cost_species <- accuracy_vs_cost |>
-  filter(tax_level == "Gen_sp", !is.na(wall_time_s)) |>
-  ggplot(aes(x = wall_time_s / 3600, y = values, color = algo)) +
-  geom_point(size = 3, alpha = 0.85) +
-  ggrepel::geom_label_repel(aes(label = db), size = 2.2, max.overlaps = 20,
-                            show.legend = FALSE) +
-  labs(x = "Wall time (hours)", y = "F1 score (Gen_sp rank)", color = "Method") +
-  theme_bw()
-
-save_fig(fig_m2_cost_species, "fig_m2_cost_species", width = 8, height = 6)
-```
-
-```{r m2-1-allranks}
-fig_m2_cost_allranks <- accuracy_vs_cost |>
-  filter(!is.na(wall_time_s)) |>
-  ggplot(aes(x = wall_time_s / 3600, y = values, color = algo, shape = db)) +
-  geom_point(size = 2.5, alpha = 0.8) +
-  scale_shape_manual(values = db_shapes) +
-  facet_wrap(~tax_level, nrow = 1) +
-  labs(x = "Wall time (hours)", y = "F1 score", color = "Method", shape = "Database") +
-  theme_bw() +
-  theme(legend.position = "bottom")
-
-save_fig(fig_m2_cost_allranks, "fig_m2_cost_allranks", width = 18, height = 5)
+  fig_m2_cost_allranks <- accuracy_vs_cost |>
+    filter(!is.na(wall_time_s)) |>
+    ggplot(aes(x = wall_time_s / 3600, y = values, color = algo, shape = db)) +
+    geom_point(size = 2.5, alpha = 0.8) +
+    scale_shape_manual(values = db_shapes) +
+    facet_wrap(~tax_level, nrow = 1) +
+    labs(x = "Wall time (hours)", y = "F1 score", color = "Method", shape = "Database") +
+    theme_bw() +
+    theme(legend.position = "bottom")
+  print(fig_m2_cost_allranks)
+  save_fig(fig_m2_cost_allranks, paste0("fig_m2_cost_allranks_", v$id), width = 18, height = 5)
+})
 ```
 
 ## M2.2 — CO₂eq per assignment target
@@ -80,81 +146,96 @@ save_fig(fig_m2_cost_allranks, "fig_m2_cost_allranks", width = 18, height = 5)
 Carbon footprint (gCO2eq) estimated via `greenAlgoR::ga_footprint()` from
 `wall_time_s`. Hardware parameters default to the machine's detected RAM and
 WORLD carbon intensity; `n_cores` is the thread count of the computation
-(`assign_threads_dada2` for dada2, `assign_threads_fast` otherwise, `config.R`).
+(`config.R::assign_threads`, per method).
 
-```{r m2-2-co2}
-# Targets shorter than the 1 s autometric sampling interval have NA costs
-# (e.g. sintax on mini_* databases); ga_footprint() cannot take NA.
-benchmark_costs <- benchmark_costs |>
-  filter(!is.na(wall_time_s)) |>
-  rowwise() |>
-  mutate(
-    co2eq_gCO2 = greenAlgoR::ga_footprint(
-      runtime_h      = wall_time_s / 3600,
-      n_cores        = if (method == "dada2") assign_threads_dada2 else assign_threads_fast,
-      add_ref_values = FALSE
-    )$carbon_footprint_total_gCO2
-  ) |>
-  ungroup()
+```{r m2-2, results = "asis"}
+# CO2eq of every computation of a cost table. Targets shorter than the 1 s
+# autometric sampling interval have NA costs (e.g. sintax on mini_*
+# databases); ga_footprint() cannot take NA.
+add_co2 <- function(costs) {
+  costs |>
+    filter(!is.na(wall_time_s)) |>
+    rowwise() |>
+    mutate(
+      co2eq_gCO2 = greenAlgoR::ga_footprint(
+        runtime_h      = wall_time_s / 3600,
+        # World-mean carbon intensity, stated explicitly so a changed package
+        # default cannot silently change the figures (ROADMAP M2.5)
+        location_code  = "WORLD",
+        n_cores        = assign_threads[[method]],
+        add_ref_values = FALSE
+      )$carbon_footprint_total_gCO2
+    ) |>
+    ungroup()
+}
 
-accuracy_vs_co2 <- f1_all_ranks |>
-  left_join(
-    benchmark_costs |> select(phase, co2eq_gCO2),
-    by = c("method_db" = "phase")
-  )
+view_tabs(res_all, views, function(res, v) {
+  accuracy_vs_co2 <- f1_all_ranks(res) |>
+    left_join(
+      costs_for(v$dataset, res) |>
+        filter(phase %in% res$method_db) |>
+        add_co2() |>
+        select(phase, co2eq_gCO2),
+      by = c("method_db" = "phase")
+    )
 
-fig_m2_co2_species <- accuracy_vs_co2 |>
-  filter(tax_level == "Gen_sp", !is.na(co2eq_gCO2)) |>
-  ggplot(aes(x = co2eq_gCO2, y = values, color = algo)) +
-  geom_point(size = 3, alpha = 0.85) +
-  ggrepel::geom_label_repel(
-    aes(label = db), size = 2.2, max.overlaps = 20, show.legend = FALSE
-  ) +
-  labs(
-    x = expression(CO[2]*"eq (gCO2)"),
-    y = "F1 score (Gen_sp rank)",
-    color = "Method"
-  ) +
-  theme_bw()
+  fig_m2_co2_species <- accuracy_vs_co2 |>
+    filter(tax_level == "Gen_sp", !is.na(co2eq_gCO2)) |>
+    ggplot(aes(x = co2eq_gCO2, y = values, color = algo)) +
+    geom_point(size = 3, alpha = 0.85) +
+    ggrepel::geom_label_repel(
+      aes(label = db), size = 2.2, max.overlaps = 20, show.legend = FALSE
+    ) +
+    labs(
+      x = expression(CO[2]*"eq (gCO2)"),
+      y = "F1 score (Gen_sp rank)",
+      color = "Method"
+    ) +
+    theme_bw()
+  print(fig_m2_co2_species)
+  save_fig(fig_m2_co2_species, paste0("fig_m2_co2_species_", v$id), width = 8, height = 6)
 
-save_fig(fig_m2_co2_species, "fig_m2_co2_species", width = 8, height = 6)
-```
-
-```{r m2-2-allranks}
-fig_m2_co2_allranks <- accuracy_vs_co2 |>
-  filter(!is.na(co2eq_gCO2)) |>
-  ggplot(aes(x = co2eq_gCO2, y = values, color = algo, shape = db)) +
-  geom_point(size = 2.5, alpha = 0.8) +
-  scale_shape_manual(values = db_shapes) +
-  facet_wrap(~tax_level, nrow = 1) +
-  labs(
-    x = expression(CO[2]*"eq (gCO2)"),
-    y = "F1 score",
-    color = "Method",
-    shape = "Database"
-  ) +
-  theme_bw() +
-  theme(legend.position = "bottom")
-
-save_fig(fig_m2_co2_allranks, "fig_m2_co2_allranks", width = 18, height = 5)
+  fig_m2_co2_allranks <- accuracy_vs_co2 |>
+    filter(!is.na(co2eq_gCO2)) |>
+    ggplot(aes(x = co2eq_gCO2, y = values, color = algo, shape = db)) +
+    geom_point(size = 2.5, alpha = 0.8) +
+    scale_shape_manual(values = db_shapes) +
+    facet_wrap(~tax_level, nrow = 1) +
+    labs(
+      x = expression(CO[2]*"eq (gCO2)"),
+      y = "F1 score",
+      color = "Method",
+      shape = "Database"
+    ) +
+    theme_bw() +
+    theme(legend.position = "bottom")
+  print(fig_m2_co2_allranks)
+  save_fig(fig_m2_co2_allranks, paste0("fig_m2_co2_allranks_", v$id), width = 18, height = 5)
+})
 ```
 
 ## M2.3 — DADA2 preprocessing cost
 
 Cost of the denoising step, attributable separately from the assignments
-(`benchmark_costs_dada2` in `store_dada2`).
+(`benchmark_costs_dada2` in each dataset's DADA2 store), one tab per dataset.
 
-```{r m2-3}
-# benchmark_costs_dada2 only exists once the dada2 project has been rebuilt
-# with the per-phase autometric logging (store_dada2 predates it).
-if (targets::tar_exist_objects("benchmark_costs_dada2", store = here("store_dada2"))) {
-  tar_read(benchmark_costs_dada2, store = here("store_dada2")) |>
-    arrange(desc(wall_time_s)) |>
-    knitr::kable(
-      digits = 1,
-      caption = "DADA2 phases: wall time (s), peak resident memory (MB), mean CPU (%)"
-    )
-} else {
-  message("benchmark_costs_dada2 not built yet: run the dada2 targets project first.")
+```{r m2-3, results = "asis"}
+cat("\n::: {.panel-tabset}\n\n")
+for (i in seq_len(nrow(analysis_datasets))) {
+  cat("### ", analysis_datasets$dataset[i], "\n\n", sep = "")
+  store <- analysis_datasets$dada2_store[i]
+  # benchmark_costs_dada2 only exists once the dada2 project has been rebuilt
+  # with the per-phase autometric logging.
+  if (targets::tar_exist_objects("benchmark_costs_dada2", store = store)) {
+    tar_read(benchmark_costs_dada2, store = store) |>
+      arrange(desc(wall_time_s)) |>
+      cat_kable(
+        digits = 1,
+        caption = "DADA2 phases: wall time (s), peak resident memory (MB), mean CPU (%)"
+      )
+  } else {
+    cat("`benchmark_costs_dada2` not built yet in `", basename(store), "`.\n\n", sep = "")
+  }
 }
+cat(":::\n\n")
 ```

@@ -10,8 +10,9 @@ project:
   execute-dir: project
   output-dir: _output
   render:
-    - "0*.qmd"
+    # in_silico first: 07_q4_its_region.qmd reads the res_insilico cache it writes.
     - "in_silico_simulation.qmd"
+    - "0*.qmd"
 
 execute:
   # No freeze: chapters exchange data through analysis/_cache/ and switch

@@ -27,6 +27,10 @@ source(here("R/cross_val.R"))
 source(here("R/cv_queries.R"))
 source(here("R/create_fake_pq_from_refseq.R"))
 source(here("R/cv_to_tidy.R"))
+source(here("R/dada2_patched.R"))
+# dada2 overflow fix (HISTORY.md §2, 2026-09-30): refuse to run with the
+# Bioconductor build. Outside any target, so no target depends on it.
+assert_dada2_patched()
 load_pqverse(c("MiscMetabar", "comparpq", "tidypq", "dbpq"))
 
 tar_option_set(

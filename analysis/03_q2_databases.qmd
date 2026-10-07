@@ -3,27 +3,122 @@ title: "03 — Q2: reference database and simplification"
 author: "Adrien Taudière"
 ---
 
-Effect of the reference database and of its simplification (Fungi-only,
-primer-trimmed `_cut`). Figures: Q2.1 (per-DB accuracy), Q2.2 (paired
+Effect of the reference database and of its simplification (`config.R`:
+the whole release, its Fungi-only records, and Fungi plus non-fungal
+representatives `_Fungi_rep`; the primer-trimmed `_Fungi_cut` belongs to the
+final zoom only). Figures: Q2.1 (per-DB accuracy), Q2.2 (paired
 simplification effect), Q2.5 (DB size vs compute cost and accuracy).
+
+Every section has one tab per mock and ITSx region (`analysis_views()` in
+`00_setup.R`), on the ASVs: Pauvert ITS1, then Tedersoo ITS1, ITS2 and full.
+The figures are saved once per view, suffixed with it. The costs of Q2.5 come
+from each dataset's own assignment store (`costs_for()`).
 
 ```{r setup}
 here::i_am("analysis/03_q2_databases.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
-res_comp_tax <- cache_read("res_comp_tax") |> default_view()
-benchmark_costs <- tar_read(benchmark_costs, store = store_assign_taxo)
+res_all <- cache_read("res_comp_tax")
+views <- analysis_views(res_all)
 
-# benchmark_costs joins res_comp_tax on the assignment names. A store built
-# before the 2026-09-17 grid holds other names, and the join would come back
-# empty without any error: stop instead.
-matched <- sum(benchmark_costs$phase %in% res_comp_tax$method_db)
-if (matched == 0) {
-  stop(
-    "No assignment of benchmark_costs matches res_comp_tax: ",
-    basename(store_assign_taxo),
-    " predates the current grid. Rerun the assign_taxo project."
-  )
+# Default settings (bootstrap 0.5 / rel_majority), with the simplification
+# step of each database.
+q2_base <- function(res) {
+  res |>
+    filter(metrics %in% c("F1_score", "MCC")) |>
+    filter_default_settings() |>
+    left_join(db_meta, by = "db") |>
+    mutate(
+      tax_level      = factor(tax_level,      levels = tax_order),
+      simplification = factor(simplification, levels = unique(db_meta$simplification))
+    )
 }
+```
+
+## Summary
+
+```{r summary-data}
+#| include: false
+# Computed from the same views and filters as the tabs below.
+s03_genus <- view_rows(res_all, views) |>
+  filter(metrics == "F1_score", tax_level == "Genus") |>
+  filter_default_settings() |>
+  left_join(db_meta, by = "db")
+s03_by_db <- s03_genus |>
+  group_by(view, db, db_base, simplification) |>
+  summarise(value = mean(values), .groups = "drop")
+s03_spread_db <- s03_by_db |>
+  group_by(view) |>
+  summarise(spread = max(value) - min(value), .groups = "drop")
+s03_spread_algo <- s03_genus |>
+  group_by(view, algo) |>
+  summarise(value = mean(values), .groups = "drop") |>
+  group_by(view) |>
+  summarise(spread = max(value) - min(value), .groups = "drop")
+s03_by_source <- s03_by_db |>
+  group_by(view, db_base) |>
+  summarise(value = mean(value), .groups = "drop") |>
+  rename(source = db_base)
+# Paired steps within a source, per method: full -> Fungi, Fungi -> Fungi+rep.
+s03_steps <- s03_genus |>
+  select(view, algo, db_base, simplification, values) |>
+  tidyr::pivot_wider(names_from = simplification, values_from = values) |>
+  transmute(
+    view, algo, db_base,
+    `full → Fungi` = Fungi - full,
+    `Fungi → Fungi+rep` = `Fungi+rep` - Fungi
+  ) |>
+  tidyr::pivot_longer(c(`full → Fungi`, `Fungi → Fungi+rep`), names_to = "step", values_to = "delta")
+s03_step_mean <- s03_steps |>
+  group_by(view, step) |>
+  summarise(delta = mean(delta), .groups = "drop")
+s03_db_word <- if (all(s03_spread_db$spread < s03_spread_algo$spread)) {
+  "smaller than the spread between methods in every view (Q1)"
+} else {
+  "not always smaller than the spread between methods (Q1)"
+}
+```
+
+Default settings, ASVs, Genus F1 averaged over the four methods; one value
+per view.
+
+- **Best database**: `r best_phrase(s03_by_db, "db")`. Best minus worst
+  database `r fmt_range(s03_spread_db$spread)` per view, `r s03_db_word`
+  (`r fmt_range(s03_spread_algo$spread)`).
+- **Best source** (mean of its three variants): `r best_phrase(s03_by_source, "source")`.
+- **Simplification**, paired within a source, mean over sources and methods:
+  full → Fungi `r fmt_range(s03_step_mean$delta[s03_step_mean$step == "full → Fungi"])`,
+  Fungi → Fungi+rep `r fmt_range(s03_step_mean$delta[s03_step_mean$step == "Fungi → Fungi+rep"])`
+  across the views.
+
+```{r summary-fig-db}
+#| echo: false
+fig_summary_03_genus_by_db <- s03_genus |>
+  ggplot(aes(x = values, y = db, colour = algo)) +
+  geom_point(size = 2, alpha = 0.8) +
+  geom_point(
+    data = s03_by_db, aes(x = value, y = db), inherit.aes = FALSE,
+    shape = 124, size = 6
+  ) +
+  facet_wrap(~view, nrow = 1) +
+  labs(x = "Genus F1 (dots: methods; bar: their mean)", y = NULL, colour = "Method") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+print(fig_summary_03_genus_by_db)
+save_fig(fig_summary_03_genus_by_db, "fig_summary_03_genus_by_db", width = 16, height = 5)
+```
+
+```{r summary-fig-steps}
+#| echo: false
+fig_summary_03_simplification <- s03_steps |>
+  ggplot(aes(x = algo, y = delta, colour = db_base)) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
+  geom_point(size = 2, position = position_dodge(width = 0.5)) +
+  facet_grid(step ~ view) +
+  labs(x = "Method", y = "Δ Genus F1 (simplified − previous)", colour = "Source") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+print(fig_summary_03_simplification)
+save_fig(fig_summary_03_simplification, "fig_summary_03_simplification", width = 16, height = 6)
 ```
 
 ## Q2.1 — Per-DB accuracy
@@ -31,34 +126,27 @@ if (matched == 0) {
 Default settings (bootstrap 0.5 / rel_majority). `db_meta` (which
 simplification step each DB represents) comes from `config.R`.
 
-```{r q2-1}
-fig_q2_base <- res_comp_tax |>
-  filter(metrics %in% c("F1_score", "MCC")) |>
-  filter_default_settings() |>
-  left_join(db_meta, by = "db") |>
-  mutate(
-    tax_level      = factor(tax_level,      levels = tax_order),
-    simplification = factor(simplification, levels = c("full", "Fungi", "cut", "Fungi+cut"))
-  )
-
-fig_q2_db <- fig_q2_base |>
-  ggplot(aes(x = db, y = values, fill = simplification)) +
-  geom_bar(stat = "identity", position = position_dodge()) +
-  facet_grid(metrics + algo ~ tax_level) +
-  labs(x = "Database", y = "Value", fill = "Simplification") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 55, hjust = 1))
-
-save_fig(fig_q2_db, "fig_q2_db", width = 18, height = 14)
+```{r q2-1, results = "asis"}
+view_tabs(res_all, views, function(res, v) {
+  fig_q2_db <- q2_base(res) |>
+    ggplot(aes(x = db, y = values, fill = simplification)) +
+    geom_bar(stat = "identity", position = position_dodge()) +
+    facet_grid(metrics + algo ~ tax_level) +
+    labs(x = "Database", y = "Value", fill = "Simplification") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 55, hjust = 1))
+  print(fig_q2_db)
+  save_fig(fig_q2_db, paste0("fig_q2_db_", v$id), width = 18, height = 14)
+})
 ```
 
 ## Q2.2 — Simplification effect (paired Δ F1/MCC)
 
 Paired comparisons within each source release: full → Fungi and
-Fungi → Fungi+cut, derived from `db_meta` in `config.R`, so they follow the
+Fungi → Fungi+rep, derived from `db_meta` in `config.R`, so they follow the
 databases actually benchmarked.
 
-```{r q2-2-table}
+```{r q2-2, results = "asis"}
 # Signed delta (simplified − full) for one pair of databases.
 db_pair_delta <- function(data, db_full, db_simp, label) {
   data |>
@@ -83,72 +171,77 @@ pair_steps <- function(from, to) {
     transmute(db_full, db_simp, label = paste0(db_base, ": ", from, " → ", to))
 }
 
-db_pairs <- bind_rows(pair_steps("full", "Fungi"), pair_steps("Fungi", "Fungi+cut"))
+db_pairs <- bind_rows(pair_steps("full", "Fungi"), pair_steps("Fungi", "Fungi+rep"))
 
-tab_q2_simplif <- purrr::pmap(
-  db_pairs,
-  \(db_full, db_simp, label) db_pair_delta(fig_q2_base, db_full, db_simp, label)
-) |>
-  bind_rows() |>
-  mutate(tax_level = factor(tax_level, levels = tax_order))
+view_tabs(res_all, views, function(res, v) {
+  base <- q2_base(res)
+  tab_q2_simplif <- purrr::pmap(
+    db_pairs,
+    \(db_full, db_simp, label) db_pair_delta(base, db_full, db_simp, label)
+  ) |>
+    bind_rows() |>
+    mutate(tax_level = factor(tax_level, levels = tax_order))
 
-tab_q2_simplif |>
-  group_by(comparison, algo, metrics, tax_level) |>
-  summarise(delta_mean = round(mean(delta, na.rm = TRUE), 3), .groups = "drop") |>
-  pivot_wider(names_from = tax_level, values_from = delta_mean) |>
-  arrange(comparison, metrics, algo) |>
-  knitr::kable(caption = "Δ F1/MCC (simplified − full). Positive = simplification helps.")
-```
+  tab_q2_simplif |>
+    group_by(comparison, algo, metrics, tax_level) |>
+    summarise(delta_mean = round(mean(delta, na.rm = TRUE), 3), .groups = "drop") |>
+    pivot_wider(names_from = tax_level, values_from = delta_mean) |>
+    arrange(comparison, metrics, algo) |>
+    cat_kable(caption = "Δ F1/MCC (simplified − full). Positive = simplification helps.")
 
-```{r q2-2-fig}
-fig_q2_simplif <- tab_q2_simplif |>
-  ggplot(aes(x = algo, y = delta, fill = comparison)) +
-  geom_hline(yintercept = 0, linewidth = 0.4, linetype = "dashed") +
-  geom_bar(stat = "identity", position = position_dodge()) +
-  facet_grid(metrics ~ tax_level) +
-  labs(x = "Method", y = "Δ (simplified − full)", fill = "Comparison") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-save_fig(fig_q2_simplif, "fig_q2_simplification", width = 18, height = 8)
+  fig_q2_simplif <- tab_q2_simplif |>
+    ggplot(aes(x = algo, y = delta, fill = comparison)) +
+    geom_hline(yintercept = 0, linewidth = 0.4, linetype = "dashed") +
+    geom_bar(stat = "identity", position = position_dodge()) +
+    facet_grid(metrics ~ tax_level) +
+    labs(x = "Method", y = "Δ (simplified − full)", fill = "Comparison") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  print(fig_q2_simplif)
+  save_fig(fig_q2_simplif, paste0("fig_q2_simplification_", v$id), width = 18, height = 8)
+})
 ```
 
 ## Q2.5 — DB size vs compute cost and accuracy
 
 Does a smaller (filtered / trimmed) DB pay for itself in runtime without
-losing F1? Uses `benchmark_costs` (see `05_m2_costs.qmd` for its provenance).
+losing F1? Uses `benchmark_costs` (see `05_m2_costs.qmd` for its provenance),
+restricted to the computations of the view's region.
 
-```{r q2-5}
-db_size_tbl <- benchmark_costs |>
-  filter(!startsWith(db, "mini_")) |>
-  mutate(db_size_mb = file.size(here(db_path)) / 1e6) |>
-  group_by(db, db_size_mb) |>
-  summarise(mean_wall_h = mean(wall_time_s, na.rm = TRUE) / 3600,
-            .groups = "drop")
+```{r q2-5, results = "asis"}
+view_tabs(res_all, views, function(res, v) {
+  db_size_tbl <- costs_for(v$dataset, res) |>
+    filter(phase %in% res$method_db, !startsWith(db, "mini_")) |>
+    mutate(db_size_mb = file.size(here(db_path)) / 1e6) |>
+    group_by(db, db_size_mb) |>
+    summarise(mean_wall_h = mean(wall_time_s, na.rm = TRUE) / 3600,
+              .groups = "drop")
 
-f1_by_db <- res_comp_tax |>
-  filter(metrics == "F1_score", tax_level == "Gen_sp") |>
-  filter_default_settings() |>
-  group_by(db) |>
-  summarise(mean_f1 = mean(values, na.rm = TRUE), .groups = "drop")
+  f1_by_db <- res |>
+    filter(metrics == "F1_score", tax_level == "Gen_sp") |>
+    filter_default_settings() |>
+    group_by(db) |>
+    summarise(mean_f1 = mean(values, na.rm = TRUE), .groups = "drop")
 
-q2_5_data <- left_join(db_size_tbl, f1_by_db, by = "db") |>
-  left_join(db_meta |> select(db, db_base, simplification), by = "db")
+  q2_5_data <- left_join(db_size_tbl, f1_by_db, by = "db") |>
+    left_join(db_meta |> select(db, db_base, simplification), by = "db")
 
-p_size_time <- q2_5_data |>
-  ggplot(aes(x = db_size_mb, y = mean_wall_h, color = db_base, label = simplification)) +
-  geom_point(size = 3) +
-  ggrepel::geom_label_repel(size = 2.5, show.legend = FALSE) +
-  labs(x = "DB size (MB)", y = "Mean wall time (h)", color = "DB family") +
-  theme_bw()
+  p_size_time <- q2_5_data |>
+    ggplot(aes(x = db_size_mb, y = mean_wall_h, color = db_base, label = simplification)) +
+    geom_point(size = 3) +
+    ggrepel::geom_label_repel(size = 2.5, show.legend = FALSE) +
+    labs(x = "DB size (MB)", y = "Mean wall time (h)", color = "DB family") +
+    theme_bw()
 
-p_size_f1 <- q2_5_data |>
-  ggplot(aes(x = db_size_mb, y = mean_f1, color = db_base, label = simplification)) +
-  geom_point(size = 3) +
-  ggrepel::geom_label_repel(size = 2.5, show.legend = FALSE) +
-  labs(x = "DB size (MB)", y = "Mean F1 (Gen_sp)", color = "DB family") +
-  theme_bw()
+  p_size_f1 <- q2_5_data |>
+    ggplot(aes(x = db_size_mb, y = mean_f1, color = db_base, label = simplification)) +
+    geom_point(size = 3) +
+    ggrepel::geom_label_repel(size = 2.5, show.legend = FALSE) +
+    labs(x = "DB size (MB)", y = "Mean F1 (Gen_sp)", color = "DB family") +
+    theme_bw()
 
-fig_q2_5 <- p_size_time / p_size_f1 + patchwork::plot_layout(guides = "collect")
-save_fig(fig_q2_5, "fig_q2_5_size_cost", width = 8, height = 10)
+  fig_q2_5 <- p_size_time / p_size_f1 + patchwork::plot_layout(guides = "collect")
+  print(fig_q2_5)
+  save_fig(fig_q2_5, paste0("fig_q2_5_size_cost_", v$id), width = 8, height = 10)
+})
 ```

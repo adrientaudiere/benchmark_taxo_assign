@@ -88,15 +88,18 @@ smoke-test stores, with their own cache and figures.
   debt and the remaining structural work.
 - **`HISTORY.md`** — the archive: every ticked item with its dated narrative and
   its measurements, and every past decision (sections 3 to 3d).
-- **`critique_2026-09-22.md`** and **`literature_2026-09-22.md`** — review of the
-  aims and of the code size, and the positioning against the six benchmarks this
-  project must cite. Their proposals are the `C22-…` items of the ROADMAP.
-- **`critique_fable/`** — evidence files behind the structural `S…` items of the
-  ROADMAP (2026-09-10 review).
-- **`proposals_for_dbpq.md`** — helpers still implemented locally that could be
-  upstreamed to [`dbpq`](https://github.com/adrientaudiere/dbpq): four live
-  proposals plus the dbpq defects worked around here (§0). Sections 3 and 5 were
-  withdrawn on 2026-09-22 because their call sites were dead code.
+- **`ETAT.md`** — the dated figures (targets per project, outdated and
+  orphan targets, computations, units per input, tests), newest first.
+  Written by `tools/etat.R`, never by hand, at the end of every
+  `run_bio_night.R`; the other documents point to it for counts.
+- **`reviews/`** — the review documents: `code_review_2026-10-05.md` (code
+  review, its fix plan in §10 and the developer's answers in §11),
+  `critique_2026-09-22.md` and `literature_2026-09-22.md` (the aims, the
+  code size and the six benchmarks to cite; the `C22-…` items),
+  `critique_fable/` (evidence for the structural `S…` items, 2026-09-10) and
+  `proposals_for_dbpq.md` (helpers that could move to
+  [`dbpq`](https://github.com/adrientaudiere/dbpq), and the dbpq defects
+  worked around here).
 - **`docs/reference_databases.md`** — where each reference database comes
   from (UNITE and EUKARYOME releases, URLs, DOIs), how it is converted, and
   what to change when a new release comes out.
@@ -119,7 +122,8 @@ analysis/                     # Quarto project: 00_setup.R + chapters 01..06, sa
 figures/                      # save_fig() output of the chapters (not tracked)
 tests/                        # Rscript-runnable testthat fixtures
 docs/                         # design documents, database procedure, external references
-critique_fable/               # structural review (evidence for the S-items of the ROADMAP)
+tools/etat.R                  # writes the dated figures in front of ETAT.md
+reviews/                      # review documents (code review, critiques, dbpq proposals)
 Archives/                     # superseded scripts (kept for reference)
 ```
 

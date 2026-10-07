@@ -1,189 +1,119 @@
 # ROADMAP — benchmar_assign_taxo
 
-**The running todo, one line per item.** Split from the former ROADMAP on
-2026-09-22 (item C22-P19): every ticked item, every dated narrative and every
-past decision now lives in [`HISTORY.md`](HISTORY.md), which is the archive and
-must be read for the measurements behind any item below. When an item here is
-finished, tick it and move its narrative to `HISTORY.md`.
+**The running todo: one short line per open item, in the order the work
+happens.** Measurements and narratives live in [`HISTORY.md`](HISTORY.md), the
+archive. When an item is finished, its narrative goes to `HISTORY.md` and its
+line leaves this file.
 
-**Ids.**
+Simplified on 2026-09-30. An id cited elsewhere (code comments, other
+documents) and missing here is either closed (`HISTORY.md` §6), a framing
+proposal ([`docs/manuscript_framing.md`](docs/manuscript_framing.md)) or parked
+([`docs/parked.md`](docs/parked.md)).
 
-| Prefix | Source |
-|---|---|
-| `0.x` | implementation plan of the 2026-09-17 design (`HISTORY.md` §0) |
-| `S…` | structural review of 2026-09-10 ([`critique_fable/`](critique_fable/README.md)) |
-| `C22-P…`, `C22-S…`, `C22-R…`, `C22-T…` | critique of 2026-09-22 ([`critique_2026-09-22.md`](critique_2026-09-22.md)), same numbering as that file: `P1–P13` conceptual, `P14–P20` and `S1–S7`, `R1–R6` code, `T9` a threat with no proposition, `P21` from its addendum, `N1` the second developer note of the addendum |
-| `Q…`, `D1…`, `M1…`, `M2…`, `C…` | manuscript objectives |
+**Where the facts live.** Design: `docs/objectives_design.md` ("OD N"; a new
+decision is written there, §4, and summarised in `HISTORY.md` §3d, never first
+stated here). Scoring: `docs/hleap_2021_metrics.md`. Glossary:
+[`CONTEXT.md`](CONTEXT.md). How to work here: [`AGENTS.md`](AGENTS.md).
 
 Tags: `[Priority / facility]`, Priority = Critical → High → Medium → Low,
 facility = easy (< 1 day) → moderate (a few days) → hard.
 
-**Where the facts live.** The design is `docs/objectives_design.md` (decisions
-1–27, "OD N"); the scoring is `docs/hleap_2021_metrics.md`; the positioning
-against the literature is [`literature_2026-09-22.md`](literature_2026-09-22.md);
-the glossary is [`CONTEXT.md`](CONTEXT.md); how to work here is
-[`AGENTS.md`](AGENTS.md). A **new decision** is written in
-`docs/objectives_design.md` §4 (as OD 28, 29, …) and summarised in
-`HISTORY.md` §3d — not stated for the first time in this file.
-
 ---
 
-## 0. Status (2026-09-22)
+## Status (2026-09-30)
 
-The 2026-09-17 grid is implemented: items 0.1–0.10 are done (`HISTORY.md` §0),
-the per-unit truth (0.6), the Hleap scoring (0.7) and the chapters that read it
-(0.8) landed on 2026-09-22. **The production `assign_taxo` run on the
-nine-database grid landed on 2026-09-22** (12:26–15:58, 3 h 32, "587 completed,
-53 skipped", 0 error, 0 warning): `store_assign_taxo` no longer holds the former
-seven-database grid, and all 9 databases are present, 52 targets per `full`
-database and 77 per `Fungi` / `Fungi+rep` (ITSx runs on the non-full databases
-only). 19 `Unite_s_all_20250219_Fungi_rep` OTU targets are carried over from a
-partial run the same morning (11:58), hash-valid. Still open in S6.5: `cross_val` on the new grid and
-chapters 01–06 to re-render, so every figure must still be regenerated (S6.5,
-S8.6). `store_dada2` was not rebuilt (unchanged since 2026-09-14). Numbers
-quoted anywhere from `*_mini` stores are smoke-test numbers. The cost figures
-of this run were corrected on 2026-09-22 (S1.6: the aggregation was at fault,
-not the logging, so the existing logs were recoverable) and `benchmark_costs`
-was rebuilt from them; whether that makes chapter 05 publishable without a
-fresh run is the open half of S1.6.
+Since OD 34 every project assigns its ITSx inputs only (region × ASV / OTU)
+against the nine databases, one computation at a time (`config.R::single_worker`).
+Done: Pauvert (`assign_taxo`) and wood, chapter 01 rendered on Pauvert
+(`HISTORY.md` §2 Q4). Chapters 02–06 not yet regenerated.
 
-Grid: 9 databases `[EUK_ITS_v2.1 | Unite_all_20250219 | Unite_s_all_20250219] ×
-[all | fungi | fungi + rep]`, 3 inputs (ASV, OTU, ITSx ASV), 96 computations and
-504 assignment rows per dataset, 21 parameter rows per database × input.
+## 1. Runs (at night, machine to itself)
 
----
+- [x] `[High / easy]` Night of 2026-10-01 (developer's order): `Rscript run_bio_night.R pauvert korhonen_wood ; Rscript analysis/sandbox/test_length_cap_fakes.R dada2 2> length_cap_test_dada2.log ; Rscript run_bio_night.R tedersoo_illumina`. Pauvert and wood first (their 12 full-`EUK_ITS_v2.1` computations, rerun on the capped file of OD 35, ~2 h 15), then the two dada2 calls of the OD 35 test (~54 GB each, ~30 min), then Tedersoo (148 computations: the 140 left by the sintax error of the first night, fixed, and its 8 full-EUK ones; ~12 h, so it ends about 14:00 on 2026-10-02). (D1d)
+  - 2026-10-02 08:35: Pauvert (56 targets) and wood (30) done, 0 outdated; OD 35 dada2 test done; Tedersoo finished 09:49 (935 targets in 9 h 11, 0 outdated; warnings only dada2's "shorter than 50 nts" on ITSx-cut units and one empty ITSx control set).
+- [x] `[High / easy]` In silico: `Rscript run_bio_night.R insilico` (its OD 34 inputs are built, its assignments predate them), then rescore `analysis/in_silico_simulation.qmd`. (D1b)
+  - 2026-10-02: the in silico chapter renders but skips its scoring until this run (store predates OD 34, 1 364 targets outdated); it will then also get the OD 36 truth (foreign units).
+  - 2026-10-05: run with air the weekend of 2026-10-02 (`run_bio_20261002_160458.log`, 16:04–23:50, 7 h 46, 0 outdated); chapter rescored and its positive-control reading rewritten (standalone). sintax and dada2 pass; lca misses 15–22 genera with the exact record present, the common-LCA trade-off of OD 33 (`HISTORY.md` §2 D1b).
+- [x] `[Medium / easy]` Air: `Rscript run_bio_night.R gssp_air` (2 590 OTUs, ITS2 × ASV); the longest run, re-estimate it from wood's timings first. (D1c)
+  - 2026-10-03: done 23:50–07:24 (7 h 34 against an estimate of 7–10 h from wood), 236 targets, 0 outdated, no warning (`HISTORY.md` §2 D1c).
+- [x] `[High / easy]` After each mock run: re-render chapter 01 (Tedersoo scored beside Pauvert), then chapters 02–05.
+  - Chapter 01 done 2026-10-02 with Tedersoo: its Genus F1 is flat at 0.52–0.59 for every method and database (Pauvert means 0.66–0.83 by unit); diagnosed 2026-10-02 (`HISTORY.md` §2): 105 of its 238 ASVs are not mock members and cost every method the same. OD 36 applied the same day (foreign units aside, partial overlap ≥ 100 bp at 99.5 %): Tedersoo Genus F1 0.89–0.93, Pauvert OTU 0.66 → 0.85 (`HISTORY.md` §2). Chapters 02–05 re-rendered (standalone). Since the same day each section of 02–05 has one tab per view (Pauvert ITS1, Tedersoo ITS1 / ITS2 / full) and chapters 01–05 open on a computed Summary with one or two plots.
+- [x] `[High / easy]` **OD 35 test** (`analysis/sandbox/test_length_cap_fakes.R`, dedicated, `fake_` only: 97 Pauvert ITS1 + 118 Tedersoo full-ITS fakes × uncapped / capped full EUKARYOME × 4 methods; sintax, lca, blastn run 2026-10-01, dada2 tonight). Then re-render chapter 01 and record its change on the real units beside the test. The paired reading on the pipeline's own results (`check_length_cap_fakes.R`, snapshot) stays as a cross-check.
+  - sintax / lca / blastn done 2026-10-01: lca 14 → 2 (Pauvert) and 4 → 0 (Tedersoo) fakes named, all uncapped ones through removed records; sintax and blastn 0 → 0 (`HISTORY.md` §2). dada2 done 2026-10-02: Pauvert 47 → 0, Tedersoo 97 → 0, all uncapped ones through removed records. Chapter 01 re-rendered 2026-10-02: Pauvert Genus F1 means +0.004–0.005, full-EUK dada2 0.809 at ITS1 ASV (`HISTORY.md` §2).
+- [x] `[High / easy]` **Seed spread** of dada2 and sintax on Pauvert (3 seeds × 3 databases): the noise floor for small effects and for the read-filtering choice. → `reviews/code_review_2026-10-05.md` §1.9, §11 Q4
+  - 2026-10-06: `analysis/sandbox/test_seed_spread.R` (EUK_ITS_v2.1_Fungi_rep, Unite_all_20250219, Unite_all_20250219_Fungi; stored run + seeds 1–3, the stored run checked against `res_comp_tax`). Range at default settings: Genus ≤ 0.013 (F1 ≤ 0.008), Species ≤ 0.014; up to 0.045 for sintax at other thresholds; 5–12 of 392 units change genus. Results in `data/snapshots/seed_spread/`.
+- [x] `[High / moderate]` **Read filtering** of Rolling et al. 2022 (`maxEE = 8`, `truncQ = 8`) on Pauvert, 2 best databases × every method, before M2.4; if adopted, M2.4 also re-denoises Pauvert, Tedersoo and in silico (new ASVs, truth and ITSx inputs). → `reviews/code_review_2026-10-05.md` §11 Q4, Q9, Q10
+  - 2026-10-06, measured (`analysis/sandbox/test_read_filtering.R`, replica of the current arm exact; databases EUK_ITS_v2.1_Fungi_rep and Unite_all_20250219, developer): reads −1 %, ASVs 196 → 181. On the 178 units common to both arms nothing moves beyond the seed range; on all units Genus F1 +0.020 and PPV +0.035 for all 8 columns, from the unit set (17 units dropped, 11 without a truth, 843 reads; 7 fewer shuffled controls). Species mixed (F1 +0.002, PPV −0.005). Results in `data/snapshots/read_filtering/`.
+  - Decided 2026-10-06 (developer): M2.4 keeps the default filtering on Pauvert; testing the Rolling et al. settings on other datasets is a side question (`docs/parked.md` §3).
+- [ ] `[Medium / moderate]` **Third mock: Rolling et al. 2022** (SRA PRJNA779405, MiSeq 2 × 300, ITS1F / 5.8S-1R, 11 strains of 9 species; truth from the 12 expected amplicons of `thierroll/dada2_custom_fungal/refseqs.fasta`). First the read orientation on one run (forward and reverse reads are mixed in R1 and R2), then an OD, a `bio_datasets` row and its truth table, then the run.
+  - 2026-10-06, orientation measured on SRR16904671 (balanced, non-wobble; `analysis/sandbox/check_rolling_orientation.R`): half of the pairs are reversed (R1 starts with 5.8S-1R). The pipeline's `cutadapt_remove_primers()` keeps 49.9 % of the pairs; the same call with the primers swapped keeps 48.8 % more, with 60 pairs in common (98.7 % kept by either). Decided the same day (developer): keep both orientations. `cutadapt --revcomp` (≥ 4.6; cutadaptenv has 4.9), passed as `cutadapt_args`, does it in one call: the same 1 249 324 pairs as the two passes, identical reads, the reversed ones written in the forward orientation. Wired the same day: column `cutadapt_args` of `config.R::bio_datasets` ("" for the four datasets), passed to `cutadapt_remove_primers()` in `pipelines/dada2_bio.R`; the five assignment stores stay at 0 outdated, tests pass. Still to do: the OD, the `rolling_mock` row (`cutadapt_args = "--revcomp"`) and its truth table.
+  - 2026-10-06: OD 42 written; `rolling_mock` set up (3 standard-primer runs as replicates, `sam_data_rolling_mock.csv`, truth `rolling2022_mock_expected_its1.csv` from the authors' 12 expected amplicons reverse-complemented to the read orientation, GBIF lineage cache, `_targets.yaml`). `dada2_rolling_mock` built (1 h 19, 0 errors): 273 ASVs, all 12 expected amplicons recovered in the 3 replicates (91.4 % of the reads); truth: 70 ASVs at Species, 4 at Genus, 173 without truth (2.8 % of the reads), 26 foreign (`analysis/sandbox/check_rolling_asvs.R`). The strain ids had to lose their spaces: vsearch cuts labels at the first space (code review L5). Next: `Rscript run_bio_night.R rolling_mock` at night (482 targets, desktop closed for dada2 × full `EUK_ITS_v2.1`).
+  - 2026-10-07: the ITS1 input holds 109 real units for 273 ASVs: every ASV contains one of the 109 ITS1 sequences, so ITSx merged the ASVs that differ only in their flanks (SSU end, 5.8S start; `duplicated_seqs = "merge"`); none is lost. Only 22 of the 70 species-truth ASVs keep their name in the input.
+  - 2026-10-07 night: `assign_taxo_rolling_mock` built on the redrawn controls (OD 39), 482 targets in 2 h 04, 0 outdated, no warning (`run_bio_20261006_222821.log`). Still to do: chapter 01 scores it once the other stores are rerun on the same controls.
 
-## 1. Before the first production run (blocking)
+## 2. Analyses on the new stores (zero compute)
 
-- [ ] **S6.5** `[Critical / moderate]` Production `dada2` → `assign_taxo` → `cross_val` on the nine-database grid, then re-render chapters 01–06 and re-tick the done-log items. → `HISTORY.md` §1 phase 6
-- [ ] **S8.6** `[Critical / easy]` Production run budget: the dada2 × `EUK_ITS_v2.1` CV target needs ≥ 45 GB, `cv_n_workers_fast = 2` is the measured safe configuration; watch the first dada2 targets rather than trust the arithmetic. **The 45 GB predates the S1.6 correction of 2026-09-22 and should be re-derived before the CV launch**: on the corrected assignment-side logs `compute_dada2__EUK_ITS_v2.1` peaks at **58.1 GB**, and it is the CV cell of the same (method, database) pair that OOM-crashed six times. Re-read the budget off the corrected `benchmark_costs` peaks, not off the pre-correction figure. → `HISTORY.md` §1 phase 8
-- [ ] **S1.6** `[High / moderate]` **Aggregation fixed and verified 2026-09-22, two halves left.** The samples were never mislabelled — `phase` is right in every row, only the *file name* lies — so the existing logs were recoverable and `benchmark_costs` has been rebuilt from them (504 rows, 0 NA). Correction measured on the 842 files: 20 of 330 phases had a wrong `peak_resident_mb` (9 **understated**, 11 overstated), worst `otu_compute_dada2__EUK_ITS_v2.1_Fungi_rep` at 1502 MB for a true 23 830 MB (15.9×). **The claim that wall time is unaffected was wrong**: 50 phases had a wrong `wall_time_s`, the same phase reading 3.0 s for a true 664 s. Open: **(a)** the leak guard in `with_autometric()`, deferred on purpose because it invalidates 604 targets (all 96 computations, a 3 h 32 re-run) while the aggregation fix invalidated only `benchmark_costs` — apply it in the same commit as the next production run, by adding `autometric::log_stop()` immediately before `autometric::log_start()` (a stop with nothing running is a no-op; without it a leaked logger makes the *next* target write no file at all). **(b)** decide whether the verification below retires the "clean run measured" condition, i.e. whether chapter 05 is publishable from the 2026-09-22 logs. → `HISTORY.md` §1 phase 1
-- [ ] **S6.9** `[Critical / easy]` Open part only: the production `cross_val` run on the rebuilt `_cut` database (the code fix landed 2026-09-15). → `HISTORY.md` §1 phase 6
+Read every control rate per simplification and on cleaned labels only (rules in `HISTORY.md` §6.4).
 
-## 2. Manuscript framing (critique 2026-09-22)
+- [x] `[High / easy]` **Q4** figures: F1 / MCC per rank, ITS1 vs ITS2 vs full (Tedersoo, in silico), per method × database, with the blastn cost gain beside accuracy. → `HISTORY.md` §2 Q4
+  - 2026-10-05: new chapter `analysis/07_q4_its_region.qmd` (developer: own chapter, ASVs only), rendered standalone. ITS1 best at Genus on both datasets, but on Tedersoo the regions score different units (the ITS1, ITS2 and full inputs hold 213, 199 and 237 real ASVs after merging, of which 22, 35 and 47 are the untrimmed amplicon, ITSx not having found the region; corrected 2026-10-07, OD 38), so region and unit set are mixed there (`HISTORY.md` §2 Q4).
+- [x] `[Medium / easy]` **Q5** figures: F1 / MCC per rank for ASV, OTU and OTU_derived, per method × database; frame as confirmation of Tosadori & Bosch 2026. → `HISTORY.md` §2 Q5
+  - 2026-10-05: new chapter `analysis/08_q5_units.qmd`, rendered standalone. OTU units beat the ASVs at Genus on most columns (`OTU` 112, `OTU_derived` 136 of 144), the reverse of the 2026-09-16 reading; units counted, not reads, so the unit set changes too (`HISTORY.md` §2 Q5).
+  - 2026-10-05: ASVs subsampled to the OTU count (100 draws, random and one per cluster, chapter 01 → 08 Q5.3): the count alone does not move F1; `OTU` beats the random draws in 9 of 16 view × method pairs, the one-per-cluster draws in 11 (`HISTORY.md` §2 Q5).
+- [x] `[Medium / easy]` **Q4 paired**: score Tedersoo on the units common to ITS1, ITS2 and full, so the region effect is not mixed with the subset ITSx can cut. → `HISTORY.md` §2 Q4
+  - 2026-10-05: chapter 01 `res_paired` → chapter 07 Q4.4, on the 183 ASVs common to the three regions: **the full ITS is best at Genus** (mean 0.932), ITS2 lowest, regions within 0.006–0.021 per method; ITS1's lead on all units came from the unit set (`HISTORY.md` §2 Q4). Corrected 2026-10-07 (OD 38): 33 of the 183 are untrimmed in at least one region; on the 150 trimmed in every region full > ITS1 > ITS2 holds (0.935 / 0.932 / 0.923), and dada2's best region becomes ITS2 (0.949, its three regions within 0.004).
+- [x] `[Low / easy]` **Q4 blastn `min_cover`**: can it return to 95 on the ITSx inputs (the flanks that motivated 80 are gone)? Read off the existing columns if the grid has them. → `HISTORY.md` §2 Q4
+  - 2026-10-05: no, keep 80 (decision 18 unchanged). Re-filtering the stored hits at 95 (`analysis/sandbox/check_blastn_min_cover_itsx.R`) is neutral on Pauvert ITS1 but drops mostly correct genera on Tedersoo (full: 57 right against 6 wrong over the nine databases) (`HISTORY.md` §2 Q4).
+- [x] **C22-P21** `[High / easy]` Q3 voter diversity: `resolve_taxo_conflict()` on subsets (method families, one provider vs both, with and without the nested UNITE pair). → `reviews/literature_2026-09-22.md` §4.3
+  - 2026-09-30, Pauvert ITS1 ASV: no gain at Genus; +0.03–0.05 F1 at Species, following provider mix and dada2's presence, not family diversity or column count (→ `HISTORY.md` §6.4). Chapter 01 bug found on the way (37th voter in the Q3 consensus) fixed and chapter 01 re-rendered. Recomputed 2026-10-01 on the patched dada2: Genus unchanged; Species provider mix holds, family diversity less supported still. Rerun `analysis/sandbox/check_voter_diversity.R` on Tedersoo.
+- [x] **SA1** `[High / easy]` Abstention on the controls (`Fungi` databases, Genus, cleaned labels): re-measure on the ITSx-only stores, confirm on PPV / F1. → `HISTORY.md` §6.4
+  - 2026-09-30, Pauvert and wood: every method now abstains on the controls (≤ 3 %), dada2 best F1; P1c not supported. Rerun `analysis/sandbox/check_abstention_controls.R` on Tedersoo after its run.
+- [x] **SA7** `[Medium / easy]` `ITSx_origin` against each method's Kingdom on the `external_` controls: would an ITSx origin filter remove the non-fungal false positives? → `HISTORY.md` §6.4
+  - 2026-09-30, Pauvert and wood: yes on the controls (100 → 11 at worst), but ITSx calls 36 of the 149 fungal Pauvert ASVs Tracheophyta or Chlorophyta, so the filter drops 22–25 % of correct genera; not for the pipeline. Rerun `analysis/sandbox/check_itsx_origin_filter.R` on Tedersoo.
+- [x] `[Medium / easy]` Wood, then air: `NA_real`, `NA_fake` and `ext_fungi` against the mocks (decision 26). → `HISTORY.md` §2 D1c
+  - First look 2026-09-30, wood against Pauvert (`analysis/sandbox/check_wood_vs_mock_rates.R`): wood leaves more units NA (+0.02 to +0.24) with the same column ranking (rho 0.85). To redo with Tedersoo and air.
+  - 2026-10-05, wood and air against Pauvert and Tedersoo (same script, extended): Pauvert is easier (wood / air leave +0.11 / +0.18 more units NA at Genus), Tedersoo is not (ITS2: −0.08 / −0.02); the 36 columns keep their ranking against every mock (Spearman 0.82–0.88). `NA_fake` and `ext_fungi` do not depend on the dataset (`HISTORY.md` §2 D1c).
+- [ ] `[High / moderate]` **Species section** (OD 43): exact-match species on every input × database with `dada2::assignSpecies()` (`species_format/`), vsearch `--usearch_global --id 1 --query_cov 1 --maxaccepts 0 --maxrejects 32` (hits kept when the query is an exact substring of the record) and blastn at 100 % from the stored tables; one call per database, inputs pooled (~1.5 h); scored against the Species rank of the main grid; chapters' summaries move Species out of the primary endpoints. → `docs/objectives_design.md` OD 43
+  - 2026-10-06: computation ready, scoring not yet. `pipelines/species.R` (projects `species` and `species_mini` in `_targets.yaml`), helpers `R/species_exact.R` (shared header parser, also used by `make_databases.R::derive_species()`), tests `tests/test_species_exact.R`. Raw output kept (assignSpecies' Genus/epithets; every vsearch and blastn exact record with its binomial, NA when it names no species), so the hits-to-species rule is a scoring choice. The first target stops if any input or blastn table is missing. `species_mini` (Pauvert + Tedersoo × `Unite_all_20250219_Fungi`, 4 min 52) reproduces the sandbox: 49 queries named by assignSpecies, 91 exact pairs on 54 queries by both vsearch and blastn. Run the night of 2026-10-06 on Rolling only (`SPECIES_DATASETS=rolling_mock`, the other stores being outdated by the redraw): 52 targets in 21 min, 0 outdated. Rerun without `SPECIES_DATASETS` once every store is rebuilt.
+  - 2026-10-07: scoring done as chapter `analysis/09_species_exact.qmd` (developer: a report of its own), helpers `R/species_scoring.R` + `tests/test_species_scoring.R`; rule of OD 43 (unanimity, unnamed hits aside). Rendered on Rolling (the only dataset in the store): the three methods give the same call on 2 538 of 2 538 (query, database) pairs; PPV 1.000, TPR 0.05–0.10 against 0.45–0.71 for dada2 and sintax at bootstrap 0.5; no shuffled control named. Most species-truth units not named right have a record of their own species at 100 % over part of the query (the record stops before the ITSx ITS1 does) or at ≥ 99 % over all of it. Rerender after M2.4 with every dataset. Left: the main chapters' summaries still list Species among their endpoints (OD 43).
+  - 2026-10-07: S5 time and memory of the three methods (developer). Species project rerun on Rolling with the process-tree sampler, vsearch on all cores (`pipelines/species.R`, was `n_threads`). Nine databases: assignSpecies 22.2 min (1 core, peak 2.6 GB), vsearch 4.9 min (6 cores, peak 7.8 GB on `EUK_ITS_v2.1`), blastn 2.8 min (the grid's 2026-10-06 searches, 1 thread, memory not measured until M2.4). Q4 approvals (developer): keep the 150 and the 183, all units in Q4.1–Q4.3, dada2's region flip reported as within its seed spread (sentence added to chapter 07).
+- [x] `[High / easy]` **Q4 on trimmed units**: `trimmed` flag in chapter 01, Q4.4 on the units trimmed in every region, chapter 07 names the untrimmed units and the in silico "full" input; correct the Q4 notes above and `HISTORY.md` §2 Q4; re-render 01 and 07. → `reviews/code_review_2026-10-05.md` §1.1, §11 Q1, Q3
+  - 2026-10-07: `itsx_trimmed()` (`analysis/00_setup.R`) compares each region input with `d_asv`; chapter 01 caches `itsx_trimming` and scores `res_paired` as `ASV_common` (150 Tedersoo ASVs trimmed in every region) and `ASV_common_all` (the 183, for contrast); chapter 07 shows the trimmed / untrimmed table (Tedersoo 22 / 35 / 47 untrimmed, in silico 1 / 1 / 71), the corrected text, the in silico full sentence and both paired readings. Genus F1 on the 150: full 0.935 > ITS1 0.932 > ITS2 0.923; dada2's best region becomes ITS2 (within 0.004). ROADMAP and `HISTORY.md` §2 Q4 corrected. 01 and 07 rendered on the current stores (pre-M2.4), 0 error, self-contained.
 
-The conceptual half of [`critique_2026-09-22.md`](critique_2026-09-22.md), read
-together with its **addendum** (the developer's framing of 2026-09-22) and with
-[`literature_2026-09-22.md`](literature_2026-09-22.md). Nothing here is applied:
-each item is a proposal to triage.
+## 3. Decisions for the developer
 
-- [ ] **C22-P1** `[Critical / easy]` Write the Introduction around 3–4 falsifiable predictions (P1a curation bias, P1b breadth not size, P1c abstention trade-off, P1d trimming no-op) instead of the "best trade-off" shopping question; the trade-off becomes the practical conclusion. The grid already tests all four at zero extra compute. → §1.1 C1
-- [ ] **C22-P2** `[High / easy]` Pre-specify **one primary endpoint** and label everything else secondary or exploratory in the manuscript; the critique proposes F1 and PPV at Genus and Species on the two mocks. **Supersedes decision 5 and narrows decision 31** — left open on 2026-09-22 (developer), to settle when the first real figures exist; the accepted text goes to `docs/objectives_design.md` §4. → §1.1 C2
-- [ ] **C22-P3** `[High / easy]` Held-out confirmation: any *recommendation* is selected on Pauvert and confirmed on Tedersoo, so a parameter set is never recommended from the mock that picked it. 0 compute; narrows decision 31 (which keeps the sweeps untuned on purpose). → §1.1 C3
-- [ ] **C22-P4** `[Medium / easy]` Sensitivity run with the truthless units left out of the matrix (the `truth_depth` machinery already does this for ties); report whether the Q2 ranking survives. 42 % of the Tedersoo ASVs carry no truth. → §1.1 C4
-- [ ] **C22-P5** `[High / easy]` Promote two findings buried in prose to Results: the **dada2 bootstrap collapse under taxonomic breadth** (`HISTORY.md` §2, "Databases building") and the **`_cut` no-op** (`docs/experimental_design.md` §5.5). Demote **Q5 only** — the critique's "demote Q3" is withdrawn by its addendum, Q3 is a primary axis. → §1.2 C5, addendum
-- [ ] **C22-P6** `[Critical / moderate]` **Required, not optional** (addendum, because Q3 is a headline claim): analyse Q2 as paired within-source contrasts and write "UNITE vs EUKARYOME", not "databases" (n = 2 providers, the rest is a nested filtering ladder); report the Q3 gain against the **effective** number of independent voters, not the column count. → §1.3 T1
-- [ ] **C22-P7** `[Medium / moderate]` One-species-out novelty test: remove every record of one mock species from a reference and score its ASVs. Turns a closed-book benchmark into an open one, answers Orsholm et al. 2026's central question, and doubles as the Q3 stress test. ≤ 1 grid run, or a scoring variant of the CV. → §1.3 T2, `literature_2026-09-22.md` §4
-- [ ] **C22-P8** `[High / easy]` Headline F1/PPV/TPR **on real units only**; the controls report through their own rates (`NA_fake`, `ext_fungi`, `ext_correct`, `ctrl_assigned`). A reporting choice, not a rewrite — the per-unit cells are already separate. Otherwise the absolute metrics depend on `prop_fake = 0.5` and on the control count, which are design constants. → §1.3 T3
-- [ ] **C22-P9** `[Medium / easy]` State the Pauvert/Tedersoo confound (ITS region, primer pair, sequencing run and community all differ at once): restrict the claim to "two mocks differing in ITS region and protocol"; only the in silico set or a third mock can separate region from community. → §1.3 T4
-- [ ] **C22-P10** `[Medium / easy]` Sensitivity column with strict submitted-name-only scoring: synonym tolerance interacts with the UNITE/EUKARYOME nomenclature difference that Q2 measures. One-line variant of `tc_metrics_unit()`, the truth table already carries `Genus_accepted` / `Species_accepted`. → §1.3 T5
-- [ ] **C22-P11** `[High / moderate]` Bootstrap CIs on the **paired** differences (10⁴ resamples of the ~150 scored units, Δ recomputed per resample) and McNemar on the discordant units. Cheap — the confusion cells are per unit — and it turns every Q2 claim into a supported one instead of eye-judged point estimates. → §1.3 T6
-- [ ] **C22-P12** `[High / moderate]` D1a: give the cross-validation one explicit estimand in the Methods ("consistency of each method with each database's own labels at fixed reference size"), add the negative controls to the folds (own TODO in `R/cross_val.R`, finally a CV-side TNR), and report the per-database novelty rate beside every CV figure. → §1.3 T7
-- [ ] **C22-P13** `[Medium / easy]` Keep M2 secondary: wall time and peak RAM as measured (after S1.6 and a clean rerun), CO₂eq only with a sensitivity note — if ±2× on the carbon intensity changes no ranking, say exactly that. → §1.3 T8
-- [ ] **C22-T9** `[Low / easy]` One sentence in D1c saying what biological datasets can and cannot do: NA rates on real communities show that the mocks are not unrepresentative in their NA behaviour, they cannot support accuracy claims. → §1.3 T9
-- [ ] **C22-N1** `[High / easy]` Declaration of interests: the harness and part of the benchmarked software share an author. Declare it, pin the package commits per run (the `session_info` targets already record them), and state that the engines (vsearch, BLAST+, dada2) are independent third-party tools — the wrapper can only flatter its own parameter plumbing, which `tests/test_assign_compute.R` audits against the direct calls. → addendum, `literature_2026-09-22.md` §4.4
+- [x] `[High / easy]` Write the code-review decisions of 2026-10-06 into `docs/objectives_design.md` §4 and `HISTORY.md` §3d. → `reviews/code_review_2026-10-05.md` §11 Q1, Q2, Q8, Q10
+  - 2026-10-06: OD 38 (Q4 on trimmed units), OD 39 (controls redrawn in M2.4), OD 40 (zoom reuses the `_Fungi_rep` draw), OD 41 (default read filtering, seed spread as noise floor); summarised as `HISTORY.md` §3d 47–50.
+- [x] **dada2 overflow** `[Critical / easy]` dada2 1.40.0 scores every taxonomy above the 65 536th with the wrong k-mer profile (`HISTORY.md` §2, 2026-09-30); it hits full `EUK_ITS_v2.1`, full `Unite_s_all` and `EUK_ITS_v2.1_Fungi_rep`. Which dada2 build for tonight's Tedersoo run and for the reruns of Pauvert and wood (patched in a scratch library, untouched installed one)?
+  - Decided 2026-09-30 (developer): the patched dada2 for every run of the project, from tonight (`patches/install_dada2_patched.R` → `r_lib_patched/`, put first by `.Rprofile`, checked by `assert_dada2_patched()` at the top of the pipelines). dada2 on full `EUK_ITS_v2.1`, full `Unite_s_all` and `EUK_ITS_v2.1_Fungi_rep` invalidated on Pauvert (6 computations) and wood (3); in silico and air run on the patched build from scratch.
+- [ ] `[High / easy]` Report the dada2 overflow upstream (benjjneb/dada2; #1032 possibly the same bug): text ready in `patches/dada2_issue_overflow.md`, minimal example `patches/dada2_overflow_repro.R` (checked with both builds); the developer posts it.
+  - Decided 2026-10-05 (developer): post the issue and offer the one-line fix as a pull request. #1032 checked the same day: a large custom SILVA 99 % set collapsing beyond phylum since the random tie-break after v1.12, very likely this bug; the draft now says so and offers the PR. Still to do by the developer: post it.
+- [x] `[Medium / easy]` Correct the "breadth collapse" wording in `docs/objectives_design.md` (line ~530) and `docs/diagnostics_cv_and_databases.md` §4 (the in silico chapter was corrected 2026-10-05).
+  - 2026-10-05: `docs/objectives_design.md` (Q2 paragraph) and `docs/diagnostics_cv_and_databases.md` §4 (retitled, a dated correction note, the breadth reading and the mini-reference test marked *withdrawn*, measurements kept, manuscript implication rewritten) now give the 32-bit overflow; no other stale mention outside `HISTORY.md` and the archives.
+- [x] **SA4** `[High / easy]` `ext_correct` and the `*_Incertae_sedis` external-control truths (measured 2026-09-30): keep it as a lower bound (A), or placeholders to NA + denominator = controls with a truth at that rank (D, needs a comparpq change)? The truncation first proposed lowers it. → `HISTORY.md` §6.4
+  - 2026-09-30: decision D applied (truth + comparpq), chapter 01 re-rendered; only `ext_correct` moved.
+- [x] **C22-P2** `[High / easy]` Primary endpoint (F1 and PPV at Genus and Species proposed), now that real figures exist. → `docs/manuscript_framing.md`
+  - Decided 2026-10-05 (developer): **F1 and PPV at Genus and Species**, four co-primary endpoints on the mock ASVs, everything else secondary or exploratory (OD 37).
+  - Revised 2026-10-06 (developer, OD 43): primary endpoints F1 and PPV at Genus; Species F1 and PPV move to the species section (exact match).
+- [x] `[Medium / moderate]` Tedersoo read retention: `ERR16773639` keeps 15.3 % of its pairs against 53.7 %; keep both runs? → `HISTORY.md` §2 D1c
+  - Decided 2026-10-05 (developer): keep both runs as they are, no rerun; scoring is per unit, both runs contribute (9 087 and 14 541 reads); the asymmetry and its cause (reverse primer found at the start of 15 % of the R2 reads of that run) go in the Methods (`docs/manuscript_framing.md`).
 
-## 3. Open scientific work
+## 4. End of the project
 
-### After the first results
-
-- [ ] **0.11a** `[Medium / easy]` Cross-validation databases (OD 27), chosen from the mock results; the CV grid keeps its 7 databases until then.
-- [ ] **0.11b** `[Medium / moderate]` Final zoom (OD 16, 24, 25): `fungi + rep cut` on the two best databases (one UNITE, one EUKARYOME) × best methods, Pauvert only; compare `ext_fungi` against `fungi + rep` to see whether the k-mer methods are biased by the length difference.
-- [ ] **0.11c** `[Low / easy]` Discussion notes: mono-nucleotide shuffle (M1.6), set-membership bias of the former metrics made moot by the per-unit truth, parameters reported on the whole mock rather than tuned on a third (hleap §5 point 8).
-- [ ] **C22-P21** `[High / easy]` Q3 voter diversity, at zero compute on the existing columns: run `resolve_taxo_conflict()` on subsets (composition-only vs mixed families, one provider vs both, with and without the nested UNITE pair) to test the hypothesis the framing implies — **voting helps through error independence, so it gains from method-family and provider diversity, not from column count**. The Q3 figures cannot support a voting claim without it (C22-P6). → addendum, `literature_2026-09-22.md` §4.3
-
-### Q4 — ITSx input
-
-- [ ] `[Medium / easy]` Figures: F1 / MCC per rank with and without ITSx, per method × database; check whether the blastn gap closes and whether `min_cover` can return to 95 on ITSx-extracted ASVs. → `HISTORY.md` §2 Q4
-
-### Q5 — ASVs vs OTUs
-
-- [ ] `[Medium / easy]` Figures: F1 / MCC per rank for the three units (`ASV`, `OTU`, `OTU_derived`), per method × database. Frame as confirmation of Tosadori & Bosch 2026 with per-sequence truth (C22-P5). → `HISTORY.md` §2 Q5
-
-### D1a — Cross-validation
-
-- [ ] `[High / moderate]` CV figures parallel to Q1 and Q2 (F1 per rank, per method × database), after S6.5. → `HISTORY.md` §2 D1a
-- [ ] `[Critical / moderate]` Close the CV reference-design item: the Bokulich design is implemented (`cv_reduce_reference = FALSE`, 3 folds), the memory budget is measured; what remains is the production run and the Methods text (C22-P12). → `HISTORY.md` §2 D1a
-- [ ] `[Low / moderate]` Negative controls in the CV folds, for a CV-side true-negative rate (TODO block of `R/cross_val.R`; same item as C22-P12's second half).
-
-### D1b — In silico (InSilicoSeq)
-
-- [ ] `[Medium / moderate]` Stand up the `dada2_insilico` / `assign_taxo_insilico` projects in `_targets.yaml` (step 3 of `analysis/in_silico_simulation.qmd`); the fastqs of the three seeds exist since 2026-09-16.
-- [ ] `[Medium / easy]` Score them against the per-record truth parsed from the UNITE headers with `comparpq::tc_metrics_unit()`, matched by the rule of `R/mock_truth.R::sanger_matches()`. Candidate use: separate ITS region from community (C22-P9).
-
-### D1c — Biological communities
-
-- [ ] `[Medium / moderate]` Decide which datasets enter the manuscript (GloSED, GSSP air, Korhonen wood, a leaf dataset, Tedersoo soil) and write the loader that turns their tables into phyloseq objects **with a refseq slot** — the methods need sequences. Read only through `NA_real`, `NA_fake` and `ext_fungi` (decision 26). → `HISTORY.md` §2 D1c
-- [ ] `[Low / easy]` comparpq robustness: `add_shuffle_seq_pq()` silently requires a `tax_table` and a `sample_data` with ≥ 2 variables; two guards with actionable messages.
-
-### D1d — Tedersoo Illumina mock, and a second mock
-
-- [ ] `[High / easy]` Run `assign_taxo_tedersoo_illumina` (denoised since 2026-09-16: 238 ASVs; the truth table exists since 0.6). Blocked by S6.5 only in ordering.
-- [ ] `[Medium / moderate]` Read retention on `ERR16773639` (15.3 % of pairs kept, against 53.7 % for `ERR16773638`): the 5′ reverse primer is found in 15 % of its R2 reads. Decide whether to keep both runs. → `HISTORY.md` §2 D1c
-- [ ] `[Low / moderate]` SRR30413326 (decision 12) stays optional: fastqs not fetched, truth table on disk.
-
-### M1 / M2 — metrics
-
-- [ ] **M1.2** `[Medium / moderate]` Edgar-style misclassification / over-classification rate / EPQ as alternative columns, for cross-validation only (where "novel" vs "known" is defined).
-- [ ] **M1.3** `[Medium / moderate]` Finalise the distance-to-true-community metric (`analysis/sandbox/distance_to_true_community.qmd`).
-- [ ] **M1.6** `[Low / easy]` Discussion note on the mono-nucleotide shuffle (Hleap used `esl-shuffle`, di-nucleotide preserving), which likely inflates TNR for the k-mer methods. Same as 0.11c.
-- [ ] **M2.1 / M2.2 / M2.3 / Q2.5** `[High / moderate]` Regenerate every cost figure after S1.6 and S6.5; keep them secondary (C22-P13).
-
-### Side questions
-
-- [ ] `[Low / easy]` Effect of `--maxaccepts 16` in sintax.
-- [ ] `[Low / easy]` Effect of `--dbmask none` in sintax.
-
-## 4. Code debt (critique 2026-09-22)
-
-The code half of [`critique_2026-09-22.md`](critique_2026-09-22.md) §2. Its
-verdict: ~7 500 lines of code for this grid is **not bloated**, and 2 000 lines
-of tests is a virtue; what is not justified is where the size concentrates.
-
-- [ ] **C22-S1 / C22-P14** `[High / moderate]` `cross_val()` is 625 lines: the metric block is written twice (vector and scalar `min_bootstrap` branches, ~120 lines each, diverging), `compute_by_tax_level` is duplicated in both and accumulates with `rbind` in a loop, and `res_assign_NA_classif` / `res_assign_NA_database` are computed then **dropped** although `docs/objectives_design.md` §1.6 promises them and `tests/test_cv_to_tidy.R` already feeds a `NA_classif` metric. Extract one `cv_score()` returning a long tibble, delete ~230 lines, return the two metrics or amend the design doc; also the dead `dada2_2steps` branch and the float `!=` invariant check. → §2.2 S1
-- [ ] **C22-S2 / C22-P15** `[Medium / easy]` **Dead code done 2026-09-22**: `derive_clustered()` and `derive_no_parens()` deleted from `make_databases.R` (−40 lines; both defined, never called — verified by grep, not taken on the critique's word), withdrawn as §3 and §5 of `proposals_for_dbpq.md` under the rule *do not upstream dead code*, with the numbering kept stable because other documents cite those sections. `tests/run_all.R`: 12 files, 317 expectations, 0 failed. **Open**: replace the sed/awk header surgery (`general_header_rules`, `derive_no_pattern`, `derive_mini`) with the Biostrings + stringr idiom the same file already uses in `derive_fungi_rep()` — a French-locale awk once read `99.5` as `99`, and shell-string FASTA surgery has no type checking. → §2.2 S2
-- [ ] **C22-S3 / C22-P16** `[High / moderate]` Three parsers of the same name grammar (`enrich_metrics()`, `R/score_assignments.R::assignment_db()`, the `na-prop` chunk of chapter 01) plus two definitions of "default settings" (`filter_default_settings()` / `default_names_for()`, the old item 0.4d). Keep the target names as identifiers, stop parsing them: `values_map` already carries `method`, `db`, `min_bootstrap`, `lca_cutoff`, `vote_algorithm`, `min_id` — join on `full_name`. ~90 lines and a class of silent corruption. → §2.2 S3
-- [ ] **C22-S4 / C22-P17** `[Medium / moderate]` `analysis/01_load_and_clean.qmd` is 610 lines and four programs: move `clean_taxo()`, `add_gen_sp()` and `add_consensus_columns()` to `R/` next to `score_assignments.R` (where they become testable), keep the chapter to orchestration and invariant checks, and move the ~130 lines of exploratory figures to `sandbox/`. → §2.2 S4
-- [ ] **C22-S5 / C22-P18** `[Low / easy]` `R/examples_cross_val.R` (134 lines, sourced by nothing) → `Archives/` or deleted; `Rplots.pdf`, `run_assign_taxo.log` and `v2.31.0.tar.gz` deleted or gitignored. → §2.2 S5
-- [ ] **C22-S6 / C22-P19** `[Medium / moderate]` One source of truth for design facts. **Half done 2026-09-22**: the todo/log split is this file + `HISTORY.md`. Open: the same grid, computation counts and metric set are still stated in `README.md`, `AGENTS.md`, `CONTEXT.md`, `docs/objectives_design.md` and `docs/experimental_design.md` — make `docs/objectives_design.md` the only place a design fact is *defined*, and leave the others pointing at it. → §2.3 S6, S7
-- [ ] **C22-P20** `[High / moderate]` Test balance: `cross_val()` (625 lines, all the CV metrics) has no test, while `tests/test_values_map.R` is 351 lines of byte-string pins that lock the name grammar without testing it. Add a synthetic 20-record fasta + a 4-query fold asserting `good + wrong + NA = 1` per rank and known counts, and property-test `full_name_for()` / `enrich_metrics()` as a round-trip. Note that several tests skip without vsearch / BLAST+ / conda, so a green `tests/run_all.R` proves less than it looks. → §2.4 R6
-- [ ] **C22-R1** `[Low / easy]` `R/values_map.R:215-224`: callers must fake a vector (`rep("sintax", length(db))`) to satisfy an `ifelse()` inside `db_path_for()`; vectorise properly or use `dplyr::case_when()`.
-- [ ] **C22-R2** `[Medium / easy]` `R/assign_compute.R:74-76`: `derive_assignment()` silently returns `physeq` unchanged when `computed` is NULL; warn at the derivation site, naming the (method, database, input).
-- [ ] **C22-R3** `[Medium / easy]` `analysis/00_setup.R:119-122`: `db_shapes` slices a 9-shape vector with `[seq_along(db_list)]`, so a tenth database gets an `NA` shape and ggplot silently drops its points — the very failure the constant was added to prevent (S6.8). Recycle the vector instead of slicing it.
-- [ ] **C22-R4** `[Low / moderate]` `pipelines/assign_taxo.R` and `pipelines/cross_val.R` duplicate the crew-controller block and the `ref_file_targets` machinery (~60 lines); one `R/targets_helpers.R`, or `tarchetypes::tar_map` / `tar_map_rep` instead of the hand-rolled `rlang::syms()` plumbing.
-- [ ] **C22-R5** `[Low / easy]` `config.R` (318 lines) has started to behave like a module; the next dataset's columns go to a `data/data_raw/metadata/datasets.csv` read by `config.R`, not to another `tribble` column.
-
-## 5. Structure & maintenance (2026-09-10, remaining)
-
-Evidence in [`critique_fable/`](critique_fable/README.md); everything applied is
-in `HISTORY.md` §1.
-
-- [ ] **S6.6** `[Medium / easy]` Upstream reports: dbpq `format2sintax()` on UNITE general-release headers; MiscMetabar `assign_*()` parsing predictions by position (a missing rank shifts every column) and dropping empty taxa by default (`clean_pq = TRUE`, which silently skipped the controls); comparpq `tc_bar()` failing on an all-NA rank column; MiscMetabar `assign_blastn()` returning the input phyloseq unchanged with a message only when no hit passes `min_id` / `min_cover` / `bit_score` / `e_value`, so the caller gets a silent no-op instead of a taxonomy column — the failure that made every blastn result between 2026-05 and 2026-09-11 a measurement of the cover filter (S1.3, closed here on 2026-09-22). Proposal: warn naming the filter and the hits lost at each step, or an `on_empty = c("warn", "error")` argument; the local guard in `combine_taxo_assignments()` (2026-09-10) only catches it one level down.
-- [ ] **S7.6** `[Medium / easy]` Report the dbpq defects listed in `proposals_for_dbpq.md` §0 (UNITE separator, kingdom-anchored `filter_db()`, `timeout = Inf` warning, nested EUKARYOME archives, name qualifiers passed through).
-
-## 6. Housekeeping
-
-- [ ] **C1** `[Low / moderate]` Run `make_databases.R::derive_all_variants()` end-to-end on a clean machine, into a test directory, and check the derivations match.
-- [ ] **C4** `[Low / easy]` Consider proposing `combine_taxo_assignments()` and `cross_val()` to comparpq (noted in `proposals_for_dbpq.md` as not-for-dbpq). Out of scope for this benchmark.
-
-## 7. Side analyses to focus on
-
-Signals read off the production run of 2026-09-22 that no item above asks for,
-all at **zero extra compute** — they are columns the grid already holds. Rates
-below are the share of units given a **genus**, measured on the 195 mock ASVs,
-the 97 shuffled `fake_` controls and the 100 non-fungal `external_` controls
-separately (`analysis/sandbox/check_controls_by_simplification.R` for every
-number below, `analysis/sandbox/check_blastn_min_cover.R` for the blastn ones).
-
-**Read every control rate per simplification, never pooled.** Naming an
-`external_` control is an error only on a `Fungi` database; on `full` it is
-correct, and on `Fungi+rep` it is correct at Kingdom only (decisions 6, 15, 22).
-Pooling the three also mixes the ITSx columns, which exist for the six non-full
-databases only (`config.R::itsx_db_list`), with the raw ones, which exist for
-all nine — a pooled mean therefore compares different database sets and
-manufactures gaps that vanish when matched (found the hard way on 2026-09-22:
-an apparent 3.5× ITSx effect on the `external_` controls was entirely this).
-
-- [ ] **SA1** `[High / easy]` **The abstention trade-off, measured (P1c of C22-P1).** On the three `Fungi` databases at Genus, where naming a non-fungal control is a false positive by construction: blastn names 0.4 % of the `external_` controls and 0 % of the `fake_` ones for 0.753 of the mock ASVs, against lca 83.7 % / 8.2 % for 0.858, dada2 76.7 % / 8.8 % for 0.966 and sintax 35.2 % / 32.5 % for 0.966. blastn buys near-total abstention for about 21 points of genus recall, and lca — which has no identity threshold — names five of six non-fungal controls. This is the headline prediction of the Introduction proposed in C22-P1, already sitting in the data; it belongs in Results beside Q1, not in the control appendix. Pair it with C22-P8 (headline metrics on real units, controls through their own rates).
-- [ ] **SA2** `[Medium / easy]` **ITSx makes lca markedly worse on the shuffled controls.** Matched on the six non-full databases at Genus (18 columns per cell), `lca` names 7.4 % of the `fake_` controls and `itsx_lca` 33.8 % — 4.6 times more, and its mock recall drops too (0.858 → 0.803, the only method ITSx costs anything) — while `itsx_dada2` improves on `dada2` (14.0 % → 7.2 %), sintax barely moves (31.2 % → 28.7 %) and blastn is unchanged at 0 %. Check first whether the denominator is intact (what an `itsx_*` column holds for a unit from which ITSx extracted nothing: dropped, kept whole, or NA) before reading any mechanism into it; a shuffled sequence with no recognisable ITS is exactly where that convention bites. Feeds Q4, whose current line only asks about F1 / MCC and the blastn gap.
-- [ ] **SA3** `[Medium / easy]` **ITSx is a no-op for blastn on every unit class.** Matched by simplification, `blastn` and `itsx_blastn` give the same rates to three decimals (mock 0.753, `external_` 0.004 on `Fungi` and 0.175 on `Fungi+rep`, `fake_` 0). Q4 asks whether ITS extraction closes the blastn gap and whether `min_cover` can return to 95 on extracted ASVs: on the first half the production answer looks like "it changes nothing", which is a publishable negative result and a cheap one — confirm it on F1 rather than on assignment rate before writing it down.
+- [ ] `[High / easy]` Before M2.4, the developer commits comparpq (OD 36) and this project; `pqverse_versions()` gets a dirty flag. → `reviews/code_review_2026-10-05.md` §1.7
+- [x] `[High / easy]` Before M2.4, the cost layer measures the child processes (vsearch, BLAST+). → `reviews/code_review_2026-10-05.md` §1.3
+  - 2026-10-07: `with_autometric()` starts `R/sample_tree.R` (RSS of the worker and its descendants) and writes the CPU of the worker and of its children (`proc.time()`); `add_tree_costs()` adds `wall_s`, `cpu_self_s`, `cpu_child_s`, `peak_tree_mb` to `benchmark_costs`, also for computations shorter than the 1 s autometric interval. Checked on `assign_taxo_mini` (72 of 72 computations). The CO₂ from `peak_tree_mb` (§1.4) is an [R] fix, after M2.4.
+- [x] `[High / easy]` Before M2.4, fix `derive_fake_ref()` so that M2.4 regenerates the external controls and the `_Fungi_rep` draws. → `reviews/code_review_2026-10-05.md` §1.2, §11 Q2
+  - 2026-10-06 (developer: "redraw first"): code fixed and its test made seed-proof; `analysis/sandbox/redraw_controls_od39.R` redrew the 100 controls (73 of 73 phyla, before 65; 58 records kept) and the three `_Fungi_rep` databases (8 402 / 5 107 / 53 841 representatives; 60–72 % kept) with their `species_format` files. Previous draw in `data/snapshots/controls_before_OD39_2026-10-06/`. Every assignment store is outdated (465 to 1 375 targets each): full rerun of the grid.
+- [ ] `[Medium / easy]` Before M2.4, `make_databases.R` rebuilds stale files and writes atomically. → `reviews/code_review_2026-10-05.md` §1.6, §11 Q5
+- [ ] **M2.4** `[High / moderate]` Final timing run (OD 31, OD 34 d): all cores for dada2 / lca / blastn, sintax at 1 thread; then regenerate the cost figures. → `HISTORY.md` §6.4
+  - 2026-10-07: the [A] fixes of the code review are in (threads `config.R::assign_threads`, leak guard S1.6a, process-tree costs, `--notrunclabels`, `lca_maxrejects`, sintax mask, `dada2_build_on_worker`); `assign_taxo_mini` rebuilt end to end in 16.7 min, 0 error, 0 warning. Outdated: `assign_taxo` 466 of 485, `tedersoo_illumina` and `insilico` 1 376 of 1 399, `korhonen_wood` and `gssp_air` 239 of 254, `rolling_mock` 455 of 483, `species` 34 of 52. Run order: the five datasets, then Rolling, then `species` without `SPECIES_DATASETS`.
+- [ ] `[Medium / easy]` After M2.4, prune the stores (`tar_prune()` in `run_bio_night.R`), once the five sandbox scripts that read orphan targets are archived or fixed. → `reviews/code_review_2026-10-05.md` §1.8, §11 Q6
+- [ ] **0.11b** `[Medium / moderate]` Final zoom (OD 16, 24, 25): `fungi + rep cut` on the two best databases (one UNITE, one EUKARYOME) × best methods, Pauvert only.
+  - 2026-10-06: build it after M2.4 from the `_Fungi_rep` draw (§11 Q8); no UNITE `_Fungi_cut` and no derivation exist yet. → `reviews/code_review_2026-10-05.md` §1.6
+- [x] `[Medium / moderate]` **Code review, rerun from scratch**: the 2026-09-22 code-debt items were deleted as stale (`reviews/critique_2026-09-22.md` §2). Include the stray files (C22-S5) and the design facts repeated across the docs (C22-S6).
+  - 2026-10-06: done, `reviews/code_review_2026-10-05.md`; questions answered in its §11, follow-ups in the items of this file.
+- [ ] `[Medium / easy]` The remaining code-review fixes: [0] and [R] now ([A] landed 2026-10-07, except the optional `ITSx_detected`). → `reviews/code_review_2026-10-05.md` §10
+- [x] `[Low / easy]` Move the review documents to `reviews/` and update the pointers; add a script that writes `ETAT.md`, the other docs pointing to it for figures. → `reviews/code_review_2026-10-05.md` §5, §6, §11 Q7
+  - 2026-10-07: five review documents moved to `reviews/` (pointers rewritten in 21 files, 0 broken link); `tools/etat.R` (`R/etat_helpers.R`, `tests/test_etat_helpers.R`) writes `ETAT.md`, about 5 min, called at the end of `run_bio_night.R`; README, AGENTS and CONTEXT point to it. Replacing the counts already written in the docs is part of the doc-drift fix (§6, the remaining fixes).
+- [ ] `[High / moderate]` Work through [`docs/manuscript_framing.md`](docs/manuscript_framing.md) while drafting the Results.
