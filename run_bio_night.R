@@ -28,6 +28,15 @@ datasets <- commandArgs(trailingOnly = TRUE)
 if (length(datasets) == 0) {
   datasets <- c("pauvert", "korhonen_wood")
 }
+# A misspelt dataset would only fail when its turn comes: stop now instead.
+known <- names(yaml::read_yaml("_targets.yaml"))
+unknown <- setdiff(unlist(lapply(datasets, dataset_projects)), known)
+if (length(unknown) > 0) {
+  stop(
+    "No such targets project in _targets.yaml: ",
+    paste(unknown, collapse = ", ")
+  )
+}
 
 dir.create("logs", showWarnings = FALSE)
 log_path <- file.path(
