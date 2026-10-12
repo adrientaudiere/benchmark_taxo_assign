@@ -32,13 +32,16 @@ a unit.
 here::i_am("analysis/08_q5_units.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
 unit_order <- c("ASV", "OTU", "OTU_derived")
-res_all <- cache_read("res_comp_tax")
+# Lead truth rule (OD 44): unit_rows() reads res_all without default_view();
+# res_rules keeps both rules for the Q2b section.
+res_rules <- cache_read("res_comp_tax")
+res_all <- keep_truth_rule(res_rules)
 views <- analysis_views(res_all)
 
 # Every unit of one view (default_view() keeps a single unit), single methods,
 # default settings.
-unit_rows <- function(dataset_id, region_id) {
-  res_all |>
+unit_rows <- function(dataset_id, region_id, res = res_all) {
+  res |>
     filter(dataset == dataset_id, region == region_id, !is_consensus) |>
     filter_default_settings() |>
     mutate(
@@ -46,18 +49,23 @@ unit_rows <- function(dataset_id, region_id) {
       tax_level = factor(tax_level, levels = tax_order)
     )
 }
-res_q5 <- lapply(seq_len(nrow(views)), function(i) {
-  unit_rows(views$dataset[i], views$region[i]) |>
-    mutate(view = views$label[i], view_id = views$id[i])
-}) |>
-  bind_rows() |>
-  mutate(view = factor(view, levels = views$label))
+# Every view's units, under one truth rule.
+q5_rows <- function(res = res_all) {
+  lapply(seq_len(nrow(views)), function(i) {
+    unit_rows(views$dataset[i], views$region[i], res) |>
+      mutate(view = views$label[i], view_id = views$id[i])
+  }) |>
+    bind_rows() |>
+    mutate(view = factor(view, levels = views$label))
+}
+res_q5 <- q5_rows()
 
 # ASVs subsampled to the OTU count (chapter 01, res_subsample): F1 mean over
 # the nine databases, one value per draw, and its 95 % interval over the draws.
 # The observed units are averaged the same way.
 subsample_schemes <- c("ASV_random", "ASV_one_per_cluster")
 s08_draws <- cache_read("res_subsample") |>
+  keep_truth_rule() |>
   filter(!is_consensus, metrics == "F1_score", tax_level %in% c("Genus", "Gen_sp")) |>
   filter_default_settings() |>
   inner_join(select(views, dataset, region, view = label), by = c("dataset", "region")) |>
@@ -176,8 +184,8 @@ databases; one value per view (`r paste(views$label, collapse = ", ")`).
 - **ASVs subsampled to the OTU count** (Q5.3, Genus, `r s08_n_null` view ×
   method pairs, 95 % interval of the draws): the full ASV set falls inside the
   interval of the random draws `r s08_count_word`; `OTU` lies above the random draws in
-  `r s08_otu_above_random` and above the one-per-cluster draws in
-  `r s08_otu_above_cluster`. One ASV per cluster already gains
+  `r s08_otu_above_random` and above the one-per-cluster draws in `r s08_otu_above_cluster`.
+  One ASV per cluster already gains
   `r fmt_range(s08_cluster_gain)` over the full ASV set (median of the
   draws).
 
@@ -324,6 +332,54 @@ s08_vs_null |>
     OTU_derived = round(OTU_derived, 3)
   ) |>
   knitr::kable(caption = "Genus F1, mean over the nine databases: the observed units against the 95 % interval of the 100 subsampled ASV draws.")
+```
+
+## Under Q2b (OD 44)
+
+Every section above reads the lead truth rule, `no_truth_aside`: the real
+units without a truth (best hit 90–99.5 % to a mock member) leave the
+scoring, so the chapter measures the assignment step, not how well the
+sequencing represents the community. Under `q2b` they stay in it, wrong when
+named and missed when left NA (chapter 01, OD 44).
+
+```{r q2b-data}
+#| include: false
+s08_rules_unit <- compare_truth_rules(function(rule) {
+  q5_rows(keep_truth_rule(res_rules, rule)) |>
+    filter(metrics == "F1_score", tax_level == "Genus") |>
+    group_by(view, unit) |>
+    summarise(value = mean(values), .groups = "drop")
+}, "unit")
+# Columns (method x database x view) where each OTU unit beats the ASVs.
+s08_rules_wins <- lapply(names(truth_rules), function(rule) {
+  q5_rows(keep_truth_rule(res_rules, rule)) |>
+    filter(metrics == "F1_score", tax_level == "Genus") |>
+    select(view, algo, db, unit, values) |>
+    pivot_wider(names_from = unit, values_from = values) |>
+    summarise(
+      truth_rule = rule,
+      columns = n(),
+      OTU = sum(OTU > ASV),
+      OTU_derived = sum(OTU_derived > ASV)
+    )
+}) |>
+  bind_rows()
+s08_wins_at <- \(rule, unit) s08_rules_wins[[unit]][s08_rules_wins$truth_rule == rule]
+```
+
+The best unit at Genus `r rule_holds_phrase(s08_rules_unit)`. Column by
+column (`r s08_rules_wins$columns[1]` columns), `OTU` beats the ASVs on
+`r s08_wins_at("no_truth_aside", "OTU")` under `no_truth_aside` and
+`r s08_wins_at("q2b", "OTU")` under `q2b`; `OTU_derived` on
+`r s08_wins_at("no_truth_aside", "OTU_derived")` and `r s08_wins_at("q2b", "OTU_derived")`.
+
+```{r q2b-table}
+#| echo: false
+knitr::kable(
+  s08_rules_unit$table,
+  col.names = c("Unit", names(s08_rules_unit$table)[-1]),
+  caption = "Genus F1 per unit, default settings, mean over the four methods and nine databases: no_truth_aside / q2b."
+)
 ```
 
 ```{r versions-footer, results = "asis", echo = FALSE}

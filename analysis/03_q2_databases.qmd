@@ -264,6 +264,47 @@ view_tabs(res_all, views, function(res, v) {
 })
 ```
 
+## Under Q2b (OD 44)
+
+Every section above reads the lead truth rule, `no_truth_aside`: the real
+units without a truth (best hit 90–99.5 % to a mock member) leave the
+scoring, so the chapter measures the assignment step, not how well the
+sequencing represents the community. Under `q2b` they stay in it, wrong when
+named and missed when left NA (chapter 01, OD 44).
+
+```{r q2b-data}
+#| include: false
+s03_rule_rows <- function(rule) {
+  view_rows(res_all, views, truth_rule = rule) |>
+    filter(metrics == "F1_score", tax_level == "Genus") |>
+    filter_default_settings() |>
+    left_join(db_meta, by = "db")
+}
+s03_rules_db <- compare_truth_rules(function(rule) {
+  s03_rule_rows(rule) |>
+    group_by(view, db) |>
+    summarise(value = mean(values), .groups = "drop")
+}, "db")
+s03_rules_source <- compare_truth_rules(function(rule) {
+  s03_rule_rows(rule) |>
+    group_by(view, db_base) |>
+    summarise(value = mean(values), .groups = "drop") |>
+    rename(source = db_base)
+}, "source")
+```
+
+The best database at Genus `r rule_holds_phrase(s03_rules_db)`. The best
+source `r rule_holds_phrase(s03_rules_source)`.
+
+```{r q2b-table}
+#| echo: false
+knitr::kable(
+  s03_rules_db$table,
+  col.names = c("Database", names(s03_rules_db$table)[-1]),
+  caption = "Genus F1 per database, default settings, mean over the four methods: no_truth_aside / q2b."
+)
+```
+
 ```{r versions-footer, results = "asis", echo = FALSE}
 versions_footer()
 ```

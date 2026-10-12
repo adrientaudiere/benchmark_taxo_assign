@@ -1135,6 +1135,16 @@ The developer's answers, verbatim after **>>**, with what each changes.
     species, mostly Saccharomycetes, all well represented in the references.
     → `ROADMAP.md` §1, `config.R::bio_datasets`
 
+    *Scored 2026-10-12: Q2b kept, Rolling reported as a stress case
+    (developer); revised the same day by OD 44 (both truth rules, units
+    without truth aside leading).* Most of its units are near variants of the members with no
+    truth (90–99.5 % to an expected amplicon; none reaches 99.5 %): 173 of
+    273 ASVs (2.8 % of the reads), 60 of the 84 non-foreign ITS1 units. Every
+    method names them the genus of the closest strain, an FP under Q2b, so
+    Genus F1 sits at 0.44 for every column (method means within 0.018). The
+    rule stays the same for every mock; no Rolling-only threshold. Readings
+    under the alternatives, measured the same day: `HISTORY.md` §3d.
+
 43. **The paper benchmarks taxonomic assignment as a whole; species
     assignment gets a section of its own, by exact match** (developer,
     2026-10-06; revises OD 37). The article states that it does not focus on
@@ -1189,6 +1199,29 @@ The developer's answers, verbatim after **>>**, with what each changes.
     records per query, instead of reading the grid's tables (500 hits, no
     alignment coordinates); its exact match is the pairs with no difference.
     → `ROADMAP.md` §2, `HISTORY.md` §3d
+
+44. **Two truth rules; units without truth out of the matrix lead**
+    (developer, 2026-10-12; revises Q2b of `docs/hleap_2021_metrics.md` and
+    the scoring note of OD 42 the same day). The paper measures the
+    taxonomic assignment step, not how well the sequencing reproduces the
+    community. A unit without truth (best hit 90–99.5 % to a member: a
+    sequencing error or a variant missing from the reference sequences of
+    the mock) has no right answer, so under Q2b it costs every method one
+    error whatever it does, and on Rolling (60 of the 84 non-foreign ITS1
+    units) it flattens every column to Genus F1 0.44. Every mock is now
+    scored under both rules, told apart by the `truth_rule` column:
+    `no_truth_aside` (**leads** the summaries and main figures: such units
+    leave the matrix at every rank, as the foreign units of OD 36, and
+    `no_truth_named` reports the share a method names) and `q2b` (Q2b
+    unchanged: the stricter reading, shown in one comparison section per
+    chapter). Implemented in comparpq (`tc_metrics_unit(no_truth = )`,
+    metrics `n_no_truth` and `no_truth_named`), not by marking the units
+    foreign, so `foreign_named` keeps its meaning. Both rules on
+    `res_comp_tax`, `res_paired` (Q4) and `res_subsample` (Q5);
+    `res_abundance` (M1.5) stays under Q2b. Measured before the decision
+    (ITS1 ASV, default columns, Genus F1 mean, Pauvert / Tedersoo /
+    Rolling): Q2b 0.79 / 0.90 / 0.44, units without truth aside 0.91 /
+    0.96 / 0.99 (`HISTORY.md` §3d 55). → `ROADMAP.md` §2
 
 ---
 

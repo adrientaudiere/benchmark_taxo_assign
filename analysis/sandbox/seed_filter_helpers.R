@@ -71,8 +71,15 @@ derive_columns <- function(input_pq, computed, method, db, vm = pauvert_vm) {
 
 # Scores of the columns `cols` of `physeq` against `truth`, as chapter 01
 # scores them (clean_taxo(), add_gen_sp(), tc_metrics_unit() per scoring
-# group), with the method, database and parameters of each column.
-score_columns <- function(physeq, cols, truth, vm = pauvert_vm) {
+# group), with the method, database and parameters of each column. Under the
+# lead truth rule (OD 44) unless `no_truth` says otherwise.
+score_columns <- function(
+  physeq,
+  cols,
+  truth,
+  vm = pauvert_vm,
+  no_truth = truth_rules[[lead_truth_rule]]
+) {
   d <- physeq |>
     clean_taxo() |>
     add_gen_sp()
@@ -83,7 +90,8 @@ score_columns <- function(physeq, cols, truth, vm = pauvert_vm) {
     truth,
     db_meta,
     external_truth = external_control_truth(taxa_names(d)),
-    truth_ranks = truth_ranks
+    truth_ranks = truth_ranks,
+    no_truth = no_truth
   ) |>
     mutate(tax_level = ifelse(tax_level == "Species", "Gen_sp", tax_level)) |>
     left_join(

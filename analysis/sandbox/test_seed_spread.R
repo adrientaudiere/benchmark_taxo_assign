@@ -61,6 +61,7 @@ for (i in which(grid$seed == 0L)) {
 scores_0 <- bind_rows(lapply(which(grid$seed == 0L), score_replicate))
 # Replicate 0 must give the cached scores of chapter 01, value for value.
 cached <- cache_read("res_comp_tax") |>
+  keep_truth_rule() |>
   filter(dataset == "pauvert", region == "ITS1", unit == "ASV") |>
   select(method_db, tax_level, metrics, external_scoring, cached = values)
 check <- inner_join(

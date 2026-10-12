@@ -326,6 +326,9 @@ and undercounted every threshold (it gave 138 / 98 and 75 / 0 at 99.5 %).
   matrix (developer): the aim is a **relative** comparison of database × method
   couples, not Hleap's absolute scores. As in Hleap's code (`NaN != NaN`), such
   a unit is FN when left NA and FP when given any name, at every rank.
+- *Revised 2026-10-12 by OD 44: every mock is scored under two rules, Q2b
+  (`truth_rule = "q2b"`) and with these units out of the matrix
+  (`"no_truth_aside"`, leading; `tc_metrics_unit(no_truth = "aside")`).*
 - **Q2c — Units matching several strains: truth = lowest common rank** of the
   tied strains (developer), and the unit is left out of the matrix at the
   ranks below.

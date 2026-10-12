@@ -58,6 +58,7 @@ res <- readRDS("analysis/_cache/res_comp_tax.rds") |>
     dataset == "pauvert",
     tax_level == "Genus",
     external_scoring == "matrix",
+    truth_rule == "no_truth_aside", # lead truth rule (OD 44)
     !is_consensus,
     unit %in% c("ASV", "OTU")
   ) |>

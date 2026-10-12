@@ -9,13 +9,19 @@ comes from the per-target {autometric} logs written inside the crew workers
 mean CPU of the newest run of each target. M2.2 converts wall time to CO₂eq
 with `greenAlgoR`.
 
-The costs read here come from the current assignment stores, but every
-cost measured before the final run of OD 31 (one computation at a time, fixed
-threads, the desktop closed) is **provisional**: treat these figures as
-placeholders, not as a recommendation (ROADMAP M2.4).
+The costs read here come from the final timing run of OD 31 (M2.4, nights
+of 2026-10-07 to 2026-10-10): one computation at a time, all cores for dada2,
+lca and blastn, sintax at 1 thread (`config.R::assign_threads`), every
+computation of every store rerun in it. The run was split into three night
+windows (`tools/run_window.sh`); a computation stopped at the end of a window
+was rerun whole the next night, so each cost is one uninterrupted execution.
+The desktop session stayed open (editor, browser, Claude sessions; listed at
+the start of each window in `logs/run_window_*.log`), and dada2 × full
+`EUK_ITS_v2.1` peaked near 58 GB of the machine's 62 GB.
 
 Every section has one tab per mock and ITSx region (`analysis_views()` in
-`00_setup.R`), on the ASVs: Pauvert ITS1, then Tedersoo ITS1, ITS2 and full.
+`00_setup.R`), on the ASVs: Pauvert ITS1, Rolling ITS1, then Tedersoo ITS1,
+ITS2 and full.
 Each view reads the costs of its own dataset's assignment store
 (`costs_for()`); the figures are saved once per view, suffixed with it.
 
@@ -47,7 +53,11 @@ s05 <- lapply(seq_len(nrow(views)), function(i) {
   rows <- filter(s05_rows, view_id == views$id[i])
   rows |>
     left_join(
-      costs_for(views$dataset[i], rows) |> select(phase, wall_time_s),
+      # wall_s (proc.time) when present: the autometric span misses up to a
+      # second at each end of a short computation, as in M2.2.
+      costs_for(views$dataset[i], rows) |>
+        mutate(wall_time_s = coalesce(wall_s, wall_time_s)) |>
+        select(phase, wall_time_s),
       by = c("method_db" = "phase")
     )
 }) |>
@@ -62,11 +72,9 @@ s05_best <- best_of(s05_by_algo, "algo", value = "f1")
 s05_ratio <- s05_slow$minutes / s05_fast$minutes
 ```
 
-**Provisional costs** (OD 31): measured on this workstation during the
-benchmark runs, not in the final one-computation-at-a-time run. Read the
-orders of magnitude, not a recommendation. ASVs, default settings, wall time
-of one computation (one method × one database) averaged over the nine
-databases.
+**Costs of the final timing run** (M2.4, OD 31), on this workstation. ASVs,
+default settings, wall time of one computation (one method × one database)
+averaged over the nine databases.
 
 - **Fastest**: `r best_phrase(mutate(s05_fast, value = -minutes), "algo", show_value = FALSE)`
   — `r fmt_range(s05_fast$minutes, 1)` min per computation.
@@ -103,6 +111,7 @@ view_tabs(res_all, views, function(res, v) {
   accuracy_vs_cost <- f1_all_ranks(res) |>
     left_join(
       costs_for(v$dataset, res) |>
+        mutate(wall_time_s = coalesce(wall_s, wall_time_s)) |>
         select(phase, wall_time_s, peak_resident_mb, mean_cpu_pct),
       by = c("method_db" = "phase")
     )
@@ -251,6 +260,38 @@ for (i in seq_len(nrow(analysis_datasets))) {
   }
 }
 cat(":::\n\n")
+```
+
+## Under Q2b (OD 44)
+
+Every section above reads the lead truth rule, `no_truth_aside`: the real
+units without a truth (best hit 90–99.5 % to a mock member) leave the
+scoring, so the chapter measures the assignment step, not how well the
+sequencing represents the community. Under `q2b` they stay in it, wrong when
+named and missed when left NA (chapter 01, OD 44).
+
+```{r q2b-data}
+#| include: false
+# Costs do not depend on the truth rule; the most accurate method may.
+s05_rules <- compare_truth_rules(function(rule) {
+  view_rows(res_all, views, truth_rule = rule) |>
+    filter(metrics == "F1_score", tax_level == "Genus") |>
+    filter_default_settings() |>
+    group_by(view, algo) |>
+    summarise(value = mean(values), .groups = "drop")
+}, "algo")
+```
+
+Costs do not depend on the truth rule. The most accurate method at Genus
+`r rule_holds_phrase(s05_rules)`.
+
+```{r q2b-table}
+#| echo: false
+knitr::kable(
+  s05_rules$table,
+  col.names = c("Method", names(s05_rules$table)[-1]),
+  caption = "Genus F1 per method, default settings, mean over the nine databases: no_truth_aside / q2b."
+)
 ```
 
 ```{r versions-footer, results = "asis", echo = FALSE}

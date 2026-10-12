@@ -27,7 +27,8 @@ region_order <- c("ITS1", "ITS2", "full")
 
 # The scored columns of every dataset with more than one region: Tedersoo
 # from chapter 01's cache, the in silico set from in_silico_simulation.qmd's
-# (kept out of res_comp_tax, OD 29). ASVs, single methods, default settings.
+# (kept out of res_comp_tax, OD 29). ASVs, single methods, default settings;
+# both truth rules in `res_q4_rules`, the lead one (OD 44) in `res_q4`.
 res_tedersoo <- cache_read("res_comp_tax") |>
   group_by(dataset) |>
   filter(n_distinct(region) > 1) |>
@@ -38,7 +39,7 @@ res_insilico <- if (!analysis_mini && file.exists(insilico_cache)) {
 } else {
   NULL
 }
-res_q4 <- bind_rows(res_tedersoo, res_insilico) |>
+res_q4_rules <- bind_rows(res_tedersoo, res_insilico) |>
   filter(unit == "ASV", !is_consensus) |>
   filter_default_settings() |>
   mutate(
@@ -46,13 +47,14 @@ res_q4 <- bind_rows(res_tedersoo, res_insilico) |>
     tax_level = factor(tax_level, levels = tax_order),
     view = factor(dataset, levels = unique(c(res_tedersoo$dataset, "insilico")))
   )
+res_q4 <- keep_truth_rule(res_q4_rules)
 q4_datasets <- levels(droplevels(res_q4$view))
 
 # The same scoring restricted to the real ASVs that ITSx trimmed in every
 # region of the dataset (chapter 01, res_paired, Tedersoo only; unit
 # "ASV_common", OD 38), and, for contrast, to every real ASV present in all
 # the regions, trimmed or not ("ASV_common_all", the reading before OD 38).
-res_paired_both <- cache_read("res_paired") |>
+res_paired_rules <- cache_read("res_paired") |>
   filter(!is_consensus) |>
   filter_default_settings() |>
   mutate(
@@ -60,6 +62,7 @@ res_paired_both <- cache_read("res_paired") |>
     tax_level = factor(tax_level, levels = tax_order),
     view = factor(dataset, levels = q4_datasets)
   )
+res_paired_both <- keep_truth_rule(res_paired_rules)
 res_paired <- filter(res_paired_both, unit == "ASV_common")
 res_paired_all <- filter(res_paired_both, unit == "ASV_common_all")
 n_common <- unique(res_paired$n_units_kept)
@@ -415,14 +418,71 @@ res_paired |>
 s07_dada2_paired <- s07_paired_by_region |>
   filter(tax_level == "Genus", algo == "dada2") |>
   arrange(desc(value))
+s07_dada2_spread <- max(s07_dada2_paired$value) - min(s07_dada2_paired$value)
+# Spread of dada2's Genus F1 across seeds on Pauvert (OD 41).
+s07_seed_spread <- 0.013
+# Words that follow the numbers, so that no adjective outlives the data.
+s07_dada2_word <- if (s07_dada2_spread < s07_seed_spread) {
+  "less than the spread of its Genus F1 across seeds on Pauvert (up to 0.013, `HISTORY.md` §3d, OD 41): no region is better than another for dada2. The result is the order of the four methods together."
+} else {
+  "at least the spread of its Genus F1 across seeds on Pauvert (up to 0.013, `HISTORY.md` §3d, OD 41): for dada2 the best region leads by more than the seed noise."
+}
 ```
 
 For dada2 the three regions lie within
-`r format(round(max(s07_dada2_paired$value) - min(s07_dada2_paired$value), 3), nsmall = 3)`
-of each other (best: `r s07_dada2_paired$region[1]`), less than the spread of
-its Genus F1 across seeds on Pauvert (up to 0.013, `HISTORY.md` §3d, OD 41):
-no region is better than another for dada2. The result is the order of the
-four methods together.
+`r format(round(s07_dada2_spread, 3), nsmall = 3)` of each other (best:
+`r s07_dada2_paired$region[1]`), `r s07_dada2_word`
+
+## Under Q2b (OD 44)
+
+Every section above reads the lead truth rule, `no_truth_aside`: the real
+units without a truth (best hit 90–99.5 % to a mock member) leave the
+scoring, so the chapter measures the assignment step, not how well the
+sequencing represents the community. Under `q2b` they stay in it, wrong when
+named and missed when left NA (chapter 01, OD 44).
+
+```{r q2b-data}
+#| include: false
+# Best region at Genus (mean over the four methods and nine databases), on
+# every ASV of the region and on the ASVs trimmed in every region (Q4.4).
+s07_region_mean <- function(rows) {
+  rows |>
+    filter(metrics == "F1_score", tax_level == "Genus") |>
+    group_by(view, region) |>
+    summarise(value = mean(values), .groups = "drop")
+}
+s07_rules_all <- compare_truth_rules(
+  \(rule) s07_region_mean(keep_truth_rule(res_q4_rules, rule)),
+  "region"
+)
+s07_rules_paired <- compare_truth_rules(function(rule) {
+  keep_truth_rule(res_paired_rules, rule) |>
+    filter(unit == "ASV_common") |>
+    s07_region_mean()
+}, "region")
+s07_rules_dada2 <- compare_truth_rules(function(rule) {
+  keep_truth_rule(res_paired_rules, rule) |>
+    filter(unit == "ASV_common", algo == "dada2") |>
+    s07_region_mean()
+}, "region")
+```
+
+The best region at Genus on every ASV `r rule_holds_phrase(s07_rules_all)`.
+On the ASVs trimmed in every region (Q4.4) it
+`r rule_holds_phrase(s07_rules_paired)`; for dada2 alone there, it
+`r rule_holds_phrase(s07_rules_dada2)`.
+
+```{r q2b-table}
+#| echo: false
+knitr::kable(
+  bind_rows(
+    mutate(s07_rules_all$table, units = "every ASV"),
+    mutate(s07_rules_paired$table, units = "trimmed in every region")
+  ) |>
+    relocate(units),
+  caption = "Genus F1 per region, mean over the four methods and nine databases: no_truth_aside / q2b."
+)
+```
 
 ```{r versions-footer, results = "asis", echo = FALSE}
 versions_footer()

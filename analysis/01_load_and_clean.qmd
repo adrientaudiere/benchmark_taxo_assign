@@ -262,6 +262,22 @@ the three `_Fungi` databases, aside on the whole releases and on the three
 database and are scored both ways; the `external_scoring` column tells the two
 readings apart.
 
+**Two truth rules (OD 44).** A real unit whose best hit on a member lies
+between 90 and 99.5 % (a sequencing error, or a variant absent from the
+reference sequences of the mock) has no truth. The paper measures the
+assignment step, not how well sequencing reproduces the community, so every
+column is scored twice, told apart by `truth_rule`:
+
+- `no_truth_aside` (**leads** every summary and main figure): such units
+  leave the matrix at every rank, as the foreign units (OD 36);
+  `no_truth_named` gives the share a method names;
+- `q2b`: they stay in the matrix, FP when named and FN when left NA, an error
+  whatever the method does (Q2b, the stricter reading).
+
+`res_comp_tax`, `res_paired` and `res_subsample` hold both rules,
+`res_abundance` Q2b only. Every reader keeps one rule (`default_view()`,
+`keep_truth_rule()`, `00_setup.R`).
+
 ```{r score}
 score_region <- function(prep) {
   asv_input <- paste0(prep$region, "_asv")
@@ -270,7 +286,7 @@ score_region <- function(prep) {
     prep$d_asv_r, c(consensus_labels_for(asv_input), asv_names),
     ranks = tax_order, allow_empty = analysis_mini
   )
-  res <- score_assignments(
+  res <- score_truth_rules(
     prep$d_asv_r, asv, prep$truth_asv, db_meta,
     external_truth = prep$external_truth, truth_ranks = truth_ranks
   ) |>
@@ -282,12 +298,12 @@ score_region <- function(prep) {
     derived <- build_ranks_df(prep$d_otu_derived, asv_names, ranks = tax_order, allow_empty = analysis_mini)
     res <- bind_rows(
       res,
-      score_assignments(
+      score_truth_rules(
         prep$d_otu_r, otu, prep$truth_otu, db_meta,
         external_truth = prep$external_truth, truth_ranks = truth_ranks
       ) |>
         mutate(unit = "OTU"),
-      score_assignments(
+      score_truth_rules(
         prep$d_otu_derived, derived, prep$truth_asv, db_meta,
         external_truth = prep$external_truth, truth_ranks = truth_ranks
       ) |>
@@ -305,8 +321,8 @@ res_comp_tax <- bind_rows(lapply(prepared_regions, score_region)) |>
   enrich_metrics()
 
 res_comp_tax |>
-  count(dataset, region, unit, external_scoring) |>
-  arrange(dataset, region, unit)
+  count(dataset, region, unit, truth_rule, external_scoring) |>
+  arrange(dataset, region, unit, truth_rule)
 ```
 
 # Summary
@@ -366,7 +382,9 @@ s01_fake_max <- s01_ctrl |>
 ```
 
 Scored: `r paste(s01_views$label, collapse = ", ")`, each on ASV, OTU and
-OTU_derived, against the per-unit truth.
+OTU_derived, against the per-unit truth. The figures and sentences below
+read the lead truth rule (`no_truth_aside`, OD 44); the last table compares
+it with Q2b.
 
 - **Truth**: `r s01_truth_phrase`. Foreign units are left out of the matrix
   and reported by `foreign_named` (OD 36).
@@ -381,6 +399,30 @@ s01_means |>
   select(-columns) |>
   tidyr::pivot_wider(names_from = unit, values_from = F1) |>
   knitr::kable(caption = "Genus F1, default settings, mean of the 36 method × database columns")
+```
+
+```{r summary-rules}
+#| echo: false
+# Both truth rules side by side (OD 44): Genus F1 and PPV, ASVs, default
+# settings, mean of the 36 columns, with the units without truth.
+s01_rules <- bind_rows(lapply(names(truth_rules), function(rule) {
+  view_rows(res_comp_tax, s01_views, truth_rule = rule) |>
+    filter(tax_level == "Genus", metrics %in% c("F1_score", "PPV", "n_no_truth", "no_truth_named")) |>
+    filter_default_settings() |>
+    mutate(truth_rule = rule)
+}))
+s01_rules |>
+  group_by(view, truth_rule, metrics) |>
+  summarise(value = round(mean(values), 3), .groups = "drop") |>
+  tidyr::pivot_wider(names_from = c(metrics, truth_rule), values_from = value) |>
+  select(
+    view,
+    `units without truth` = n_no_truth_q2b,
+    `named (mean)` = no_truth_named_q2b,
+    `F1 aside` = F1_score_no_truth_aside, `F1 Q2b` = F1_score_q2b,
+    `PPV aside` = PPV_no_truth_aside, `PPV Q2b` = PPV_q2b
+  ) |>
+  knitr::kable(caption = "Genus, ASVs, default settings, mean of the 36 columns, under both truth rules (OD 44)")
 ```
 
 ```{r summary-fig-f1}
@@ -459,9 +501,11 @@ sweep_abundance <- function(prep, thresholds = abundance_thresholds) {
     is_control <- grepl(control_pattern, taxa_names(input$physeq))
     bind_rows(lapply(thresholds, function(n) {
       kept <- prune_taxa(taxa_sums(input$physeq) >= n | is_control, input$physeq)
-      score_assignments(
+      # Q2b only (OD 44): the sweep is not doubled.
+      score_truth_rules(
         kept, ranks_df, input$truth, db_meta,
-        external_truth = prep$external_truth, truth_ranks = truth_ranks
+        external_truth = prep$external_truth, truth_ranks = truth_ranks,
+        rules = truth_rules["q2b"]
       ) |>
         mutate(
           unit = unit,
@@ -525,7 +569,7 @@ sweep_subsample <- function(prep, draws = subsample_draws) {
   n_units <- n_distinct(members$cluster)
   score_kept <- function(kept_taxa, scheme, draw) {
     kept <- prune_taxa(taxa_names(physeq) %in% kept_taxa | is_control, physeq)
-    score_assignments(
+    score_truth_rules(
       kept, ranks_df, prep$truth_asv, db_meta,
       external_truth = prep$external_truth, truth_ranks = truth_ranks
     ) |>
@@ -597,7 +641,7 @@ score_on_units <- function(preps, common, unit) {
       taxa_names(physeq) %in% common | grepl(control_pattern, taxa_names(physeq)),
       physeq
     )
-    score_assignments(
+    score_truth_rules(
       kept, ranks_df, prep$truth_asv, db_meta,
       external_truth = prep$external_truth, truth_ranks = truth_ranks
     ) |>
@@ -645,11 +689,14 @@ without an error.
 ```{r check-inputs}
 check_inputs <- res_comp_tax |>
   filter_default_settings() |>
-  count(dataset, region, unit, algo)
+  count(dataset, region, unit, truth_rule, algo)
 check_inputs
 stopifnot(nrow(check_inputs) > 0, all(check_inputs$n > 0))
-expected <- res_comp_tax |> distinct(dataset, region, unit)
-stopifnot(nrow(distinct(check_inputs, dataset, region, unit)) == nrow(expected))
+expected <- res_comp_tax |> distinct(dataset, region, unit, truth_rule)
+stopifnot(
+  nrow(distinct(check_inputs, dataset, region, unit, truth_rule)) == nrow(expected),
+  setequal(unique(res_comp_tax$truth_rule), names(truth_rules))
+)
 ```
 
 The species row is the one that fails silently: `truth$Species` is the
@@ -660,6 +707,7 @@ disagreed, every unit would be an FP and read as a result.
 ```{r check-species}
 first <- prepared_regions[[1]]
 best_gen_sp <- res_comp_tax |>
+  keep_truth_rule() |>
   filter(dataset == first$dataset, region == first$region, unit == "ASV",
          tax_level == "Gen_sp", metrics == "TP", algo %in% single_methods) |>
   slice_max(values, n = 3)
@@ -685,14 +733,14 @@ one scoring group. The render stops if it is not (code review §4.3).
 ```{r check-cells}
 cells <- res_comp_tax |>
   filter(metrics %in% c("TP", "FP", "FN", "TN")) |>
-  group_by(dataset, region, unit, external_scoring, tax_level, method_db) |>
+  group_by(dataset, region, unit, truth_rule, external_scoring, tax_level, method_db) |>
   summarise(n_units = sum(values), .groups = "drop")
 cells_per_group <- cells |>
-  distinct(dataset, region, unit, external_scoring, tax_level, n_units) |>
-  count(dataset, region, unit, external_scoring, tax_level)
+  distinct(dataset, region, unit, truth_rule, external_scoring, tax_level, n_units) |>
+  count(dataset, region, unit, truth_rule, external_scoring, tax_level)
 stopifnot(all(cells_per_group$n == 1))
 cells |>
-  distinct(dataset, region, unit, external_scoring, tax_level, n_units) |>
+  distinct(dataset, region, unit, truth_rule, external_scoring, tax_level, n_units) |>
   filter(tax_level %in% c("Genus", "Gen_sp"))
 ```
 
@@ -702,7 +750,7 @@ Everything below reads the first region of the first dataset only.
 
 ```{r na-prop}
 res_first <- filter(
-  res_comp_tax,
+  keep_truth_rule(res_comp_tax),
   dataset == first$dataset, region == first$region, unit == "ASV"
 )
 prop_fake_taxa <- sum(grepl(control_pattern, taxa_names(first$d_asv_r))) /
@@ -739,7 +787,7 @@ for (m in c("FP", "MCC", "F1_score", "NA_real")) {
 
 ```{r explore-units}
 # ASV vs OTU vs OTU_derived, at the default settings (Q5), per region.
-res_comp_tax |>
+keep_truth_rule(res_comp_tax) |>
   filter(dataset == first$dataset, metrics %in% c("F1_score", "TPR")) |>
   filter_default_settings() |>
   filter(tax_level %in% c("Family", "Genus", "Gen_sp")) |>

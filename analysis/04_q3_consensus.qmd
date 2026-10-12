@@ -211,6 +211,62 @@ view_tabs(res_all, views, function(res, v) {
 })
 ```
 
+## Under Q2b (OD 44)
+
+Every section above reads the lead truth rule, `no_truth_aside`: the real
+units without a truth (best hit 90–99.5 % to a mock member) leave the
+scoring, so the chapter measures the assignment step, not how well the
+sequencing represents the community. Under `q2b` they stay in it, wrong when
+named and missed when left NA (chapter 01, OD 44).
+
+```{r q2b-data}
+#| include: false
+# The best consensus strategy (Q3.2 columns) against the best single column,
+# per view: does the consensus still lose (or win) under Q2b?
+s04_rule_rows <- function(rule) {
+  view_rows(res_all, views, truth_rule = rule) |>
+    filter(metrics == "F1_score", tax_level == "Genus")
+}
+s04_rules_strategy <- compare_truth_rules(function(rule) {
+  s04_rule_rows(rule) |>
+    filter(is_consensus, !consensus_strict, nb_agree == 1L) |>
+    filter(algo %in% paste0(c("preference", "rel_majority", "abs_majority", "consensus", "unanimity"), "_consensus")) |>
+    transmute(view, strategy = sub("_consensus$", "", algo), value = values)
+}, "strategy")
+s04_rules_vs_single <- compare_truth_rules(function(rule) {
+  rows <- s04_rule_rows(rule)
+  bind_rows(
+    rows |>
+      filter(is_consensus, !consensus_strict, nb_agree == 1L) |>
+      filter(algo %in% paste0(c("preference", "rel_majority", "abs_majority", "consensus", "unanimity"), "_consensus")) |>
+      group_by(view) |>
+      summarise(value = max(values), .groups = "drop") |>
+      mutate(column = "best consensus"),
+    rows |>
+      filter_default_settings() |>
+      group_by(view) |>
+      summarise(value = max(values), .groups = "drop") |>
+      mutate(column = "best single column")
+  )
+}, "column")
+```
+
+The best consensus strategy at Genus `r rule_holds_phrase(s04_rules_strategy)`.
+Which is higher, the best consensus or the best single column,
+`r rule_holds_phrase(s04_rules_vs_single)`.
+
+```{r q2b-table}
+#| echo: false
+knitr::kable(
+  bind_rows(
+    rename(s04_rules_strategy$table, column = strategy),
+    s04_rules_vs_single$table |> filter(column == "best single column")
+  ),
+  col.names = c("Consensus strategy / column", names(s04_rules_strategy$table)[-1]),
+  caption = "Genus F1 of each consensus strategy and of the best single column: no_truth_aside / q2b."
+)
+```
+
 ```{r versions-footer, results = "asis", echo = FALSE}
 versions_footer()
 ```

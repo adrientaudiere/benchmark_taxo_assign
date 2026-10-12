@@ -259,21 +259,53 @@ enrich_metrics <- function(res) {
   )
 }
 
+# The two truth rules of OD 44, as `truth_rule` label = the `no_truth`
+# argument of comparpq::tc_metrics_unit(): the units without truth (best hit
+# 90-99.5 % to a member) leave the matrix, or stay in it as errors (Q2b).
+# Chapter 01 scores both; every chapter reads one, the first leading.
+truth_rules <- c(no_truth_aside = "aside", q2b = "matrix")
+lead_truth_rule <- names(truth_rules)[[1]]
+
+# score_assignments() once per truth rule, the rows told apart by
+# `truth_rule`. Arguments as score_assignments().
+score_truth_rules <- function(..., rules = truth_rules) {
+  dplyr::bind_rows(lapply(names(rules), function(rule) {
+    score_assignments(..., no_truth = rules[[rule]]) |>
+      dplyr::mutate(truth_rule = rule)
+  }))
+}
+
+# The rows of one truth rule. Every reader of res_comp_tax, res_paired,
+# res_subsample or res_insilico goes through it (default_view() does), or it
+# would average the two rules silently.
+keep_truth_rule <- function(res, rule = lead_truth_rule) {
+  if (!"truth_rule" %in% names(res)) {
+    stop(
+      "No `truth_rule` column (OD 44): render analysis/01_load_and_clean.qmd first."
+    )
+  }
+  dplyr::filter(res, .data$truth_rule == rule)
+}
+
 # The view of res_comp_tax chapters 02 to 05 read: one dataset, one ITSx
-# region, one unit, and one reading of the consensus columns. Chapter 01 scores
-# every region of every dataset that has a store (OD 34), three units per
-# region (ASV, OTU, OTU_derived), and every consensus column twice (decision
-# 2026-09-22: `external_scoring` "matrix" and "aside", the consensus having no
-# database of its own). Without this filter a chapter would average regions
-# and units and count each consensus twice, silently. Q4 (regions), Q5 (units)
-# and the dataset comparison read the cache directly.
+# region, one unit, one truth rule (OD 44) and one reading of the consensus
+# columns. Chapter 01 scores every region of every dataset that has a store
+# (OD 34), three units per region (ASV, OTU, OTU_derived), under both truth
+# rules, and every consensus column twice (decision 2026-09-22:
+# `external_scoring` "matrix" and "aside", the consensus having no database
+# of its own). Without this filter a chapter would average regions, units and
+# rules and count each consensus twice, silently. Q4 (regions), Q5 (units)
+# and the dataset comparison read the cache directly, through
+# keep_truth_rule().
 default_view <- function(
   res,
   keep_unit = "ASV",
   keep_dataset = NULL,
   keep_region = NULL,
-  consensus_scoring = "aside"
+  consensus_scoring = "aside",
+  truth_rule = lead_truth_rule
 ) {
+  res <- keep_truth_rule(res, truth_rule)
   if (is.null(keep_dataset)) {
     keep_dataset <- res$dataset[[1]]
   }
@@ -315,7 +347,7 @@ analysis_views <- function(res) {
 # that dataset x region and the view row, and prints its figures and tables.
 # `fun` must print() a figure BEFORE save_fig(): the ggsave() devices opened
 # in between delay the capture of the plot, which then lands in the next tab.
-view_tabs <- function(res, views, fun) {
+view_tabs <- function(res, views, fun, truth_rule = lead_truth_rule) {
   cat("\n::: {.panel-tabset}\n\n")
   for (i in seq_len(nrow(views))) {
     cat("### ", views$label[i], "\n\n", sep = "")
@@ -323,7 +355,8 @@ view_tabs <- function(res, views, fun) {
       default_view(
         res,
         keep_dataset = views$dataset[i],
-        keep_region = views$region[i]
+        keep_region = views$region[i],
+        truth_rule = truth_rule
       ),
       views[i, ]
     )
@@ -334,14 +367,21 @@ view_tabs <- function(res, views, fun) {
 
 # The default_view() of every view, stacked, with a `view` column (the tab
 # label, as an ordered factor) and its `view_id`: what the chapter summaries
-# read, so that they filter exactly as the tabs below them.
-view_rows <- function(res, views, keep_unit = "ASV") {
+# read, so that they filter exactly as the tabs below them. `truth_rule`
+# selects the rule of OD 44 (the lead one by default).
+view_rows <- function(
+  res,
+  views,
+  keep_unit = "ASV",
+  truth_rule = lead_truth_rule
+) {
   rows <- lapply(seq_len(nrow(views)), function(i) {
     default_view(
       res,
       keep_unit = keep_unit,
       keep_dataset = views$dataset[i],
-      keep_region = views$region[i]
+      keep_region = views$region[i],
+      truth_rule = truth_rule
     ) |>
       dplyr::mutate(view = views$label[i], view_id = views$id[i])
   })
@@ -411,6 +451,71 @@ best_phrase <- function(tbl, what, show_value = TRUE) {
 cat_kable <- function(x, ...) {
   cat(knitr::kable(x, format = "pipe", ...), sep = "\n")
   cat("\n\n")
+}
+
+# A chapter's headline reading under each truth rule (OD 44), for its
+# "Under Q2b" section. `reading(rule)` returns that rule's reading: `view`,
+# the compared column `what` (method, database, region, unit...) and `value`
+# (higher is better). Returns `best`, the best `what` of each view under each
+# rule and whether it `holds`, and `table`, one row per `what` and one column
+# per view, "lead / Q2b" in each cell.
+compare_truth_rules <- function(reading, what) {
+  rules <- names(truth_rules)
+  both <- dplyr::bind_rows(lapply(rules, function(rule) {
+    reading(rule) |>
+      dplyr::select(dplyr::all_of(c("view", what, "value"))) |>
+      dplyr::mutate(truth_rule = rule)
+  }))
+  best <- both |>
+    best_of(what, by = c("truth_rule", "view")) |>
+    dplyr::select(dplyr::all_of(c("truth_rule", "view", what))) |>
+    tidyr::pivot_wider(
+      names_from = "truth_rule",
+      values_from = dplyr::all_of(what)
+    ) |>
+    dplyr::mutate(holds = .data[[rules[[1]]]] == .data[[rules[[2]]]]) |>
+    dplyr::arrange(view)
+  table <- both |>
+    dplyr::mutate(value = format(round(value, 3), nsmall = 3)) |>
+    tidyr::pivot_wider(names_from = "truth_rule", values_from = "value") |>
+    dplyr::mutate(
+      value = paste(.data[[rules[[1]]]], "/", .data[[rules[[2]]]])
+    ) |>
+    dplyr::select(dplyr::all_of(c("view", what, "value"))) |>
+    dplyr::arrange(view) |>
+    tidyr::pivot_wider(names_from = "view", values_from = "value")
+  list(best = best, table = table)
+}
+
+# Whether the best `what` of compare_truth_rules() holds under Q2b: "holds in
+# every view", or the views where it changes, with the winner under each rule.
+rule_holds_phrase <- function(cmp) {
+  rules <- names(truth_rules)
+  b <- cmp$best
+  if (all(b$holds)) {
+    return("holds in every view")
+  }
+  changed <- b[!b$holds, ]
+  paste0(
+    "holds in ",
+    sum(b$holds),
+    " of ",
+    nrow(b),
+    " views; it changes on ",
+    paste0(
+      changed$view,
+      " (**",
+      changed[[rules[[1]]]],
+      "** under `",
+      rules[[1]],
+      "`, **",
+      changed[[rules[[2]]]],
+      "** under `",
+      rules[[2]],
+      "`)",
+      collapse = "; "
+    )
+  )
 }
 
 # The benchmark_costs of one dataset's assignment store, stopped when none of

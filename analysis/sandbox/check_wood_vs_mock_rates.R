@@ -78,6 +78,7 @@ stopifnot(all(count(rates, dataset)$n == 36))
 
 # The Pauvert rates must be chapter 01's.
 ch01 <- readRDS("analysis/_cache/res_comp_tax.rds") |>
+  keep_truth_rule() |>
   filter(
     dataset == "pauvert",
     unit == "ASV",
@@ -99,7 +100,7 @@ stopifnot(nrow(check) == 36)
 message(
   "NA_fake matches chapter 01 on Pauvert ITS1 ASV: ",
   all(abs(check$NA_fake - check$ch01_NA_fake) < 1e-9),
-  "; NA_real differs only by the units left out below their truth depth: max gap ",
+  "; NA_real differs only by the units chapter 01 leaves out (below their truth depth, or without truth under the lead rule): max gap ",
   round(max(abs(check$NA_real - check$ch01_NA_real)), 3)
 )
 

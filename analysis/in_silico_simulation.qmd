@@ -254,7 +254,9 @@ score_insilico_region <- function(region) {
   d <- tar_read_raw(paste0("d_all_taxo_", input), store = insilico_store) |>
     clean_taxo() |>
     add_gen_sp()
-  score_assignments(
+  # Both truth rules, as the mocks of chapter 01 (OD 44): chapter 07 reads
+  # this set beside Tedersoo under the lead rule.
+  score_truth_rules(
     d,
     build_ranks_df(
       d,
@@ -276,7 +278,7 @@ res_insilico <- bind_rows(lapply(insilico_regions, score_insilico_region)) |>
 saveRDS(res_insilico, file.path(cache_dir, "res_insilico.rds"))
 
 res_insilico |>
-  count(region, external_scoring)
+  count(region, truth_rule, external_scoring)
 ```
 
 ### The positive control
@@ -289,6 +291,7 @@ settings, the counts over the 71 ASVs:
 ```{r positive-control}
 #| eval: !expr score_insilico
 res_insilico |>
+  keep_truth_rule() |>
   filter_default_settings() |>
   filter(
     grepl("^Unite_s_all", db),
@@ -304,7 +307,9 @@ res_insilico |>
 *Reading of 2026-10-05, on the ITSx regions (OD 34), the patched dada2 and the
 common LCA (OD 33).* The truthed ASVs are 68 in ITS1 and full, 67 in ITS2 (ITSx
 does not extract ITS2 from one of them); the 3 truthless ASVs stay in the
-matrix and count as FP when assigned, as on the mocks (Q2b). The three
+matrix and count as FP when assigned, as on the mocks (Q2b). *Since OD 44
+(2026-10-12) the table above reads the lead truth rule, where they leave the
+matrix: its FP can be up to 3 lower than the counts quoted here.* The three
 `Unite_s_all_20250219` databases give the same TP and FN; on `_Fungi` the
 `external_` controls, scored in the matrix there, add at most one FP. **It
 passes for sintax and dada2**: both name the right genus for every truthed ASV
@@ -342,6 +347,7 @@ exact records gives on a community of known lineages.
 #| eval: !expr score_insilico
 #| fig-height: 11
 res_insilico |>
+  keep_truth_rule() |>
   filter_default_settings() |>
   filter(tax_level %in% c("Genus", "Gen_sp"), metrics == "F1_score") |>
   mutate(db = factor(db, levels = db_list)) |>

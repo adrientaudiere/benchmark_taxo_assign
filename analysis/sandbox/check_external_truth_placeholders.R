@@ -118,6 +118,7 @@ rates <- lapply(seq_len(nrow(defaults)), function(k) {
 
 # Variant D is chapter 01's ext_correct since decision D (2026-09-30).
 ch01 <- readRDS("analysis/_cache/res_comp_tax.rds") |>
+  keep_truth_rule() |>
   filter(
     dataset == "pauvert",
     unit == "ASV",

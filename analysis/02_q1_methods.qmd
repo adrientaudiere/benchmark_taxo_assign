@@ -258,6 +258,36 @@ view_tabs(res_all, views, function(res, v) {
 })
 ```
 
+## Under Q2b (OD 44)
+
+Every section above reads the lead truth rule, `no_truth_aside`: the real
+units without a truth (best hit 90–99.5 % to a mock member) leave the
+scoring, so the chapter measures the assignment step, not how well the
+sequencing represents the community. Under `q2b` they stay in it, wrong when
+named and missed when left NA (chapter 01, OD 44).
+
+```{r q2b-data}
+#| include: false
+s02_rules <- compare_truth_rules(function(rule) {
+  view_rows(res_all, views, truth_rule = rule) |>
+    filter(metrics == "F1_score", tax_level == "Genus") |>
+    filter_default_settings() |>
+    group_by(view, algo) |>
+    summarise(value = mean(values), .groups = "drop")
+}, "algo")
+```
+
+The best method at Genus `r rule_holds_phrase(s02_rules)`.
+
+```{r q2b-table}
+#| echo: false
+knitr::kable(
+  s02_rules$table,
+  col.names = c("Method", names(s02_rules$table)[-1]),
+  caption = "Genus F1 per method, default settings, mean over the nine databases: no_truth_aside / q2b."
+)
+```
+
 ```{r versions-footer, results = "asis", echo = FALSE}
 versions_footer()
 ```

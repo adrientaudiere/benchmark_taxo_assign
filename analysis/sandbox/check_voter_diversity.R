@@ -114,7 +114,8 @@ scores <- score_assignments(
   db_meta,
   external_truth = external_control_truth(taxa_names(d)),
   truth_ranks = truth_ranks,
-  consensus_scorings = "aside"
+  consensus_scorings = "aside",
+  no_truth = truth_rules[[lead_truth_rule]]
 )
 
 real_only <- function(x) {
@@ -135,6 +136,7 @@ real_only <- function(x) {
 vote_scores <- real_only(scores) |>
   mutate(subset = sub("^vote_", "", method_db))
 single <- readRDS("analysis/_cache/res_comp_tax.rds") |>
+  keep_truth_rule() |>
   filter(
     dataset == "pauvert",
     unit == "ASV",
@@ -144,6 +146,7 @@ single <- readRDS("analysis/_cache/res_comp_tax.rds") |>
 
 # Check against chapter 01.
 chapter01 <- readRDS("analysis/_cache/res_comp_tax.rds") |>
+  keep_truth_rule() |>
   filter(
     dataset == "pauvert",
     unit == "ASV",

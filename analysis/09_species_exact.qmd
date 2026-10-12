@@ -125,7 +125,8 @@ score_exact_input <- function(v) {
     map,
     v$input
   )
-  res <- score_assignments(
+  # Both truth rules, as the grid rows they are compared with (OD 44).
+  res_rules <- score_truth_rules(
     added$physeq,
     added$ranks_df,
     truth,
@@ -141,18 +142,27 @@ score_exact_input <- function(v) {
       match = names(match_tags)[match(sub("^.*___", "", method_db), match_tags)],
       approach = ifelse(match == "exact", "exact match", paste0("near: ", match))
     )
-  list(view = v, res = res, truth = truth, map = map)
+  list(
+    view = v,
+    res = keep_truth_rule(res_rules),
+    res_rules = res_rules,
+    truth = truth,
+    map = map
+  )
 }
 scored <- lapply(seq_len(nrow(species_views)), \(i) score_exact_input(species_views[i, ]))
 names(scored) <- species_views$id
 
 # The exact and near rows of every input, and the Species rows of the main
 # grid for the same inputs (chapter 01): the four methods, every setting.
-res_species <- bind_rows(lapply(scored, function(s) {
-  mutate(s$res, dataset = s$view$dataset, input = s$view$input, view = s$view$view)
+# Both truth rules in the `_rules` objects (Q2b section), the lead one in the
+# others.
+res_species_rules <- bind_rows(lapply(scored, function(s) {
+  mutate(s$res_rules, dataset = s$view$dataset, input = s$view$input, view = s$view$view)
 }))
+res_species <- keep_truth_rule(res_species_rules)
 res_exact <- filter(res_species, match == "exact")
-res_grid <- cache_read("res_comp_tax") |>
+res_grid_rules <- cache_read("res_comp_tax") |>
   filter(tax_level == "Gen_sp", !is_consensus, algo %in% single_methods) |>
   mutate(input = paste0(region, "_", tolower(unit))) |>
   inner_join(select(species_views, dataset, input, view), by = c("dataset", "input")) |>
@@ -163,6 +173,7 @@ res_grid <- cache_read("res_comp_tax") |>
       TRUE ~ paste0(vote_algorithm, " ", min_id, " %")
     )
   )
+res_grid <- keep_truth_rule(res_grid_rules)
 res_grid_default <- filter_default_settings(res_grid) |>
   mutate(approach = "main grid, default")
 res_both <- bind_rows(res_exact, res_grid_default) |>
@@ -638,6 +649,51 @@ calls_near |>
     .groups = "drop"
   ) |>
   knitr::kable(caption = "vsearch and blastn: (query, database) pairs with the same call, per match level.")
+```
+
+## Under Q2b (OD 44)
+
+Every section above reads the lead truth rule, `no_truth_aside`: the real
+units without a truth (best hit 90–99.5 % to a mock member) leave the
+scoring, so the chapter measures the assignment step, not how well the
+sequencing represents the community. Under `q2b` they stay in it, wrong when
+named and missed when left NA (chapter 01, OD 44).
+
+```{r q2b-data}
+#| include: false
+# Exact matching (mean of its three methods) against dada2 and sintax at
+# bootstrap 0.5, per input, under each truth rule; means over the databases.
+s09_rule_means <- function(rule, metric) {
+  bind_rows(
+    keep_truth_rule(res_species_rules, rule) |>
+      filter(match == "exact") |>
+      mutate(approach = "exact match"),
+    keep_truth_rule(res_grid_rules, rule) |>
+      filter_default_settings() |>
+      filter(algo %in% c("dada2", "sintax")) |>
+      mutate(approach = "dada2 and sintax, bootstrap 0.5")
+  ) |>
+    filter(metrics == metric) |>
+    group_by(view, approach) |>
+    summarise(value = mean(values, na.rm = TRUE), .groups = "drop")
+}
+s09_rules_ppv <- compare_truth_rules(\(rule) s09_rule_means(rule, "PPV"), "approach")
+s09_rules_f1 <- compare_truth_rules(\(rule) s09_rule_means(rule, "F1_score"), "approach")
+```
+
+Which approach has the higher Species PPV `r rule_holds_phrase(s09_rules_ppv)`;
+which has the higher F1 `r rule_holds_phrase(s09_rules_f1)`.
+
+```{r q2b-table}
+#| echo: false
+knitr::kable(
+  bind_rows(
+    mutate(s09_rules_ppv$table, metric = "PPV"),
+    mutate(s09_rules_f1$table, metric = "F1")
+  ) |>
+    relocate(metric),
+  caption = "Species PPV and F1, mean over the nine databases: no_truth_aside / q2b."
+)
 ```
 
 ```{r versions-footer, results = "asis", echo = FALSE}
