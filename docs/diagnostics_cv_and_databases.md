@@ -167,7 +167,7 @@ file format nor the organelle records explain it.
   but the low bootstrap is the tie of the overflow above, and the patched build
   assigns on the same broad file.
 - *Withdrawn: the controlled test as support for breadth*
-  (`analysis/sandbox/check_dada2_long_refs.R`, 195 mock ASVs, `minBoot = 50`,
+  (`Archives/sandbox_pre_od34/check_dada2_long_refs.R`, 195 mock ASVs, `minBoot = 50`,
   reference = 10 000 Fungi records of `mini_EUK_ITS_v2.1_Fungi`): 96.4 % genus
   alone; 50.8 % after adding the 7 871 records > 5 kb; 9.7 % after adding 7 871
   random non-Fungi records ≤ 5 kb. Its fungal arm is the first 10 000 records

@@ -6,8 +6,10 @@
 ### `dada2_<dataset>` + `assign_taxo_<dataset>` (korhonen_wood, gssp_air,
 ### insilico, tedersoo_illumina, rolling_mock). The DADA2 step is quick when
 ### its store is up to date; when it fails or leaves targets outdated, the
-### assignment grid of that dataset is skipped. No pruning: run_project(prune =
-### TRUE) by hand once the run is checked.
+### assignment grid of that dataset is skipped. Each project is pruned after a
+### build that left nothing outdated (run_project(prune = TRUE), code review
+### 1.8): a script that reads a target no longer in the pipeline then fails
+### instead of reading stale data.
 ###
 ### Since 2026-09-27 every project assigns its ITSx inputs only (OD 34). Since 2026-09-29 the computations run one at a time
 ### (config.R single_worker = TRUE): with the dada2 worker beside two fast
@@ -61,7 +63,7 @@ for (dataset in datasets) {
       " | outdated targets: ",
       length(targets::tar_outdated(reporter = "silent"))
     )
-    run <- run_project(project, prune = FALSE, reporter = "timestamp")
+    run <- run_project(project, prune = TRUE, reporter = "timestamp")
     log_line(
       "== ",
       project,
