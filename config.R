@@ -88,6 +88,25 @@ db_meta <- tibble::tibble(
   simplification = benchmark_dbs$simplification
 )
 
+# Final zoom (ROADMAP 0.11b, OD 40; developer 2026-10-12): `fungi + rep cut`
+# = the `_Fungi_cut` records (amplicon cut, ITS1F / ITS2) plus the untrimmed
+# representatives of the same source's `_Fungi_rep`, on the best source of
+# each provider on Pauvert. Kept out of zoom_dbs, db_suffix, db_meta and
+# db_list, which every production store tracks: changing them would outdate
+# the grids.
+zoom_sources <- c("EUK_ITS_v2.1", "Unite_all_20250219")
+zoom_rep_cut_dbs <- paste0(zoom_sources, "_Fungi_rep_cut")
+# Grid of the assign_taxo_zoom project (Pauvert inputs, every method): each
+# source's `_Fungi_rep`, a replica of the main grid's columns, and its
+# `_Fungi_rep_cut`.
+zoom_grid_dbs <- c(paste0(zoom_sources, "_Fungi_rep"), zoom_rep_cut_dbs)
+zoom_db_meta <- tibble::tibble(
+  db = zoom_rep_cut_dbs,
+  db_base = zoom_sources,
+  simplification = "Fungi+rep+cut"
+)
+zoom_project <- Sys.getenv("TAR_PROJECT", unset = "") == "assign_taxo_zoom"
+
 # Seed taxonomy of the DADA2 pipeline (the benchmark itself re-assigns).
 seed_taxonomy_db <- "Unite_s_all_20250219_Fungi"
 # Release whose non-Fungi records feed the external negative controls.

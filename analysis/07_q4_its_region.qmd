@@ -20,6 +20,10 @@ record of every ASV is in the reference (the positive control of
 `in_silico_simulation.qmd`), and on the EUKARYOME ones it is not (OD 29a). The
 region effect is read within a database, never across.
 
+F1 and PPV are scored on the real units only; MCC keeps the controls in the
+matrix, the TN cell being theirs (OD 49). The controls report through their
+own rates, in a table under the summary.
+
 ```{r setup}
 here::i_am("analysis/07_q4_its_region.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
@@ -169,12 +173,31 @@ s07_paired_spread <- s07_paired_by_region |>
   filter(tax_level == "Genus") |>
   group_by(view, algo) |>
   summarise(spread = max(value) - min(value), .groups = "drop")
+# Paired intervals (OD 50) on the ASVs trimmed in every region: the same
+# ASV is one unit in the three regions, so a draw resamples it in all three.
+# Each region against the others, mean over the methods and databases.
+s07_cells <- read_cells() |>
+  filter(common, unit == "ASV", !is_consensus) |>
+  mutate(column = method_db, unit_id = taxon, group = taxon)
+s07_intervals <- bind_rows(lapply(unique(s07_cells$dataset), function(d) {
+  cells <- filter(s07_cells, dataset == d)
+  cols <- distinct(cells, column, region)
+  of <- \(r) cols$column[cols$region == r]
+  boot_contrasts(boot_view(cells), list(
+    list(label = "full − ITS1", a = of("full"), b = of("ITS1")),
+    list(label = "full − ITS2", a = of("full"), b = of("ITS2")),
+    list(label = "ITS1 − ITS2", a = of("ITS1"), b = of("ITS2"))
+  )) |>
+    mutate(view = d)
+}))
+s07_iv_f1 <- filter(s07_intervals, metric == "F1")
 # Words that follow the numbers, so that no adjective outlives the data.
 s07_region_word <- if (max(s07_genus_spread$spread) < 0.03) {
   "below 0.03 for every method: at Genus the region barely matters"
 } else {
   "0.03 or more for at least one method: the region matters there"
 }
+s07_controls <- controls_beside(res_q4, "region")
 ```
 
 ASVs, default settings, F1 averaged over the nine reference databases; one
@@ -190,12 +213,22 @@ value per dataset (`r paste(q4_datasets, collapse = ", ")`).
 - **On the ASVs trimmed in all three regions** (Tedersoo, `r n_common` of
   the `r n_common_all` real ASVs common to the regions, Q4.4): the best
   region at Genus is `r best_phrase(s07_paired_best, "region")`; best minus
-  worst region per method `r fmt_range(s07_paired_spread$spread)`.
+  worst region per method `r fmt_range(s07_paired_spread$spread)`. Paired
+  intervals (OD 50, 95 % bootstrap over these ASVs, mean over the methods
+  and databases, table in Q4.4): full − ITS1
+  `r with(filter(s07_iv_f1, contrast == "full − ITS1"), fmt_interval(delta, lo, hi))`,
+  full − ITS2
+  `r with(filter(s07_iv_f1, contrast == "full − ITS2"), fmt_interval(delta, lo, hi))`,
+  ITS1 − ITS2
+  `r with(filter(s07_iv_f1, contrast == "ITS1 − ITS2"), fmt_interval(delta, lo, hi))`.
 - **blastn cost** (provisional, OD 31): the full ITS takes
   `r fmt_range(s07_blastn_gain$gain[s07_blastn_gain$region == "ITS1"], 1)`
   times the ITS1 time and
   `r fmt_range(s07_blastn_gain$gain[s07_blastn_gain$region == "ITS2"], 1)`
   times the ITS2 time, summed over the nine databases.
+- **Controls** (OD 49): the F1 above is scored on the real units only; with
+  the controls in the matrix it is lower by
+  `r fmt_range(s07_controls$shift)` (region means per dataset, table below).
 
 ```{r summary-fig}
 #| echo: false
@@ -212,6 +245,11 @@ fig_summary_07_f1_by_region <- s07_by_region |>
   theme(legend.position = "bottom")
 print(fig_summary_07_f1_by_region)
 save_fig(fig_summary_07_f1_by_region, "fig_summary_07_f1_by_region", width = 9, height = 6)
+```
+
+```{r summary-controls, results = "asis"}
+#| echo: false
+cat_controls_beside(s07_controls, "Region", "means over the methods and databases")
 ```
 
 The regions are cut from the same ASVs, but ITSx does not find every region in
@@ -411,6 +449,11 @@ res_paired |>
   ) |>
   arrange(algo, factor(db, levels = db_list)) |>
   knitr::kable(caption = "Tedersoo, ASVs trimmed in the three regions: Genus F1 per region and the difference to the full ITS.")
+```
+
+```{r q4-4-intervals, results = "asis"}
+#| echo: false
+cat_intervals(s07_intervals, "ASVs trimmed in the three regions, each region against another, mean over the methods and databases.")
 ```
 
 ```{r q4-4-dada2}

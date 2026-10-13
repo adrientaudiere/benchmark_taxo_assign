@@ -321,6 +321,20 @@ test_that("CV records are named by the sintax_format identifiers of the same dat
   )
 })
 
+test_that("config: the final zoom stays out of the production grid (OD 40)", {
+  expect_setequal(
+    zoom_grid_dbs,
+    c(
+      paste0(zoom_sources, "_Fungi_rep"),
+      paste0(zoom_sources, "_Fungi_rep_cut")
+    )
+  )
+  expect_true(all(paste0(zoom_sources, "_Fungi_rep") %in% db_list))
+  expect_false(any(zoom_rep_cut_dbs %in% c(db_list, db_meta$db, zoom_dbs$db)))
+  expect_setequal(zoom_db_meta$db, zoom_rep_cut_dbs)
+  expect_true(all(zoom_sources %in% reference_sources$source))
+})
+
 test_that("db_meta covers every database of db_list", {
   expect_setequal(db_meta$db, db_list)
 })

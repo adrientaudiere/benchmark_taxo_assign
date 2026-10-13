@@ -1096,6 +1096,19 @@ The developer's answers, verbatim after **>>**, with what each changes.
     `EUK_ITS_v2.1_Fungi_cut` on disk predates the cap and must be rebuilt.
     → `reviews/code_review_2026-10-05.md` §1.6, `ROADMAP.md` §4
 
+    *Specified 2026-10-12 (developer):* the cut is the amplicon cut of
+    OD 16 (cutadapt ITS1F / ITS2, records without a primer site kept whole),
+    not an ITSx extraction of the references, although the queries are ITSx
+    ITS1 since OD 34; on the two sources it removes the 5.8S end and ITS2
+    from 92-98 % of the records and almost never finds ITS1F. Sources:
+    `EUK_ITS_v2.1` and `Unite_all_20250219`, the best of each provider on
+    Pauvert under the lead truth rule. Every method and setting, in a
+    project of its own (`assign_taxo_zoom`) whose grid also repeats the two
+    `_Fungi_rep` databases, so the comparison runs on one input and the
+    replica is checked against chapter 01; scored in chapter 03 (Q2.6). The
+    zoom objects stay out of `zoom_dbs`, `db_suffix`, `db_meta` and
+    `db_list`, which every production store tracks.
+
 41. **Denoising keeps dada2's default read filtering, and the seed spread
     of the k-mer methods is reported as their noise floor** (developer,
     2026-10-06; answers Q4, Q9 and Q10 of `reviews/code_review_2026-10-05.md` §11).
@@ -1222,6 +1235,95 @@ The developer's answers, verbatim after **>>**, with what each changes.
     (ITS1 ASV, default columns, Genus F1 mean, Pauvert / Tedersoo /
     Rolling): Q2b 0.79 / 0.90 / 0.44, units without truth aside 0.91 /
     0.96 / 0.99 (`HISTORY.md` §3d 55). → `ROADMAP.md` §2
+
+45. **The Introduction states four falsifiable predictions** (developer,
+    2026-10-12; accepts C22-P1 of `docs/manuscript_framing.md`). The paper
+    opens on P1a (curation bias), P1b (breadth, not size), P1c (an
+    abstention trade-off) and P1d (trimming the references is a no-op)
+    instead of the "best trade-off" question; the trade-off becomes the
+    practical conclusion. All four are reported in the Results, the refuted
+    ones included: P1c is not supported (every method abstains on the
+    controls, SA1), P1d holds on Genus F1 but not on the controls (final
+    zoom, chapter 03 Q2.6); P1a and P1b are read from chapter 03.
+    → `ROADMAP.md` §4
+
+46. **Q2 is read as UNITE against EUKARYOME, Q3 against the effective
+    number of voters** (developer, 2026-10-12; accepts C22-P6). The nine
+    databases are two providers with a nested filtering ladder (whole
+    release → Fungi → Fungi + representatives) and a second UNITE release,
+    so Q2 is written as paired within-source contrasts and as "UNITE vs
+    EUKARYOME", never as "nine databases" (n = 2 providers). The Q3 gain of
+    a consensus is reported against the effective number of independent
+    voters among its columns, not their count (C22-P21 measured the
+    subsets; the effective number is still to compute). → `ROADMAP.md` §4
+
+47. **The dada2 overflow and the trimming zoom are Results; Q5 is
+    secondary** (developer, 2026-10-12; accepts C22-P5 as revised by OD 44
+    and the final zoom). Promoted to Results: dada2 scoring every taxonomy
+    above the 65 536th with the wrong k-mer profile (a 32-bit overflow,
+    `HISTORY.md` §2), and the `fungi + rep cut` zoom (no-op on Genus F1,
+    fewer controls named Fungi by the k-mer methods). Q5 stays a short
+    secondary result whose message is that the OTU gain over the ASVs
+    depends on how the units without truth are scored (OD 44: 143 of 180
+    columns under Q2b, 58 with them aside). → `ROADMAP.md` §4
+
+48. **Every reading on the three mocks at once, no held-out selection**
+    (developer, 2026-10-12; refuses C22-P3). First accepted the same day as
+    a hold-out (the recommendation picked on Pauvert, confirmed on Tedersoo
+    and Rolling), then revised by the developer: selecting on one mock and
+    testing on the others brings nothing here, since the methods run at
+    their default settings and no parameter is tuned (decision 31). Every
+    reading, the recommendation included, is made on Pauvert, Tedersoo and
+    Rolling together; where the mocks disagree, the paper says so.
+    → `ROADMAP.md` §4
+
+49. **The headline F1, PPV and TPR are scored on the real units only**
+    (developer, 2026-10-12; accepts C22-P8). The `fake_` and `external_`
+    controls leave the matrix of the primary endpoints and report through
+    their own rates (`NA_fake`, `ext_fungi`, `ext_correct`,
+    `ctrl_assigned`), in a short table beside each headline, so the
+    absolute scores no longer depend on `prop_fake = 0.5` or on the control
+    count. The `external_scoring` grouping (decisions 6, 15, 22) keeps
+    deciding which control rates are errors. → `ROADMAP.md` §4
+
+50. **Paired bootstrap intervals on every paired contrast, no McNemar**
+    (developer, 2026-10-12; accepts C22-P11, widened). Each paired
+    difference of a primary endpoint (Genus F1 and PPV) gets a 95 %
+    bootstrap interval, 10⁴ resamples of the scored units with the
+    difference recomputed on each: the Q2 ladder and UNITE against
+    EUKARYOME, the trimming zoom, Q3 consensus against the best single
+    column, Q4 regions on the common units, Q5 units. No McNemar test: the
+    interval already carries the claim, and it avoids a family of p-values
+    to correct. → `ROADMAP.md` §4
+    **Specified 2026-10-13 (developer).** The cells of each unit come from
+    comparpq (`tc_cells_unit()`, the same rules as `tc_metrics_unit_vec()`,
+    which sums them), cached by chapter 01 as `res_cells` (Genus, real
+    units, lead truth rule). Q5 resamples the OTU clusters, each with its OTU
+    and its member ASVs, since the two unit sets differ. The intervals go
+    into the summary sentences and one table per section, lead truth rule
+    only. A contrast between two winners chosen on the data (Q3: the best
+    consensus against the best of 36 single columns) chooses them again on
+    every draw (`boot_contrast_best()`), so that the interval carries the
+    selection.
+
+51. **Three uses of taxonomic assignment, each with its endpoint and its
+    recommendation** (developer, 2026-10-12; amends OD 43 and OD 48). The
+    paper separates three uses, which weigh the scoring trade-offs
+    differently; all three want few units left NA.
+    **(1) Filtering groups** (removing or selecting them): confidence at the
+    upper ranks. Endpoint: PPV and `NA_real` of the real units from Kingdom
+    to Order, with the control rates (`ext_fungi`, `NA_fake`), which are
+    primary here: a filter must keep the right groups and reject the
+    intruders. **(2) Filling the taxonomy to study the ecology of the taxa**,
+    crossed with trait databases (taxinfo; FungalTraits works at the
+    genus): Genus F1 and PPV, the primary endpoint of OD 43, which becomes
+    this use's. **(3) Finding one or a few target species, and being sure
+    of it**: each mock species taken in turn as the target, per method ×
+    database: detected or not (at least one of its units given its name)
+    and false detections (units of other species, or controls, given its
+    name); the pooled Species reading of chapter 09 stays beside it. The
+    Introduction states the three uses, the Results read each one, and the
+    recommendation is made per use, on the three mocks at once (OD 48). → `ROADMAP.md` §4
 
 ---
 

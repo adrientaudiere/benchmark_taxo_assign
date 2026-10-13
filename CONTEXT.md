@@ -44,6 +44,10 @@ Idea from https://github.com/mattpocock/skills.
 
 **truth rule (`truth_rule`)** — How the scoring treats the units without truth (OD 44): `no_truth_aside` (leads; they leave the matrix at every rank, `no_truth_named` reports the share a method names; comparpq `tc_metrics_unit(no_truth = "aside")`) or `q2b` (they stay in the matrix, FP when named, FN when left NA). The paper measures the assignment step, not how well sequencing reproduces the community. A column of `res_comp_tax`, `res_paired` and `res_subsample`; `default_view()` keeps one rule.
 
+**paired bootstrap interval (OD 50)** — The 95 % interval of a difference of Genus F1 or PPV between columns scored on the same units: the units are resampled 10⁴ times and every column is scored again on each draw (`R/paired_bootstrap.R`), from the per-unit cells of `res_cells` (`comparpq::tc_cells_unit()`, chapter 01). Q5 resamples OTU clusters (an OTU with its member ASVs); a contrast between two winners chosen on the data (Q3, best consensus against best single column) chooses them again on every draw (`boot_contrast_best()`). No McNemar test.
+
+**real-units headline (`F1_with_ctrl`)** — Since OD 49 (accepts C22-P8) the headline F1, PPV and FDR are scored on the real units only; the `fake_` and `external_` controls report through their own rates (`NA_fake`, `ext_fungi`, `ext_correct`, `ctrl_assigned_*`), in a table under each chapter summary (`controls_beside()`). Derived from the cells comparpq returns (`R/score_assignments.R::real_units_headline()`); the values with the controls in the matrix stay as `F1_with_ctrl`, `PPV_with_ctrl`, `FDR_with_ctrl`. TPR never involves the controls; MCC, ACC and TNR keep them (TN is theirs), and so does the `FP` cell.
+
 **`tc_metrics_mock()`** — The older comparpq function: set-membership metrics for each (method x db x rank) against a list of expected taxa. **Superseded here** by `tc_metrics_unit()` and kept in comparpq for a mock that comes with no per-sequence truth.
 
 **consensus voting / `resolve_taxo_conflict()`** — `comparpq` function that combines taxonomy assignments from multiple methods/databases into a single consensus call. Five strategies: `unanimity`, `consensus`, `abs_majority`, `rel_majority`, `preference`. Controlled by `strict` (boolean) and `nb_agree_threshold` (integer: 1, 2, or 3).
@@ -98,7 +102,9 @@ Idea from https://github.com/mattpocock/skills.
 
 **closed-book benchmark** — A benchmark whose every truth taxon is present in the reference, which is what a mock community is by construction (134-163 of the 181 Pauvert species are found by exact name match in UNITE / EUKARYOME). It measures *identification of known taxa*, not discovery of novel lineages — the case practitioners actually struggle with, and the question Orsholm et al. 2026 made central. The proposed opening move is the **one-species-out** test (ROADMAP C22-P7): remove every record of one mock species from a reference and score its ASVs.
 
-**held-out confirmation** — Proposed rule (ROADMAP C22-P3) for any *recommendation*: select the best (method x database x parameter) on the Pauvert mock and confirm it on Tedersoo, so a parameter set is never recommended from the mock that picked it. The parameter sweeps themselves stay untuned and reported in full (decision 31); only the recommendation is held out.
+**three uses (OD 51)** — The paper reads taxonomic assignment through three uses, each with its endpoint and its recommendation: **filtering groups** (PPV and `NA_real` from Kingdom to Order, the control rates primary), **filling the taxonomy for traits** (Genus F1 and PPV, OD 43; FungalTraits works at the genus, crossed through taxinfo), **target species** (each mock species as the target: detected or not, false detections). All three want few units left NA.
+
+**held-out confirmation** — Refused (OD 48, C22-P3): no recommendation is picked on one mock and tested on the others. The methods run at their default settings and nothing is tuned (decision 31), so every reading, the recommendation included, is made on Pauvert, Tedersoo and Rolling at once, and their disagreements are reported.
 
 **real units vs controls (denominators)** — Proposed reporting rule (ROADMAP C22-P8): headline F1 / PPV / TPR computed on the **real units only**, with the negative controls carried by their own rates (`NA_fake`, `ext_fungi`, `ext_correct`, `ctrl_assigned`). Mixing them makes the absolute metrics depend on `prop_fake = 0.5` and on the number of `external_` records, which are constants of the harness rather than properties of the methods.
 
@@ -147,6 +153,8 @@ Idea from https://github.com/mattpocock/skills.
 **species section (OD 43, 2026-10-06)** — The paper benchmarks taxonomic assignment as a whole (primary endpoints: F1 and PPV at Genus); species assignment is reported apart, a species being named only by an exact (100 %) match: `dada2::assignSpecies()` on the `species_format/` references, vsearch `--usearch_global --id 1 --query_cov 1` keeping every exact hit (`--search_exact` needs full-length identity and fails on ITSx-cut queries), blastn at 100 %. Expected to name fewer species than a bootstrap classifier at its threshold.
 
 **zoom** — Project strategy (2026-09-17): a secondary question (trimmed references, cross-validation breadth) is answered on the few best combinations of the main grid rather than by adding a grid level; e.g. `fungi + rep cut` on one UNITE and one EUKARYOME database, Pauvert mock only.
+
+**`fungi + rep cut` (`_Fungi_rep_cut`)** — Database of the final zoom (OD 40): the `_Fungi` records cut to the ITS1F–ITS2 amplicon (in practice ITS1 and the 5.8S start: ITS1F lies before most records) plus the untrimmed representatives of the same source's `_Fungi_rep`, so the two differ only by the cutting. Built by `make_databases.R::derive_fungi_rep_cut()` for `config.R::zoom_sources`, assigned by the `assign_taxo_zoom` project, read in chapter 03 (Q2.6).
 
 **`tar_option_set(seed = 22)`** — Fixed random seed set in both `pipelines/dada2.R` and `pipelines/assign_taxo.R`. Must be preserved when modifying targets so pipeline re-runs stay reproducible.
 

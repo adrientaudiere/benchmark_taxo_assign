@@ -13,6 +13,10 @@ Every section has one tab per mock and ITSx region (`analysis_views()` in
 `00_setup.R`), on the ASVs: Pauvert ITS1, then Tedersoo ITS1, ITS2 and full.
 The figures are saved once per view, suffixed with it.
 
+F1 and PPV are scored on the real units only; MCC keeps the controls in the
+matrix, the TN cell being theirs (OD 49). The controls report through their
+own rates, in a table under the summary.
+
 ```{r setup}
 here::i_am("analysis/04_q3_consensus.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
@@ -60,6 +64,32 @@ s04_word <- if (all(s04_both$gain_mean > 0) && mean(s04_both$gain_best > 0) <= 0
 } else {
   "The consensus gain is mixed across views and ranks."
 }
+# Paired interval (OD 50) of the best consensus strategy against the best
+# single column, per view. Both winners are chosen again on every draw
+# (boot_contrast_best()): fixing the two columns picked on the observed units
+# would ignore that the best of 36 single columns is itself inflated.
+s04_cells <- read_cells()
+s04_strategies <- paste0(c("preference", "rel_majority", "abs_majority", "consensus", "unanimity"), "_consensus")
+s04_intervals <- bind_rows(lapply(seq_len(nrow(views)), function(i) {
+  cells <- s04_cells |>
+    filter(dataset == views$dataset[i], region == views$region[i], unit == "ASV") |>
+    filter(!is_consensus | algo %in% s04_strategies) |>
+    mutate(column = method_db, unit_id = taxon, group = taxon)
+  cols <- distinct(cells, column, is_consensus)
+  boot_contrasts(boot_view(cells), list(list(
+    label = "best consensus − best single column",
+    a = cols$column[cols$is_consensus],
+    b = cols$column[!cols$is_consensus],
+    best = TRUE
+  ))) |>
+    mutate(view = views$label[i])
+}))
+s04_iv_f1 <- filter(s04_intervals, metric == "F1")
+s04_controls <- view_rows(res_all, views) |>
+  filter(is_consensus, !consensus_strict, nb_agree == 1L) |>
+  filter(algo %in% paste0(c("preference", "rel_majority", "abs_majority", "consensus", "unanimity"), "_consensus")) |>
+  mutate(strategy = sub("_consensus$", "", algo)) |>
+  controls_beside("strategy")
 ```
 
 ASVs; each consensus votes over the 36 single columns at default settings
@@ -69,10 +99,17 @@ of the 36.
 - **Genus**: the best strategy is `r best_phrase(s04_g, "strategy")`.
   It beats the best single column `r s04_beats(s04_g)` (difference
   `r fmt_range(s04_g$gain_best)`), and the mean single column by
-  `r fmt_range(s04_g$gain_mean)`.
+  `r fmt_range(s04_g$gain_mean)`. With both winners chosen again on every
+  draw (OD 50, 95 % paired bootstrap over the units, table in Q3.2), the
+  difference with the best single column is
+  `r fmt_range(s04_iv_f1$delta)` and its interval excludes 0
+  `r excludes_zero(s04_iv_f1)`.
 - **Species** is no longer a primary endpoint here (OD 43): it is read by
   exact and near match in chapter 09; the `Gen_sp` rows below are secondary.
 - `r s04_word`
+- **Controls** (OD 49): the F1 above is scored on the real units only; with
+  the controls in the matrix it is lower by
+  `r fmt_range(s04_controls$shift)` (per strategy and view, table below).
 
 ```{r summary-fig}
 #| echo: false
@@ -96,6 +133,11 @@ fig_summary_04_consensus <- s04_cons |>
   theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 print(fig_summary_04_consensus)
 save_fig(fig_summary_04_consensus, "fig_summary_04_consensus", width = 16, height = 7)
+```
+
+```{r summary-controls, results = "asis"}
+#| echo: false
+cat_controls_beside(s04_controls, "Strategy", "one consensus column per strategy and view")
 ```
 
 ## Q3.2 — Consensus vs single-method (F1, MCC)
@@ -139,6 +181,16 @@ view_tabs(res_all, views, function(res, v) {
   print(fig_q3_consensus_vs_single)
   save_fig(fig_q3_consensus_vs_single, paste0("fig_q3_consensus_vs_single_", v$id), width = 16, height = 7)
 })
+```
+
+Paired interval of the summary's difference (OD 50): the best of the five
+consensus strategies against the best of the 36 single columns at default
+settings, ASVs. A draw resamples the scored real units and chooses both
+winners again on it, so the interval carries their selection.
+
+```{r q3-2-intervals, results = "asis"}
+#| echo: false
+cat_intervals(s04_intervals, "Best consensus strategy minus best single column, both chosen on each draw.")
 ```
 
 ## Q3.3 — rel_majority nb_agree_threshold sweep (1, 2, 3)

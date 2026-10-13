@@ -64,7 +64,14 @@ tar_option_set(
 # One input per ITSx region of the dataset and per unit (OD 34):
 # config.R::itsx_regions x itsx_units ("otu" only when the dataset has an OTU
 # input, OD 30c). The raw ASVs and OTUs are no longer assigned.
-values_map <- build_values_map(dbs = db_list, mini_db = mini_db)
+# The final zoom project (ROADMAP 0.11b) assigns the same inputs to its own
+# databases (config.R::zoom_grid_dbs).
+grid_dbs <- if (zoom_project) {
+  zoom_grid_dbs
+} else {
+  db_list
+}
+values_map <- build_values_map(dbs = grid_dbs, mini_db = mini_db)
 inputs_map <- dplyr::distinct(values_map, input, region, unit, input_pq)
 
 # One autometric log file per target and per run (see R/autometric_helpers.R),

@@ -28,6 +28,10 @@ count (chapter 01). The `OTU` truth is built on the OTU sequences, the
 `OTU_derived` one on the ASVs that name the clusters, so the two can differ by
 a unit.
 
+F1 and PPV are scored on the real units only; MCC keeps the controls in the
+matrix, the TN cell being theirs (OD 49). The controls report through their
+own rates, in a table under the summary.
+
 ```{r setup}
 here::i_am("analysis/08_q5_units.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
@@ -165,6 +169,28 @@ s08_share_word <- function(n) {
     "a majority"
   }
 }
+s08_controls <- controls_beside(res_q5, "unit")
+# Paired intervals (OD 50): the ASVs and the OTUs are different units, so a
+# draw resamples the OTU clusters, each with its OTU and its member ASVs
+# (`group`, chapter 01). Each OTU unit against the ASVs, mean over the
+# methods and databases, per view.
+s08_cells <- read_cells() |>
+  filter(!is_consensus) |>
+  mutate(
+    column = paste(unit, method_db),
+    unit_id = paste(unit, taxon)
+  )
+s08_intervals <- bind_rows(lapply(seq_len(nrow(views)), function(i) {
+  cells <- filter(s08_cells, dataset == views$dataset[i], region == views$region[i])
+  cols <- distinct(cells, column, unit)
+  of <- \(u) cols$column[cols$unit == u]
+  boot_contrasts(boot_view(cells), list(
+    list(label = "OTU − ASV", a = of("OTU"), b = of("ASV")),
+    list(label = "OTU_derived − ASV", a = of("OTU_derived"), b = of("ASV"))
+  )) |>
+    mutate(view = views$label[i])
+}))
+s08_iv_f1 <- filter(s08_intervals, metric == "F1")
 ```
 
 Default settings, F1 averaged over the four methods and nine reference
@@ -177,6 +203,12 @@ databases; one value per view (`r paste(views$label, collapse = ", ")`).
   (`r s08_share_word(s08_derived_better)`). Genus F1 gain over the ASVs,
   per column: `r fmt_range(s08_paired$otu_gain)` for `OTU`,
   `r fmt_range(s08_paired$derived_gain)` for `OTU_derived`.
+- **Paired intervals** (OD 50, 95 % bootstrap over the OTU clusters, mean
+  over the methods and databases, table in Q5.2): the Genus F1 difference
+  to the ASVs excludes 0 for `OTU`
+  `r excludes_zero(filter(s08_iv_f1, contrast == "OTU − ASV"))` and for
+  `OTU_derived`
+  `r excludes_zero(filter(s08_iv_f1, contrast == "OTU_derived − ASV"))`.
 - **Cluster then assign, or assign then cluster**: `OTU_derived` minus `OTU`,
   mean Genus F1 per view, `r fmt_range(s08_derived_vs_otu$value)`.
 - **Species** is no longer a primary endpoint here (OD 43): it is read by
@@ -188,6 +220,9 @@ databases; one value per view (`r paste(views$label, collapse = ", ")`).
   One ASV per cluster already gains
   `r fmt_range(s08_cluster_gain)` over the full ASV set (median of the
   draws).
+- **Controls** (OD 49): the F1 above is scored on the real units only; with
+  the controls in the matrix it is lower by
+  `r fmt_range(s08_controls$shift)` (unit means per view, table below).
 
 ```{r summary-fig}
 #| echo: false
@@ -202,6 +237,11 @@ fig_summary_08_f1_by_unit <- s08_by_unit |>
   theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 print(fig_summary_08_f1_by_unit)
 save_fig(fig_summary_08_f1_by_unit, "fig_summary_08_f1_by_unit", width = 14, height = 6)
+```
+
+```{r summary-controls, results = "asis"}
+#| echo: false
+cat_controls_beside(s08_controls, "Unit", "means over the methods and databases")
 ```
 
 Real units scored per unit type (`n_real`, Genus):
@@ -277,6 +317,16 @@ unit_tabs(function(res, v) {
     arrange(algo, factor(db, levels = db_list)) |>
     cat_kable(caption = "Genus F1 per unit, and the difference to the ASVs.")
 })
+```
+
+Paired intervals of the summary's differences (OD 50): each OTU unit
+against the ASVs, mean over the methods and databases, default settings. A
+draw resamples the OTU clusters, each with its OTU and its member ASVs, so
+the two unit sets stay paired.
+
+```{r q5-2-intervals, results = "asis"}
+#| echo: false
+cat_intervals(s08_intervals, "OTU units minus the ASVs, clusters resampled.")
 ```
 
 ## Q5.3 — ASVs subsampled to the OTU count

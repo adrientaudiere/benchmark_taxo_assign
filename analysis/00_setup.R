@@ -27,6 +27,7 @@ here::i_am("analysis/00_setup.R")
 source(here("config.R"))
 source(here("R/load_pqverse.R"))
 source(here("R/values_map.R"))
+source(here("R/paired_bootstrap.R"))
 load_pqverse(c("MiscMetabar", "comparpq", "dbpq", "greenAlgoR", "tidypq"))
 
 # ---- stores and directories ------------------------------------------------
@@ -516,6 +517,149 @@ rule_holds_phrase <- function(cmp) {
       collapse = "; "
     )
   )
+}
+
+# The controls beside a chapter's headline (OD 49): the headline F1 leaves
+# them out (R/score_assignments.R::real_units_headline()), so they report
+# here through their own rates. `rows` are a chapter's rows already reduced
+# to its reading (view_rows(), default settings); one row per view and `by`
+# group, means over the remaining rows: Genus F1 on the real units and with
+# the controls in the matrix, their difference, the share of shuffled
+# controls left NA at Genus and of external controls named Fungi at Kingdom.
+controls_beside <- function(rows, by) {
+  rows |>
+    dplyr::filter(
+      (.data$tax_level == "Genus" &
+        .data$metrics %in% c("F1_score", "F1_with_ctrl", "NA_fake")) |
+        (.data$tax_level == "Kingdom" & .data$metrics == "ext_fungi")
+    ) |>
+    dplyr::group_by(dplyr::across(dplyr::all_of(c("view", by, "metrics")))) |>
+    dplyr::summarise(value = mean(.data$values), .groups = "drop") |>
+    tidyr::pivot_wider(names_from = "metrics", values_from = "value") |>
+    dplyr::mutate(shift = .data$F1_score - .data$F1_with_ctrl) |>
+    dplyr::select(dplyr::all_of(c(
+      "view",
+      by,
+      "F1_score",
+      "F1_with_ctrl",
+      "shift",
+      "NA_fake",
+      "ext_fungi"
+    )))
+}
+
+# controls_beside() as a table, for a chapter's summary.
+cat_controls_beside <- function(
+  tbl,
+  by_label,
+  over = "means over the databases"
+) {
+  tbl |>
+    dplyr::mutate(dplyr::across(dplyr::where(is.numeric), \(x) round(x, 3))) |>
+    cat_kable(
+      col.names = c(
+        "View",
+        by_label,
+        "Genus F1, real units",
+        "Genus F1, controls in the matrix",
+        "Difference",
+        "Shuffled controls left NA (Genus)",
+        "External controls named Fungi (Kingdom)"
+      ),
+      caption = paste(
+        paste0(
+          "Controls beside the headline (OD 49), default settings, ",
+          over,
+          "."
+        ),
+        "The headline F1 is scored on the real units only."
+      )
+    )
+}
+
+# ---- paired bootstrap intervals (OD 50) -------------------------------------
+
+# Draws of every paired interval (R/paired_bootstrap.R); one seed for all, so
+# a chapter's intervals are reproducible and every column of a view is scored
+# on the same draws.
+n_boot <- 1e4
+
+# The per-unit cells of chapter 01 (Genus, lead truth rule, real units), with
+# the method, database, source and simplification of each column; a
+# consensus column gets its strategy as `algo` and no database.
+read_cells <- function() {
+  cols <- name_map |>
+    dplyr::distinct(method_db = full_name, algo = method, db)
+  cache_read("res_cells") |>
+    dplyr::left_join(cols, by = "method_db") |>
+    dplyr::left_join(
+      dplyr::select(db_meta, "db", "db_base", "simplification"),
+      by = "db"
+    ) |>
+    dplyr::mutate(
+      is_consensus = is.na(.data$algo),
+      algo = ifelse(
+        .data$is_consensus,
+        sub("^(ITS1|ITS2|full)_(asv|otu)_", "", .data$method_db),
+        .data$algo
+      )
+    )
+}
+
+# boot_scores() on cells already given a `column` id and a `unit_id`.
+boot_view <- function(cells) {
+  boot_scores(
+    dplyr::select(cells, "column", "unit_id", "group", "cell"),
+    n_boot = n_boot,
+    seed = targets_seed
+  )
+}
+
+# The paired intervals of a list of contrasts, each `list(label, a, b)` (sets
+# of columns of `boot`), for Genus F1 and PPV: one row per contrast and
+# metric. The means of `a` and `b`, or with `best = TRUE` their best columns,
+# chosen again on every draw (boot_contrast_best()).
+boot_contrasts <- function(boot, contrasts) {
+  dplyr::bind_rows(lapply(contrasts, function(k) {
+    dplyr::bind_rows(lapply(c("F1", "PPV"), function(m) {
+      if (isTRUE(k$best)) {
+        boot_contrast_best(boot, k$a, k$b, metric = m)
+      } else {
+        boot_contrast(boot, k$a, k$b, metric = m)
+      }
+    })) |>
+      dplyr::mutate(contrast = k$label, .before = 1)
+  }))
+}
+
+# "0.012 [0.004, 0.020]".
+fmt_interval <- function(delta, lo, hi, digits = 3) {
+  f <- \(x) format(round(x, digits), nsmall = digits)
+  paste0(f(delta), " [", f(lo), ", ", f(hi), "]")
+}
+
+# How many intervals of `tbl` (rows of boot_contrasts()) exclude 0, as
+# "in 2 of 5 views".
+excludes_zero <- function(tbl, what = "views") {
+  paste0("in ", sum(tbl$lo > 0 | tbl$hi < 0), " of ", nrow(tbl), " ", what)
+}
+
+# Intervals as a table: one row per view and contrast, F1 and PPV side by
+# side.
+cat_intervals <- function(tbl, caption) {
+  tbl |>
+    dplyr::mutate(value = fmt_interval(.data$delta, .data$lo, .data$hi)) |>
+    dplyr::select("view", "contrast", "metric", "value") |>
+    tidyr::pivot_wider(names_from = "metric", values_from = "value") |>
+    cat_kable(
+      col.names = c("View", "Difference", "Genus F1", "Genus PPV"),
+      caption = paste(
+        caption,
+        "Observed difference [95 % paired bootstrap interval,",
+        format(n_boot, big.mark = " "),
+        "draws of the units] (OD 50)."
+      )
+    )
 }
 
 # The benchmark_costs of one dataset's assignment store, stopped when none of

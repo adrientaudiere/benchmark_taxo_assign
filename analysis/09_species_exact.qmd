@@ -201,11 +201,11 @@ species_tabs <- function(fun) {
 #| include: false
 # Means over the nine databases, per input and method.
 s09_means <- res_both |>
-  filter(metrics %in% c("F1_score", "PPV", "TPR", "TP", "FP")) |>
+  filter(metrics %in% c("F1_score", "PPV", "TPR", "TP", "misassign_seq", "n_real")) |>
   group_by(view, approach, algo, metrics) |>
   summarise(value = mean(values), .groups = "drop") |>
   tidyr::pivot_wider(names_from = metrics, values_from = value) |>
-  mutate(named = TP + FP)
+  mutate(named = TP + misassign_seq * n_real)
 s09_exact <- filter(s09_means, approach == "exact match")
 s09_default <- filter(s09_means, approach == "main grid, default")
 # The three exact methods: the same call (a species or none) on every
@@ -226,13 +226,13 @@ s09_bootstrap_ppv <- filter(s09_default, algo %in% c("dada2", "sintax"))
 # Near matches (S6): vsearch and blastn at each match level.
 s09_near <- res_species |>
   filter(algo %in% c("vsearch", "blastn")) |>
-  filter(metrics %in% c("F1_score", "PPV", "TPR", "TP", "FP", "NA_fake")) |>
+  filter(metrics %in% c("F1_score", "PPV", "TPR", "TP", "misassign_seq", "n_real", "NA_fake")) |>
   group_by(view, match, algo, metrics) |>
   summarise(value = mean(values, na.rm = TRUE), .groups = "drop") |>
   tidyr::pivot_wider(names_from = metrics, values_from = value) |>
   mutate(
     match = factor(match, levels = names(match_tags)),
-    named = TP + FP,
+    named = TP + misassign_seq * n_real,
     fake_named = 1 - NA_fake
   )
 near_at <- \(m) filter(s09_near, match == m)
@@ -345,9 +345,15 @@ species_tabs(function(s, id) {
     filter(res_exact, view == s$view$view),
     filter(res_grid_default, view == s$view$view)
   ) |>
-    filter(metrics %in% c("F1_score", "PPV", "TPR", "TP", "FP")) |>
+    filter(metrics %in% c("F1_score", "PPV", "TPR", "TP", "misassign_seq", "n_real")) |>
     select(approach, algo, db, metrics, values) |>
     tidyr::pivot_wider(names_from = metrics, values_from = values) |>
+    mutate(
+      # Real units misassigned (OD 49): the FP of the real units only.
+      FP_real = round(misassign_seq * n_real),
+      .after = TP
+    ) |>
+    select(-misassign_seq, -n_real) |>
     mutate(
       algo = factor(algo, levels = method_levels),
       db = factor(db, levels = db_list),

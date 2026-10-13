@@ -837,6 +837,90 @@ derive_fungi_rep <- function(
   invisible(normalizePath(outputs))
 }
 
+# `fungi + rep cut` of the final zoom (ROADMAP 0.11b, OD 40): the `_Fungi_cut`
+# records of `source` plus the representatives of its `_Fungi_rep`, untrimmed,
+# so that `_Fungi_rep` and `_Fungi_rep_cut` share one draw and differ only by
+# the cutting. derive_fungi_rep() appends the representatives after the
+# `_Fungi` records, in the order of sources/<db>_reps.csv: they are read from
+# there, the sintax ids checked against the csv and the dada2 sequences
+# against the sintax ones (dada2 headers carry no id).
+derive_fungi_rep_cut <- function(
+  source,
+  output_db = paste0(source, "_Fungi_rep_cut"),
+  force = FALSE
+) {
+  rep_db <- paste0(source, db_suffix[["Fungi+rep"]])
+  cut_db <- paste0(source, db_suffix[["Fungi+cut"]])
+  formats <- c("sintax", "dada2")
+  outputs <- vapply(formats, \(fmt) refseq_path(output_db, fmt), character(1))
+  inputs <- c(
+    vapply(formats, \(fmt) refseq_path(cut_db, fmt), character(1)),
+    vapply(formats, \(fmt) refseq_path(rep_db, fmt), character(1))
+  )
+  if (
+    all(vapply(
+      outputs,
+      \(o) skip_if_exists(o, "fungi_rep_cut", force = force, inputs = inputs),
+      logical(1)
+    ))
+  ) {
+    return(invisible(normalizePath(outputs)))
+  }
+  reps_csv <- utils::read.csv(file.path(
+    sources_dir,
+    paste0(rep_db, "_reps.csv")
+  ))
+  reps <- lapply(stats::setNames(formats, formats), function(fmt) {
+    n_fungi <- nrow(Biostrings::fasta.index(refseq_path(
+      paste0(source, "_Fungi"),
+      fmt
+    )))
+    index <- Biostrings::fasta.index(refseq_path(rep_db, fmt))
+    Biostrings::readBStringSet(index[seq.int(n_fungi + 1, nrow(index)), ])
+  })
+  if (!identical(sub(";tax=.*$", "", names(reps$sintax)), reps_csv$record)) {
+    stop(
+      "derive_fungi_rep_cut(): the records after the `_Fungi` ones in ",
+      rep_db,
+      " are not those of its _reps.csv."
+    )
+  }
+  if (
+    !identical(
+      unname(as.character(reps$sintax)),
+      unname(as.character(reps$dada2))
+    )
+  ) {
+    stop(
+      "derive_fungi_rep_cut(): the sintax and dada2 representatives of ",
+      rep_db,
+      " differ."
+    )
+  }
+  for (fmt in formats) {
+    atomic_output(outputs[[fmt]], function(part) {
+      if (!file.copy(refseq_path(cut_db, fmt), part, overwrite = TRUE)) {
+        stop("Could not copy ", refseq_path(cut_db, fmt))
+      }
+      Biostrings::writeXStringSet(
+        reps[[fmt]],
+        part,
+        append = TRUE,
+        width = 20000
+      )
+    })
+  }
+  message(
+    "- fungi_rep_cut: ",
+    output_db,
+    ": ",
+    length(reps$sintax),
+    " representatives appended"
+  )
+  invisible(normalizePath(outputs))
+}
+
+
 # ---- orchestration ---------------------------------------------------------
 
 # Step 2: build every file the pipelines read, from the general FASTA files of
@@ -888,7 +972,11 @@ derive_all_variants <- function(
   fungi_sources <- unique(dbs$source[
     dbs$simplification %in% c("Fungi", "Fungi+cut", "Fungi+rep")
   ])
-  cut_sources <- unique(dbs$source[dbs$simplification == "Fungi+cut"])
+  # The final zoom (OD 40) cuts the `_Fungi` records of config.R::zoom_sources.
+  cut_sources <- union(
+    unique(dbs$source[dbs$simplification == "Fungi+cut"]),
+    zoom_sources
+  )
   for (s in fungi_sources) {
     for (fmt in c("dada2", "sintax")) {
       derive_kingdom_only(
@@ -958,6 +1046,12 @@ derive_all_variants <- function(
   # writes their mini_* files too.
   for (s in unique(dbs$source[dbs$simplification == "Fungi+rep"])) {
     derive_fungi_rep(s, force = force)
+  }
+
+  # 2c-quater. `fungi + rep cut` of the final zoom (0.11b, OD 40): the cut
+  # records plus the representatives of the same `_Fungi_rep` draw.
+  for (s in zoom_sources) {
+    derive_fungi_rep_cut(s, force = force)
   }
 
   # 2c-ter. dada2::assignSpecies() references of every database (species

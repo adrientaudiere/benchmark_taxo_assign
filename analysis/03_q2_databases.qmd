@@ -5,14 +5,19 @@ author: "Adrien Taudière"
 
 Effect of the reference database and of its simplification (`config.R`:
 the whole release, its Fungi-only records, and Fungi plus non-fungal
-representatives `_Fungi_rep`; the primer-trimmed `_Fungi_cut` belongs to the
-final zoom only). Figures: Q2.1 (per-DB accuracy), Q2.2 (paired
-simplification effect), Q2.5 (DB size vs compute cost and accuracy).
+representatives `_Fungi_rep`; the primer-trimmed `fungi + rep cut` belongs to
+the final zoom, Q2.6). Figures: Q2.1 (per-DB accuracy), Q2.2 (paired
+simplification effect), Q2.5 (DB size vs compute cost and accuracy), Q2.6
+(trimmed references, Pauvert only).
 
 Every section has one tab per mock and ITSx region (`analysis_views()` in
 `00_setup.R`), on the ASVs: Pauvert ITS1, then Tedersoo ITS1, ITS2 and full.
 The figures are saved once per view, suffixed with it. The costs of Q2.5 come
 from each dataset's own assignment store (`costs_for()`).
+
+F1 and PPV are scored on the real units only; ACC and MCC keep the
+controls in the matrix, the TN cell being theirs (OD 49). The controls report
+through their own rates, in a table under the summary.
 
 ```{r setup}
 here::i_am("analysis/03_q2_databases.qmd")  # _quarto.yml would otherwise make here() root = analysis/
@@ -76,6 +81,51 @@ s03_db_word <- if (all(s03_spread_db$spread < s03_spread_algo$spread)) {
 } else {
   "not always smaller than the spread between methods (Q1)"
 }
+# Paired intervals (OD 50), per view, on the same units: each step of the
+# ladder (mean over the sources and methods) and EUKARYOME against each UNITE
+# release (mean over the variants and methods).
+s03_cells <- read_cells()
+s03_intervals <- bind_rows(lapply(seq_len(nrow(views)), function(i) {
+  cells <- s03_cells |>
+    filter(
+      dataset == views$dataset[i], region == views$region[i],
+      unit == "ASV", !is_consensus
+    ) |>
+    mutate(column = method_db, unit_id = taxon, group = taxon)
+  cols <- distinct(cells, column, db_base, simplification)
+  pick <- \(keep) cols$column[keep]
+  euk <- grepl("^EUK", cols$db_base)
+  unite <- setdiff(unique(cols$db_base[!euk]), NA)
+  contrasts <- c(
+    list(
+      list(
+        label = "full → Fungi",
+        a = pick(cols$simplification == "Fungi"),
+        b = pick(cols$simplification == "full")
+      ),
+      list(
+        label = "Fungi → Fungi+rep",
+        a = pick(cols$simplification == "Fungi+rep"),
+        b = pick(cols$simplification == "Fungi")
+      )
+    ),
+    lapply(unite, \(u) {
+      list(label = paste0("EUKARYOME − ", u), a = pick(euk), b = pick(cols$db_base == u))
+    })
+  )
+  boot_contrasts(boot_view(cells), contrasts) |>
+    mutate(view = views$label[i])
+}))
+s03_iv_f1 <- filter(s03_intervals, metric == "F1")
+s03_iv_phrase <- s03_iv_f1 |>
+  group_by(contrast) |>
+  group_map(\(tbl, key) paste0(key$contrast, " ", excludes_zero(tbl))) |>
+  unlist() |>
+  paste(collapse = "; ")
+s03_controls <- view_rows(res_all, views) |>
+  filter_default_settings() |>
+  left_join(db_meta, by = "db") |>
+  controls_beside("simplification")
 ```
 
 Default settings, ASVs, Genus F1 averaged over the four methods; one value
@@ -89,6 +139,13 @@ per view.
   full → Fungi `r fmt_range(s03_step_mean$delta[s03_step_mean$step == "full → Fungi"])`,
   Fungi → Fungi+rep `r fmt_range(s03_step_mean$delta[s03_step_mean$step == "Fungi → Fungi+rep"])`
   across the views.
+- **Paired intervals** (OD 50, Genus F1, 95 % bootstrap over the units,
+  table in Q2.2): the interval excludes 0 for `r s03_iv_phrase`.
+- **Controls** (OD 49): the F1 above is scored on the real units only; with
+  the controls in the matrix it is lower by
+  `r fmt_range(s03_controls$shift)` (simplification means per view, table
+  below), most on the Fungi-only databases, where a named external control
+  is an error.
 
 ```{r summary-fig-db}
 #| echo: false
@@ -119,6 +176,11 @@ fig_summary_03_simplification <- s03_steps |>
   theme(legend.position = "bottom")
 print(fig_summary_03_simplification)
 save_fig(fig_summary_03_simplification, "fig_summary_03_simplification", width = 16, height = 6)
+```
+
+```{r summary-controls, results = "asis"}
+#| echo: false
+cat_controls_beside(s03_controls, "Simplification", "means over the methods and sources")
 ```
 
 ## Q2.1 — Per-DB accuracy
@@ -202,6 +264,17 @@ view_tabs(res_all, views, function(res, v) {
 })
 ```
 
+Paired intervals of the summary's differences (OD 50), every view: each
+step of the ladder (mean over the sources and methods) and EUKARYOME against
+each UNITE release (mean over the database variants and methods), default
+settings, ASVs. A draw resamples the scored real units, and every column is
+scored again on it.
+
+```{r q2-2-intervals, results = "asis"}
+#| echo: false
+cat_intervals(s03_intervals, "Paired differences of Genus F1 and PPV, ASVs, default settings.")
+```
+
 ## Q2.5 — DB size vs compute cost and accuracy
 
 Does a smaller (filtered / trimmed) DB pay for itself in runtime without
@@ -262,6 +335,249 @@ view_tabs(res_all, views, function(res, v) {
   print(fig_q2_5)
   save_fig(fig_q2_5, paste0("fig_q2_5_size_cost_", v$id), width = 8, height = 10)
 })
+```
+
+## Q2.6 — Trimmed references (final zoom, OD 40)
+
+Does trimming the references to the amplicon help? The final zoom (ROADMAP
+0.11b, developer 2026-10-12) builds `fungi + rep cut` on the best source of
+each provider on Pauvert, `EUK_ITS_v2.1` and `Unite_all_20250219`: the
+`_Fungi` records cut with cutadapt between ITS1F and ITS2 (records without a
+primer site kept whole, under the OD 32 cap), plus the untrimmed
+representatives of the same source's `_Fungi_rep`
+(`make_databases.R::derive_fungi_rep_cut()`). The two databases share one
+representative draw and differ only by the cutting. ITS1F lies before the
+start of almost every record, so the cut mostly removes the 5.8S end and
+ITS2: the cut records keep ITS1 and the 5.8S start (median ~215 bp against
+~520), close to the ITSx ITS1 queries. The representatives keep their whole
+length (> 500 bp), hence the question of OD 16: are the k-mer methods drawn
+to the longer records (`ext_fungi`, the share of the external controls named
+Fungi at Kingdom)?
+
+Project `assign_taxo_zoom` (`_targets.yaml`): the Pauvert ITS1 inputs, every
+method and setting, on the two `_Fungi_rep` databases and their
+`_Fungi_rep_cut`. Its `_Fungi_rep` columns repeat the main grid's on the same
+input (same target names, so the same seeds) and must give chapter 01's
+scores value for value, except that dada2 can flip a control sitting at its
+bootstrap threshold between two runs (non-default thresholds only): the chunk
+below stops on any other difference. ASVs, lead truth
+rule; the zoom ran outside the timing conditions of M2.4, so its costs are
+not read.
+
+```{r q2-6-data}
+#| include: false
+source(here("R/mock_truth.R"))
+source(here("R/score_assignments.R"))
+source(here("R/assignment_helpers.R"))
+store_zoom <- here("store_assign_taxo_zoom")
+zoom_input <- "ITS1_asv"
+zoom_ready <- !analysis_mini && assignments_complete(store_zoom, "ITS1", "asv")
+```
+
+```{r q2-6-missing, eval = !zoom_ready, results = "asis", echo = FALSE}
+cat("The `assign_taxo_zoom` store is not built: run `run_project(\"assign_taxo_zoom\")` (`R/run_project.R`).\n")
+```
+
+```{r q2-6-score, eval = zoom_ready}
+#| include: false
+zoom_map <- build_values_map(dbs = zoom_grid_dbs, regions = "ITS1", units = "asv")
+zoom_meta <- bind_rows(db_meta, zoom_db_meta)
+input_of <- \(store) refseq(tar_read_raw(paste0("d_", zoom_input, "_for_assignation"), store = store))
+stopifnot(
+  "the zoom input differs from the main grid's" = identical(
+    as.character(input_of(store_zoom)),
+    as.character(input_of(store_assign_taxo))
+  )
+)
+d_zoom <- tar_read_raw(paste0("d_all_taxo_", zoom_input), store = store_zoom) |>
+  clean_taxo() |>
+  add_gen_sp()
+truth_zoom <- build_mock_truth(
+  tar_read(d_asv, store = here("store_dada2")),
+  mock_sanger_tables[mock_sanger_tables$dataset == "pauvert", ]
+)
+res_zoom <- score_truth_rules(
+  d_zoom,
+  build_ranks_df(d_zoom, zoom_map$full_name, ranks = tax_order),
+  truth_zoom,
+  zoom_meta,
+  external_truth = external_control_truth(taxa_names(d_zoom)),
+  truth_ranks = truth_ranks
+) |>
+  mutate(tax_level = ifelse(tax_level == "Species", "Gen_sp", tax_level)) |>
+  left_join(
+    transmute(
+      zoom_map,
+      method_db = full_name,
+      algo = method,
+      db,
+      bootstrap_num = ifelse(method == "lca", NA_real_, min_bootstrap),
+      lca_cutoff,
+      vote_algorithm,
+      min_id
+    ),
+    by = "method_db"
+  ) |>
+  left_join(zoom_meta, by = "db")
+
+# The replica: the zoom's `_Fungi_rep` columns against chapter 01. dada2,
+# rerun with the same target seed, can flip a control sitting at its
+# bootstrap threshold (2026-10-12: one shuffled control at Kingdom in two
+# columns at bootstrap 0.4 and 0.6), so its non-default columns may differ;
+# any other difference stops the render.
+zoom_replica <- res_zoom |>
+  filter(simplification == "Fungi+rep") |>
+  select(method_db, algo, bootstrap_num, tax_level, metrics, truth_rule, external_scoring, zoom = values) |>
+  left_join(
+    cache_read("res_comp_tax") |>
+      filter(dataset == "pauvert", region == "ITS1", unit == "ASV") |>
+      select(method_db, tax_level, metrics, truth_rule, external_scoring, main = values),
+    by = c("method_db", "tax_level", "metrics", "truth_rule", "external_scoring")
+  ) |>
+  mutate(
+    differs = is.na(zoom) != is.na(main) |
+      (!is.na(zoom) & !is.na(main) & abs(zoom - main) > 1e-9)
+  )
+zoom_replica_off <- filter(zoom_replica, differs)
+stopifnot(
+  "the zoom _Fungi_rep columns differ from chapter 01 beyond dada2's non-default thresholds" = all(
+    zoom_replica_off$algo == "dada2" & zoom_replica_off$bootstrap_num != 0.5
+  )
+)
+
+# ext_fungi: external controls named Fungi at Kingdom, read from the
+# assignment table (cleaned labels), as check_wood_vs_mock_rates.R does.
+zoom_tt <- as.data.frame(as(tax_table(d_zoom), "matrix"), stringsAsFactors = FALSE)
+is_external <- grepl("^external_", rownames(zoom_tt))
+zoom_ext <- tibble::tibble(
+  method_db = zoom_map$full_name,
+  ext_fungi = vapply(
+    paste0("Kingdom_", zoom_map$full_name),
+    \(col) mean(zoom_tt[[col]][is_external] %in% "Fungi"),
+    numeric(1)
+  )
+)
+
+# Default settings, Genus: one row per source x method x database.
+zoom_genus <- res_zoom |>
+  filter(tax_level == "Genus", metrics %in% c("F1_score", "PPV", "NA_fake")) |>
+  filter_default_settings() |>
+  select(truth_rule, db_base, simplification, algo, method_db, metrics, values) |>
+  pivot_wider(names_from = metrics, values_from = values) |>
+  left_join(zoom_ext, by = "method_db")
+zoom_delta <- zoom_genus |>
+  select(truth_rule, db_base, algo, simplification, F1_score, PPV, ext_fungi, NA_fake) |>
+  pivot_wider(names_from = simplification, values_from = c(F1_score, PPV, ext_fungi, NA_fake)) |>
+  mutate(
+    d_f1 = `F1_score_Fungi+rep+cut` - `F1_score_Fungi+rep`,
+    d_ppv = `PPV_Fungi+rep+cut` - `PPV_Fungi+rep`,
+    d_ext = `ext_fungi_Fungi+rep+cut` - `ext_fungi_Fungi+rep`
+  )
+# Paired intervals (OD 50): cut against uncut on the same units, per source
+# x method and over the eight pairs.
+zoom_default <- zoom_genus |>
+  filter(truth_rule == lead_truth_rule) |>
+  distinct(db_base, algo, simplification, method_db)
+zoom_cells <- real_unit_cells(
+  d_zoom,
+  build_ranks_df(d_zoom, zoom_default$method_db, ranks = tax_order),
+  truth_zoom,
+  truth_ranks = truth_ranks,
+  no_truth = truth_rules[[lead_truth_rule]]
+) |>
+  mutate(column = method_db, unit_id = taxon, group = taxon)
+zoom_boot <- boot_view(zoom_cells)
+zoom_col <- \(src, alg, simp) {
+  zoom_default$method_db[
+    zoom_default$db_base %in% src & zoom_default$algo %in% alg &
+      zoom_default$simplification == simp
+  ]
+}
+zoom_pairs <- distinct(zoom_default, db_base, algo)
+zoom_intervals <- bind_rows(
+  lapply(seq_len(nrow(zoom_pairs)), function(i) {
+    boot_contrasts(zoom_boot, list(list(
+      label = paste(zoom_pairs$db_base[i], zoom_pairs$algo[i]),
+      a = zoom_col(zoom_pairs$db_base[i], zoom_pairs$algo[i], "Fungi+rep+cut"),
+      b = zoom_col(zoom_pairs$db_base[i], zoom_pairs$algo[i], "Fungi+rep")
+    )))
+  }),
+  boot_contrasts(zoom_boot, list(list(
+    label = "all eight pairs",
+    a = zoom_col(zoom_pairs$db_base, zoom_pairs$algo, "Fungi+rep+cut"),
+    b = zoom_col(zoom_pairs$db_base, zoom_pairs$algo, "Fungi+rep")
+  )))
+)
+zoom_all <- filter(zoom_intervals, contrast == "all eight pairs")
+zoom_lead <- filter(zoom_delta, truth_rule == lead_truth_rule)
+zoom_q2b <- filter(zoom_delta, truth_rule == "q2b")
+zoom_kmer <- filter(zoom_lead, algo %in% c("dada2", "sintax"))
+```
+
+```{r q2-6-text, eval = zoom_ready, results = "asis", echo = FALSE}
+cat(
+  "Default settings, Genus, per source × method (", nrow(zoom_lead), " pairs). ",
+  "**Cutting changes F1 by ", fmt_range(zoom_lead$d_f1), "** (",
+  fmt_range(zoom_q2b$d_f1), " under `q2b`) and PPV by ",
+  fmt_range(zoom_lead$d_ppv), ". Over the eight pairs (OD 50, 95 % paired bootstrap ",
+  "interval): F1 ", with(filter(zoom_all, metric == "F1"), fmt_interval(delta, lo, hi)),
+  ", PPV ", with(filter(zoom_all, metric == "PPV"), fmt_interval(delta, lo, hi)),
+  "; the F1 interval of a single pair excludes 0 ",
+  excludes_zero(filter(zoom_intervals, metric == "F1", contrast != "all eight pairs"), "pairs"),
+  ". `ext_fungi` of the k-mer methods (dada2, sintax): ",
+  fmt_range(zoom_kmer$`ext_fungi_Fungi+rep`), " on `fungi + rep`, ",
+  fmt_range(zoom_kmer$`ext_fungi_Fungi+rep+cut`), " on `fungi + rep cut`; ",
+  "of lca and blastn: change ",
+  fmt_range(filter(zoom_lead, algo %in% c("lca", "blastn"))$d_ext), ". ",
+  "The `_Fungi_rep` replica reproduces chapter 01 on ",
+  sum(!zoom_replica$differs), " of ", nrow(zoom_replica), " rows; the others are ",
+  n_distinct(zoom_replica_off$method_db), " dada2 columns at a non-default threshold, ",
+  "where a control at the bootstrap edge flips between runs.\n\n",
+  sep = ""
+)
+```
+
+```{r q2-6-fig, eval = zoom_ready}
+#| fig-height: 5
+fig_q2_6_zoom <- zoom_genus |>
+  filter(truth_rule == lead_truth_rule) |>
+  select(db_base, algo, simplification, F1_score, ext_fungi) |>
+  pivot_longer(c(F1_score, ext_fungi), names_to = "metric", values_to = "value") |>
+  mutate(
+    metric = factor(metric, levels = c("F1_score", "ext_fungi"), labels = c("Genus F1", "ext_fungi (controls named Fungi)")),
+    simplification = factor(simplification, levels = c("Fungi+rep", "Fungi+rep+cut"))
+  ) |>
+  ggplot(aes(x = simplification, y = value, colour = algo, group = algo)) +
+  geom_point(size = 2) +
+  geom_line() +
+  facet_grid(metric ~ db_base, scales = "free_y") +
+  labs(x = "Database", y = NULL, colour = "Method") +
+  theme_bw()
+print(fig_q2_6_zoom)
+save_fig(fig_q2_6_zoom, "fig_q2_6_zoom_cut", width = 8, height = 6)
+```
+
+```{r q2-6-table, eval = zoom_ready}
+#| echo: false
+zoom_lead |>
+  transmute(
+    Source = db_base,
+    Method = algo,
+    `F1 rep` = round(`F1_score_Fungi+rep`, 3),
+    `F1 rep cut` = round(`F1_score_Fungi+rep+cut`, 3),
+    `Δ F1 [95 %]` = with(
+      filter(zoom_intervals, metric == "F1")[match(paste(db_base, algo), filter(zoom_intervals, metric == "F1")$contrast), ],
+      fmt_interval(delta, lo, hi)
+    ),
+    `Δ F1 (q2b)` = round(zoom_q2b$d_f1[match(paste(db_base, algo), paste(zoom_q2b$db_base, zoom_q2b$algo))], 3),
+    `PPV rep` = round(`PPV_Fungi+rep`, 3),
+    `PPV rep cut` = round(`PPV_Fungi+rep+cut`, 3),
+    `ext_fungi rep` = round(`ext_fungi_Fungi+rep`, 3),
+    `ext_fungi rep cut` = round(`ext_fungi_Fungi+rep+cut`, 3),
+    `fakes named rep / rep cut` = paste(round(1 - `NA_fake_Fungi+rep`, 3), "/", round(1 - `NA_fake_Fungi+rep+cut`, 3))
+  ) |>
+  arrange(Source, Method) |>
+  knitr::kable(caption = "Pauvert ITS1 ASVs, Genus, default settings, lead truth rule (Δ also under q2b): fungi + rep against fungi + rep cut.")
 ```
 
 ## Under Q2b (OD 44)

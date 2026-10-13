@@ -278,6 +278,15 @@ column is scored twice, told apart by `truth_rule`:
 `res_abundance` Q2b only. Every reader keeps one rule (`default_view()`,
 `keep_truth_rule()`, `00_setup.R`).
 
+**Real units in the headline (OD 49).** F1, PPV and FDR are scored on the
+real units only: a named control does not lower them, so they do not depend
+on how many controls were added. The controls report through their own rates
+(`NA_fake`, `ext_fungi`, `ext_correct`, `ctrl_assigned_*`); the values with
+the controls in the matrix stay as `F1_with_ctrl`, `PPV_with_ctrl` and
+`FDR_with_ctrl` (`real_units_headline()`, `R/score_assignments.R`). TPR
+never involves the controls; MCC, ACC and TNR keep them, the TN cell being
+theirs. The `FP` cell still counts the named controls of the matrix.
+
 ```{r score}
 score_region <- function(prep) {
   asv_input <- paste0(prep$region, "_asv")
@@ -661,6 +670,96 @@ itsx_trimming <- bind_rows(lapply(prepared_regions, `[[`, "trimming"))
 itsx_trimming
 ```
 
+## Per-unit cells (OD 50)
+
+The chapters give each paired difference of Genus F1 and PPV a 95 %
+bootstrap interval (OD 50, `R/paired_bootstrap.R`): the units are resampled
+and every column is scored again on the same draw. They need the cell of
+each real unit, not only the counts: `res_cells` holds them at Genus, under
+the lead truth rule, for the default columns and the consensus columns of
+every input (`comparpq::tc_cells_unit()` through `real_unit_cells()`). The
+controls are left out, as in the headline (OD 49). `group` is the OTU cluster
+of the unit, so that a draw takes a cluster's ASVs and its OTU together
+(Q5); `common` marks the ASVs trimmed in every region of their dataset
+(Q4.4, OD 38).
+
+```{r cells}
+cells_region <- function(prep, common) {
+  cells_of <- function(physeq, cols, truth, unit) {
+    ranks_df <- build_ranks_df(physeq, cols, ranks = tax_order, allow_empty = analysis_mini)
+    real_unit_cells(
+      physeq, ranks_df, truth,
+      truth_ranks = truth_ranks, no_truth = truth_rules[[lead_truth_rule]]
+    ) |>
+      mutate(unit = unit)
+  }
+  asv_input <- paste0(prep$region, "_asv")
+  asv_cols <- default_names_for(prep$vm, asv_input)
+  cells <- cells_of(
+    prep$d_asv_r, c(consensus_labels_for(asv_input), asv_cols), prep$truth_asv, "ASV"
+  )
+  if (!is.null(prep$d_otu_r)) {
+    cells <- bind_rows(
+      cells,
+      cells_of(
+        prep$d_otu_r, default_names_for(prep$vm, paste0(prep$region, "_otu")),
+        prep$truth_otu, "OTU"
+      ),
+      cells_of(prep$d_otu_derived, asv_cols, prep$truth_asv, "OTU_derived")
+    )
+  }
+  cluster_of <- if (is.null(prep$clusters)) {
+    NULL
+  } else {
+    setNames(as.character(prep$clusters$cluster), prep$clusters$taxon)
+  }
+  cells |>
+    mutate(
+      dataset = prep$dataset,
+      region = prep$region,
+      group = if (is.null(cluster_of)) taxon else unname(cluster_of[taxon]),
+      common = unit == "ASV" & taxon %in% common
+    )
+}
+
+res_cells <- bind_rows(lapply(prepared, function(preps) {
+  common <- if (length(preps) > 1) {
+    Reduce(intersect, lapply(preps, `[[`, "trimmed"))
+  } else {
+    character(0)
+  }
+  bind_rows(lapply(preps, cells_region, common = common))
+}))
+stopifnot(!anyNA(res_cells$group))
+
+# The cells must add up to the scores of res_comp_tax, column by column:
+# TP, FN, and the real misassignments (misassign_seq x n_real).
+cells_counts <- res_cells |>
+  count(dataset, region, unit, method_db, cell) |>
+  tidyr::pivot_wider(names_from = cell, values_from = n, values_fill = 0)
+for (cl in setdiff(c("TP", "FP", "FN"), names(cells_counts))) {
+  cells_counts[[cl]] <- 0
+}
+cells_scores <- res_comp_tax |>
+  keep_truth_rule() |>
+  filter(tax_level == "Genus", metrics %in% c("TP", "FN", "misassign_seq", "n_real")) |>
+  distinct(dataset, region, unit, method_db, metrics, values) |>
+  tidyr::pivot_wider(names_from = metrics, values_from = values) |>
+  mutate(FP = ifelse(n_real > 0, round(misassign_seq * n_real), 0))
+cells_check <- inner_join(
+  cells_counts, cells_scores,
+  by = c("dataset", "region", "unit", "method_db"), suffix = c("_cells", "_scores")
+)
+stopifnot(
+  nrow(cells_check) == nrow(cells_counts),
+  all(cells_check$TP_cells == cells_check$TP_scores),
+  all(cells_check$FP_cells == cells_check$FP_scores),
+  all(cells_check$FN_cells == cells_check$FN_scores)
+)
+res_cells |>
+  count(dataset, region, unit, common, name = "cells")
+```
+
 # Hand over to the next chapters
 
 ```{r cache}
@@ -673,6 +772,7 @@ cache_write(res_comp_tax, "res_comp_tax")
 cache_write(res_abundance, "res_abundance")
 cache_write(res_subsample, "res_subsample")
 cache_write(res_paired, "res_paired")
+cache_write(res_cells, "res_cells")
 cache_write(itsx_trimming, "itsx_trimming")
 # `prepared` (the cleaned objects and their truths) is NOT cached: nothing
 # outside this file reads it, and on the production stores its phyloseq

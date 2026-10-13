@@ -83,6 +83,24 @@ test_that("a consensus column is scored once per requested scoring", {
   expect_equal(nrow(one), 1)
 })
 
+test_that("a fungi + rep cut database is scored as its fungi + rep (OD 40)", {
+  meta <- tibble::add_row(
+    db_meta_test,
+    db = "Unite_all_20250219_Fungi_rep_cut",
+    db_base = "Unite_all_20250219",
+    simplification = "Fungi+rep+cut"
+  )
+  groups <- scoring_groups(
+    c(
+      "lca__Unite_all_20250219_Fungi_rep___1",
+      "lca__Unite_all_20250219_Fungi_rep_cut___1"
+    ),
+    meta
+  )
+  expect_equal(groups$external_scoring, c("aside", "aside"))
+  expect_equal(groups$kingdom_only, c(TRUE, TRUE))
+})
+
 test_that("an unknown database is an error, not a silent NA", {
   expect_error(
     scoring_groups("dada2__Not_a_database___0.5", db_meta_test),
@@ -194,4 +212,68 @@ test_that("score_assignments() scores each column under its own rule", {
     ],
     1
   )
+})
+
+test_that("the headline F1 and PPV leave the controls out (OD 49)", {
+  assignments <- c(
+    "dada2__Unite_all_20250219___0.5",
+    "dada2__Unite_all_20250219_Fungi___0.5"
+  )
+  ranks_df <- as.data.frame(lapply(
+    stats::setNames(assignments, assignments),
+    \(fn) paste0(c("Kingdom", "Genus"), "_", fn)
+  ))
+  res <- score_assignments(
+    score_mock(),
+    ranks_df = ranks_df,
+    truth = score_truth,
+    db_meta = db_meta_test,
+    external_truth = score_external,
+    truth_ranks = c("Kingdom", "Genus")
+  )
+  cell <- function(assignment, metric) {
+    res$values[
+      res$method_db == assignment &
+        res$tax_level == "Genus" &
+        res$metrics == metric
+    ]
+  }
+  # On the Fungi database the external control named "Zeta" is an FP of the
+  # matrix: TP 1, FP 2 (one real, one control), FN 0.
+  expect_equal(cell(assignments[[2]], "FP"), 2)
+  expect_equal(cell(assignments[[2]], "PPV_with_ctrl"), 1 / 3)
+  expect_equal(cell(assignments[[2]], "F1_with_ctrl"), 0.5)
+  expect_equal(cell(assignments[[2]], "PPV"), 1 / 2)
+  expect_equal(cell(assignments[[2]], "F1_score"), 2 / 3)
+  expect_equal(cell(assignments[[2]], "FDR"), 1 / 2)
+  # The whole release leaves that control aside: both readings agree.
+  expect_equal(
+    cell(assignments[[1]], "F1_score"),
+    cell(assignments[[1]], "F1_with_ctrl")
+  )
+  # TPR and MCC are not touched.
+  expect_equal(cell(assignments[[2]], "TPR"), 1)
+  expect_length(cell(assignments[[2]], "MCC"), 1)
+})
+
+test_that("real_unit_cells() keeps the real units only (OD 50)", {
+  assignments <- c(
+    "dada2__Unite_all_20250219___0.5",
+    "dada2__Unite_all_20250219_Fungi___0.5"
+  )
+  ranks_df <- as.data.frame(lapply(
+    stats::setNames(assignments, assignments),
+    \(fn) paste0(c("Kingdom", "Genus"), "_", fn)
+  ))
+  cells <- real_unit_cells(
+    score_mock(),
+    ranks_df = ranks_df,
+    truth = score_truth,
+    truth_ranks = c("Kingdom", "Genus")
+  )
+  expect_equal(nrow(cells), 4)
+  expect_setequal(cells$taxon, c("Taxa_1", "Taxa_2"))
+  fungi <- cells[cells$method_db == assignments[[2]], ]
+  expect_equal(fungi$cell[fungi$taxon == "Taxa_1"], "TP")
+  expect_equal(fungi$cell[fungi$taxon == "Taxa_2"], "FP")
 })

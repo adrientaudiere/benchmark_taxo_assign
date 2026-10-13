@@ -17,6 +17,12 @@ assign_taxo:
 assign_taxo_mini:
   script: pipelines/assign_taxo.R
   store: store_assign_taxo_mini
+# Final zoom (ROADMAP 0.11b, OD 40): the Pauvert inputs (store_dada2) against
+# config.R::zoom_grid_dbs, the `_Fungi_rep` and `_Fungi_rep_cut` databases of
+# the best UNITE and EUKARYOME sources. Scored in analysis/03_q2_databases.qmd.
+assign_taxo_zoom:
+  script: pipelines/assign_taxo.R
+  store: store_assign_taxo_zoom
 # Biological-community datasets (D1c). One pair per dataset: dada2_<dataset>
 # builds the phyloseq from fastq with pipelines/dada2_bio.R, assign_taxo_<dataset>
 # runs the usual assignment grid on it. config.R derives the dataset key and the

@@ -12,6 +12,10 @@ Every section has one tab per mock and ITSx region (`analysis_views()` in
 The figures are saved once per view, suffixed with it
 (`fig_q1_methods_pauvert_ITS1`, …).
 
+F1 and PPV are scored on the real units only; ACC and MCC keep the
+controls in the matrix, the TN cell being theirs (OD 49). The controls report
+through their own rates, in a table under the summary.
+
 ```{r setup}
 here::i_am("analysis/02_q1_methods.qmd")  # _quarto.yml would otherwise make here() root = analysis/
 source(here::here("analysis/00_setup.R"))
@@ -51,6 +55,7 @@ s02_boot_word <- if (max(abs(s02_boot$delta)) < 0.03) {
 } else {
   "more than 0.03 in at least one view: the threshold matters there"
 }
+s02_controls <- controls_beside(filter_default_settings(s02_rows), "algo")
 ```
 
 Default settings, ASVs, F1 averaged over the nine reference databases; one
@@ -64,6 +69,9 @@ value per view (`r paste(views$label, collapse = ", ")`).
   changes the Genus F1 by `r fmt_range(s02_boot$delta[s02_boot$algo == "dada2"])`
   for dada2 and `r fmt_range(s02_boot$delta[s02_boot$algo == "sintax"])` for
   sintax, `r s02_boot_word`.
+- **Controls** (OD 49): the F1 above is scored on the real units only; with
+  the controls in the matrix it is lower by
+  `r fmt_range(s02_controls$shift)` (method means per view, table below).
 
 ```{r summary-fig}
 #| echo: false
@@ -83,6 +91,11 @@ fig_summary_02_f1_by_rank <- s02_by_algo |>
   theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 print(fig_summary_02_f1_by_rank)
 save_fig(fig_summary_02_f1_by_rank, "fig_summary_02_f1_by_rank", width = 16, height = 5)
+```
+
+```{r summary-controls, results = "asis"}
+#| echo: false
+cat_controls_beside(s02_controls, "Method")
 ```
 
 ## Q1.2 — Per-rank × method (ACC, F1, MCC)
