@@ -1,0 +1,16 @@
+metric,formula,counted_on,source
+PPV,TP / (TP + FP_real),"real units: the headline, every use","OD 7, OD 49"
+FDR,FP_real / (FP_real + TP),real units,"OD 7, OD 49"
+TPR,TP / (TP + FN),real units (a control is never TP nor FN),OD 7
+F1,2 TP / (2 TP + FP_real + FN),"real units: the headline, every use","OD 7, OD 49"
+"PPV, FDR, F1 _with_ctrl","as above, FP = FP_real + FP_ctrl",real units and the controls in the matrix,OD 49
+TNR,TN / (TN + FP),"TN of the controls, FP of the real units and of the controls","OD 7, Q2d"
+"MCC, ACC","TP, FP, FN, TN; MCC = 0 when a margin is 0",real units and the controls in the matrix,"OD 7, OD 49"
+NA_real,FN / n_real,"scored real units, n_real = TP + FP_real + FN: depends on the truth rule",OD 7
+misassign_seq,FP_real / n_real,scored real units,OD 7
+NA_fake,fake_ left NA / fake_,"fake_, every database",OD 7
+"ctrl_assigned_fake, ctrl_assigned_ext",number of fake_ and of external_ named,controls,"OD 7, OD 49"
+ext_fungi,external_ named Fungi at Kingdom / external_,"every external_, every database: an error everywhere","OD 6, OD 7"
+ext_correct,external_ named their own taxon / external_ with a taxon at the rank,"external_, every rank on a whole release, Kingdom only on Fungi + rep; also computed at every rank on a Fungi database, where it cannot be met","OD 15, SA4"
+foreign_named,foreign units named / foreign units,foreign units,OD 36
+no_truth_named,units without truth named / units without truth,"units without truth, under both truth rules",OD 44

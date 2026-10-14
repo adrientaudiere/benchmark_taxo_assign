@@ -648,7 +648,7 @@ boot_contrasts <- function(boot, contrasts) {
 
 # "0.012 [0.004, 0.020]".
 fmt_interval <- function(delta, lo, hi, digits = 3) {
-  f <- \(x) format(round(x, digits), nsmall = digits)
+  f <- \(x) trimws(format(round(x, digits), nsmall = digits))
   paste0(f(delta), " [", f(lo), ", ", f(hi), "]")
 }
 

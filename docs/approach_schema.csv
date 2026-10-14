@@ -1,0 +1,126 @@
+from_type,from,relation,to_type,to,status,uses,source
+scientific question,Use 1: filtering groups,endpoint,metric,"PPV, Kingdom to Order",to compute,1,OD 51
+scientific question,Use 1: filtering groups,endpoint,metric,NA_real: real units left NA,to compute,1,OD 51
+scientific question,Use 1: filtering groups,endpoint,metric,ext_fungi: external_ called Fungi,to compute,1,OD 51
+scientific question,Use 1: filtering groups,endpoint,metric,NA_fake: fake_ left NA,to compute,1,OD 51
+scientific question,Use 2: filling the taxonomy for traits,primary endpoint,metric,Genus F1,built,2,"OD 43, OD 51"
+scientific question,Use 2: filling the taxonomy for traits,primary endpoint,metric,Genus PPV,built,2,"OD 43, OD 51"
+scientific question,Use 2: filling the taxonomy for traits,few NA wanted,metric,NA_real: real units left NA,built,2,OD 51
+scientific question,Use 3: finding target species,endpoint,metric,"Per target species: detected, false detections",to compute,3,OD 51
+scientific question,Use 3: finding target species,few NA wanted,metric,NA_real: real units left NA,to compute,3,OD 51
+scientific question,Use 3: finding target species,pooled reading beside,technical question,Species by exact or near match,built,3,"OD 43, OD 51"
+scientific question,Use 1: filtering groups,one each,output,Recommendation per use: method × database,to compute,1,OD 51
+scientific question,Use 2: filling the taxonomy for traits,one each,output,Recommendation per use: method × database,to compute,2,OD 51
+scientific question,Use 3: finding target species,one each,output,Recommendation per use: method × database,to compute,3,OD 51
+prediction,P1a: curation bias (Fungi-only references),tested by,technical question,"Q2: reference database, UNITE vs EUKARYOME",to compute,all,OD 45
+prediction,"P1b: taxonomic breadth, not size",tested by,technical question,"Q2: reference database, UNITE vs EUKARYOME",to compute,all,OD 45
+prediction,P1c: abstention trade-off,tested by (not supported),technical question,Q1: methods and parameters,built,all,"OD 45, SA1"
+prediction,P1d: trimming references is a no-op,tested by,technical question,Zoom: references cut to the amplicon,built,all,"OD 45, OD 47"
+technical question,Q1: methods and parameters,varies,method,4 methods,built,all,ch. 02
+technical question,"Q2: reference database, UNITE vs EUKARYOME",varies,database,Reference source,built,all,"OD 46, ch. 03"
+technical question,"Q2: reference database, UNITE vs EUKARYOME",varies (paired ladder),database,Simplification ladder,built,all,"OD 46, ch. 03"
+technical question,Q3: consensus voting,varies,method,Consensus strategies (resolve_taxo_conflict),built,all,ch. 04
+technical question,Q4: ITS region,varies,input,"ITS region: ITS1, ITS2, full (ITSx)",built,all,"OD 34, ch. 07"
+technical question,Q5: ASV or OTU (secondary),varies,input,"Unit: ASV, OTU, OTU_derived",built,all,"OD 47, ch. 08"
+technical question,Zoom: references cut to the amplicon,varies,database,"Fungi + representatives, cut to the amplicon",built,all,"OD 40, ch. 03"
+technical question,Species by exact or near match,uses,method,"Exact match (assignSpecies, vsearch, blastn)",built,3,"OD 43, ch. 09"
+technical question,Species by exact or near match,uses,method,"Near match (vsearch, blastn)",built,3,"OD 43, ch. 09"
+technical question,Species by exact or near match,pools inputs and databases of,design,Assignment grid: method × database × input,built,3,OD 43
+technical question,"Costs: time, memory, carbon",one cost per computation of,design,Assignment grid: method × database × input,built,all,"M2.4, ch. 05"
+technical question,D1b: in silico positive control,read on,dataset,In silico (InSilicoSeq),built,all,OD 29
+technical question,"D1c: real communities, controls only",read on,dataset,2 biological datasets,built,all,"OD 8, OD 30"
+technical question,"D1c: real communities, controls only",control rates compared with,dataset,3 mock communities,built,all,"OD 8, OD 30"
+technical question,Q1: methods and parameters,read on (at once),dataset,3 mock communities,built,all,OD 48
+technical question,"Q2: reference database, UNITE vs EUKARYOME",read on (at once),dataset,3 mock communities,built,all,OD 48
+technical question,Q3: consensus voting,read on (at once),dataset,3 mock communities,built,all,OD 48
+technical question,Q5: ASV or OTU (secondary),read on (at once),dataset,3 mock communities,built,all,OD 48
+technical question,Species by exact or near match,scored on,dataset,3 mock communities,built,3,ch. 09
+technical question,Q4: ITS region,read on,dataset,"Tedersoo et al. 2026 (ITS1, ITS2, full)",built,all,"OD 38, ch. 07"
+technical question,Q4: ITS region,read on,dataset,In silico (InSilicoSeq),built,all,ch. 07
+technical question,Zoom: references cut to the amplicon,read on,dataset,Pauvert et al. 2019 (ITS1),built,all,OD 40
+technical question,"Q2: reference database, UNITE vs EUKARYOME",key control rate,metric,ext_fungi: external_ called Fungi,built,1,"objectives_design 2, ch. 03"
+technical question,Q3: consensus voting,gain read against,metric,Effective number of independent voters,to compute,all,OD 46
+technical question,Species by exact or near match,scored by,metric,Species PPV and TPR by exact match,built,3,ch. 09
+technical question,"Costs: time, memory, carbon",measures,metric,"Wall time, CPU, peak memory",built,all,"M2.4, ch. 05"
+technical question,"Costs: time, memory, carbon",measures,metric,CO2eq (greenAlgoR),built,all,"M2.2, ch. 05"
+technical question,"D1c: real communities, controls only",compared with the mocks,metric,NA_real: real units left NA,built,all,"OD 8, OD 30"
+technical question,"D1c: real communities, controls only",compared with the mocks,metric,NA_fake: fake_ left NA,built,1,"OD 8, OD 30"
+technical question,"D1c: real communities, controls only",compared with the mocks,metric,ext_fungi: external_ called Fungi,built,1,"OD 8, OD 30"
+technical question,Q1: methods and parameters,chooses among,output,Recommendation per use: method × database,to compute,all,OD 51
+technical question,"Q2: reference database, UNITE vs EUKARYOME",chooses among,output,Recommendation per use: method × database,to compute,all,OD 51
+technical question,Q3: consensus voting,candidate for,output,Recommendation per use: method × database,to compute,all,OD 51
+design,Assignment grid: method × database × input,crosses,method,4 methods,built,all,OD 34
+design,Assignment grid: method × database × input,crosses,database,Reference source,built,all,OD 34
+design,Assignment grid: method × database × input,crosses,database,Simplification ladder,built,all,OD 34
+design,Assignment grid: method × database × input,crosses,input,"ITS region: ITS1, ITS2, full (ITSx)",built,all,OD 34
+design,Assignment grid: method × database × input,crosses,input,"Unit: ASV, OTU, OTU_derived",built,all,OD 34
+method,4 methods,includes,method,dada2 (naive Bayes),built,all,HISTORY 3d.37
+method,4 methods,includes,method,sintax (k-mer bootstrap),built,all,HISTORY 3d.37
+method,4 methods,includes,method,lca (common LCA of vsearch hits),built,all,"OD 33, HISTORY 3d.37"
+method,4 methods,includes,method,"blastn (vote, abstains)",built,all,HISTORY 3d.37
+method,dada2 (naive Bayes),swept by,parameter,min_bootstrap sweep,built,all,ch. 02
+method,sintax (k-mer bootstrap),swept by,parameter,min_bootstrap sweep,built,all,ch. 02
+method,lca (common LCA of vsearch hits),swept by,parameter,lca_cutoff sweep,built,all,"OD 33, ch. 02"
+method,"blastn (vote, abstains)",swept by,parameter,vote × min_id sweep,built,all,"OD 10, OD 17, ch. 02"
+method,Consensus strategies (resolve_taxo_conflict),votes over its default columns,design,Assignment grid: method × database × input,built,all,"HISTORY 3d.36, ch. 04"
+database,Reference source,includes,database,UNITE without singletons,built,all,OD 1
+database,Reference source,includes,database,UNITE with singletons,built,all,OD 1
+database,Reference source,includes,database,EUKARYOME ITS,built,all,OD 1
+database,Simplification ladder,includes,database,Whole release,built,all,objectives_design 1.3
+database,Simplification ladder,includes,database,Fungi only,built,all,objectives_design 1.3
+database,Simplification ladder,includes,database,Fungi + non-fungal representatives,built,all,"OD 13, OD 21"
+database,Fungi + non-fungal representatives,cut to the amplicon,database,"Fungi + representatives, cut to the amplicon",built,all,OD 40
+database,Simplification ladder,decides,rule,external_scoring: in the matrix on Fungi only,built,all,"OD 6, OD 15, OD 22"
+dataset,3 mock communities,includes,dataset,Pauvert et al. 2019 (ITS1),built,all,
+dataset,3 mock communities,includes,dataset,"Tedersoo et al. 2026 (ITS1, ITS2, full)",built,all,
+dataset,3 mock communities,includes,dataset,Rolling et al. 2022 (ITS1),built,all,OD 42
+dataset,2 biological datasets,includes,dataset,GSSP air (ITS2),built,all,OD 30
+dataset,2 biological datasets,includes,dataset,Korhonen wood (ITS2),built,all,OD 30
+dataset,3 mock communities,+ injected,control,fake_: shuffled units,built,all,objectives_design 1.2
+dataset,3 mock communities,+ injected,control,external_: non-Fungi records (fake_ref),built,all,"objectives_design 1.2, OD 39"
+dataset,In silico (InSilicoSeq),+ injected,control,fake_: shuffled units,built,all,objectives_design 1.2
+dataset,In silico (InSilicoSeq),+ injected,control,external_: non-Fungi records (fake_ref),built,all,objectives_design 1.2
+dataset,2 biological datasets,+ injected,control,fake_: shuffled units,built,all,objectives_design 1.2
+dataset,2 biological datasets,+ injected,control,external_: non-Fungi records (fake_ref),built,all,objectives_design 1.2
+dataset,3 mock communities,truth from,truth,Per-unit truth (Sanger or expected amplicons),built,all,"hleap_2021_metrics 6, OD 42"
+dataset,In silico (InSilicoSeq),truth from,truth,Per-record truth (source records),built,all,OD 29
+dataset,2 biological datasets,has,truth,No truth,built,all,"OD 8, OD 30"
+truth,Per-unit truth (Sanger or expected amplicons),units with a best hit at 90-99.5 %,rule,"Units without truth: aside (lead), Q2b beside",built,all,OD 44
+truth,Per-unit truth (Sanger or expected amplicons),units with no hit at 90 % or more,rule,Foreign units: out of the matrix at every rank,built,all,OD 36
+truth,Per-unit truth (Sanger or expected amplicons),feeds,rule,"Per-unit, per-rank confusion cells (Hleap et al. 2021)",built,all,hleap_2021_metrics 5
+truth,Per-record truth (source records),feeds,rule,"Per-unit, per-rank confusion cells (Hleap et al. 2021)",built,all,OD 29
+truth,Per-unit truth (Sanger or expected amplicons),needed by,metric,"Per target species: detected, false detections",to compute,3,OD 51
+truth,No truth,only,metric,NA_real: real units left NA,built,all,"OD 8, OD 30"
+rule,"Units without truth: aside (lead), Q2b beside",applies to,rule,"Per-unit, per-rank confusion cells (Hleap et al. 2021)",built,all,OD 44
+rule,"Units without truth: aside (lead), Q2b beside",reported by,metric,no_truth_named: units without truth named,built,all,OD 44
+rule,Foreign units: out of the matrix at every rank,applies to,rule,"Per-unit, per-rank confusion cells (Hleap et al. 2021)",built,all,OD 36
+rule,Foreign units: out of the matrix at every rank,reported by,metric,foreign_named: foreign units named,built,all,OD 36
+rule,"Real units in the headline, control rates beside",applies to,rule,"Per-unit, per-rank confusion cells (Hleap et al. 2021)",built,all,OD 49
+rule,external_scoring: in the matrix on Fungi only,places,control,external_: non-Fungi records (fake_ref),built,all,"OD 6, OD 15, OD 22"
+rule,"Per-unit, per-rank confusion cells (Hleap et al. 2021)",gives,metric,Genus F1,built,2,OD 7
+rule,"Per-unit, per-rank confusion cells (Hleap et al. 2021)",gives,metric,Genus PPV,built,2,OD 7
+rule,"Per-unit, per-rank confusion cells (Hleap et al. 2021)",gives,metric,"PPV, Kingdom to Order",built,1,OD 7
+rule,"Per-unit, per-rank confusion cells (Hleap et al. 2021)",gives,metric,NA_real: real units left NA,built,all,OD 7
+rule,"Per-unit, per-rank confusion cells (Hleap et al. 2021)",gives (secondary),metric,"TPR (recall), per rank",built,1 2,"OD 7, OD 49"
+rule,"Per-unit, per-rank confusion cells (Hleap et al. 2021)",gives (secondary),metric,"MCC, controls kept in",built,1,"OD 7, OD 49"
+rule,Paired bootstrap 95 % interval,on paired differences of,metric,Genus F1,built,2,OD 50
+rule,Paired bootstrap 95 % interval,on paired differences of,metric,Genus PPV,built,2,OD 50
+rule,"Three mocks at once, default settings, no tuning",applies to,output,Recommendation per use: method × database,to compute,all,OD 48
+control,fake_: shuffled units,gives,metric,NA_fake: fake_ left NA,built,1,OD 7
+control,external_: non-Fungi records (fake_ref),gives,metric,ext_fungi: external_ called Fungi,built,1,OD 7
+control,external_: non-Fungi records (fake_ref),gives,metric,ext_correct: external_ given their lineage,built,1,"OD 15, SA4"
+control,fake_: shuffled units,gives (secondary),metric,ctrl_assigned: controls given a value,built,1,"OD 7, OD 49"
+control,external_: non-Fungi records (fake_ref),gives (secondary),metric,ctrl_assigned: controls given a value,built,1,"OD 7, OD 49"
+technical question,dada2 above 65 536 taxonomies (overflow),32-bit overflow in,method,dada2 (naive Bayes),built,all,"OD 47, HISTORY 2"
+technical question,dada2 above 65 536 taxonomies (overflow),hits its whole release and Fungi + rep,database,EUKARYOME ITS,built,all,HISTORY 2
+technical question,dada2 above 65 536 taxonomies (overflow),hits its whole release,database,UNITE with singletons,built,all,HISTORY 2
+technical question,dada2 above 65 536 taxonomies (overflow),fixed by,method,Patched dada2 build (r_lib_patched),built,all,"HISTORY 2, patches/"
+method,dada2 (naive Bayes),runs as,method,Patched dada2 build (r_lib_patched),built,all,"HISTORY 2, patches/"
+technical question,dada2 above 65 536 taxonomies (overflow),explains the first evidence for,prediction,"P1b: taxonomic breadth, not size",built,all,"objectives_design Q2 note, diagnostics_cv_and_databases 4"
+technical question,dada2 above 65 536 taxonomies (overflow),reported upstream,output,Issue and pull request to dada2,to compute,all,ROADMAP 3
+technical question,D1a: cross-validation (parked),read on,dataset,"Reference records in k folds (fungal queries, cut to the amplicon)",parked,all,"OD 20, OD 28"
+technical question,D1a: cross-validation (parked),compares,method,4 methods,parked,all,OD 28
+technical question,D1a: cross-validation (parked),on a subset of,database,Reference source,parked,all,"OD 24, OD 27"
+technical question,D1a: cross-validation (parked),varies,parameter,remove_tested: standard vs leaked,parked,all,OD 28
+dataset,"Reference records in k folds (fungal queries, cut to the amplicon)",truth from,truth,Labels of the reference records,parked,all,OD 28
+truth,Labels of the reference records,gives,metric,"Good, wrong classifications, NA_classif",parked,all,OD 28

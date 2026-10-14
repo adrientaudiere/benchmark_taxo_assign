@@ -101,8 +101,7 @@ of the 36.
   `r fmt_range(s04_g$gain_best)`), and the mean single column by
   `r fmt_range(s04_g$gain_mean)`. With both winners chosen again on every
   draw (OD 50, 95 % paired bootstrap over the units, table in Q3.2), the
-  difference with the best single column is
-  `r fmt_range(s04_iv_f1$delta)` and its interval excludes 0
+  interval of the difference with the best single column excludes 0
   `r excludes_zero(s04_iv_f1)`.
 - **Species** is no longer a primary endpoint here (OD 43): it is read by
   exact and near match in chapter 09; the `Gen_sp` rows below are secondary.

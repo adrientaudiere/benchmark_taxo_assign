@@ -1,0 +1,10 @@
+group,unit,when,named_truth,named_other,left_na,reported_by,source
+real units,Unit whose truth reaches the rank,every truth rule,TP,FP,FN,"PPV, FDR, TPR, F1, NA_real, misassign_seq","hleap_2021_metrics 6, OD 49"
+real units,"Unit whose truth stops above the rank (tied strains of several taxa, or a strain named only to a higher rank)",every truth rule,out,out,out,n_left_out,"Q2c, mock_truth_table()"
+real units,"Unit without truth: best Sanger hit at 90-99.5 %",no_truth_aside (leads),—,out,out,"no_truth_named, n_no_truth",OD 44
+real units,"Unit without truth: best Sanger hit at 90-99.5 %",q2b,—,FP,FN,"no_truth_named, n_no_truth; its FP and FN enter every real-unit metric","Q2b, OD 44"
+real units,Foreign unit: no Sanger hit at 90 % or more,every truth rule,—,out,out,"foreign_named, n_foreign",OD 36
+fake_,Shuffled copy of a real unit,every database,—,FP,TN,"NA_fake, ctrl_assigned_fake; FP and TN enter TNR, MCC, ACC, *_with_ctrl","OD 7, OD 49"
+external_,Non-Fungi record of fake_ref,"Fungi database (external_scoring = ""matrix"")",—: no non-fungal name in the database,FP: Fungi at Kingdom also counts in ext_fungi,TN,"ext_fungi, ctrl_assigned_ext; FP and TN enter TNR, MCC, ACC, *_with_ctrl","OD 6, OD 22, OD 49"
+external_,Non-Fungi record of fake_ref,"Whole release (external_scoring = ""aside"")",out: counted by ext_correct,out: Fungi at Kingdom counts in ext_fungi,out,"ext_correct at every rank, ext_fungi, ctrl_assigned_ext","OD 6, OD 15"
+external_,Non-Fungi record of fake_ref,"Fungi + rep, and its cut (external_scoring = ""aside"")",out: counted by ext_correct at Kingdom,out: Fungi at Kingdom counts in ext_fungi,out,"ext_correct at Kingdom only, ext_fungi, ctrl_assigned_ext","OD 15, OD 22, OD 40"

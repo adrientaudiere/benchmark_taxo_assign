@@ -77,6 +77,8 @@ R/                   # one file per concern; run_project.R (projects of a datase
 analysis/            # Quarto project: 00_setup.R, chapters 01–05 and 07–09, in_silico_simulation.qmd, sandbox/
 tests/               # Rscript-runnable testthat files (tests/run_all.R)
 tools/etat.R         # writes ETAT.md
+tools/approach_schema.R  # docs/approach_schema.csv (relations) -> docs/approach_schema.svg + approach_schema_use<k>.svg (Graphviz dot)
+tools/mock_scoring_schema.R  # docs/mock_scoring_{matrix,metrics,table}.csv -> docs/mock_scoring.svg (truth matrix, metrics, extended mock table)
 figures/             # notebook output (gitignored)
 data/                # see data/README.md
 store_*/             # targets stores (meta/ tracked)

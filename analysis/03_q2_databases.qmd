@@ -116,12 +116,20 @@ s03_intervals <- bind_rows(lapply(seq_len(nrow(views)), function(i) {
   boot_contrasts(boot_view(cells), contrasts) |>
     mutate(view = views$label[i])
 }))
-s03_iv_f1 <- filter(s03_intervals, metric == "F1")
-s03_iv_phrase <- s03_iv_f1 |>
-  group_by(contrast) |>
-  group_map(\(tbl, key) paste0(key$contrast, " ", excludes_zero(tbl))) |>
-  unlist() |>
-  paste(collapse = "; ")
+# Per contrast, the views whose interval lies above 0 and below 0: F1 and PPV
+# can disagree (a database that names more and less precisely).
+s03_iv_phrase <- function(m) {
+  filter(s03_intervals, metric == m) |>
+    group_by(contrast) |>
+    group_map(function(tbl, key) {
+      paste0(
+        key$contrast, " above 0 in ", sum(tbl$lo > 0), " and below 0 in ",
+        sum(tbl$hi < 0), " of ", nrow(tbl), " views"
+      )
+    }) |>
+    unlist() |>
+    paste(collapse = "; ")
+}
 s03_controls <- view_rows(res_all, views) |>
   filter_default_settings() |>
   left_join(db_meta, by = "db") |>
@@ -139,8 +147,10 @@ per view.
   full → Fungi `r fmt_range(s03_step_mean$delta[s03_step_mean$step == "full → Fungi"])`,
   Fungi → Fungi+rep `r fmt_range(s03_step_mean$delta[s03_step_mean$step == "Fungi → Fungi+rep"])`
   across the views.
-- **Paired intervals** (OD 50, Genus F1, 95 % bootstrap over the units,
-  table in Q2.2): the interval excludes 0 for `r s03_iv_phrase`.
+- **Paired intervals** (OD 50, 95 % bootstrap over the units, table in
+  Q2.2), where the interval of the difference lies:
+  - Genus F1: `r s03_iv_phrase("F1")`;
+  - Genus PPV: `r s03_iv_phrase("PPV")`.
 - **Controls** (OD 49): the F1 above is scored on the real units only; with
   the controls in the matrix it is lower by
   `r fmt_range(s03_controls$shift)` (simplification means per view, table
