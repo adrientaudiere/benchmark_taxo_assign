@@ -1346,7 +1346,7 @@ The developer's answers, verbatim after **>>**, with what each changes.
 
 - ~~`config.R::benchmark_dbs`~~, ~~`pipelines/assign_taxo.R` /
   `R/values_map.R`~~: resolved 2026-09-17 (ROADMAP 0.1–0.5).
-- `pipelines/cross_val.R`: runs on `config.R::cv_db_list`, the 7 former
+- `pipelines/cross_val.R`: runs on `cv_db_list` (`Archives/cross_val/config_cv.R`), the 7 former
   databases, on purpose until decision 27 is taken.
 - ~~`analysis/in_silico_simulation.qmd` (D1b-B branch), `CONTEXT.md` glossary
   entry, `ROADMAP.md` D1b-B section~~: resolved 2026-09-22 (ROADMAP 0.9), the

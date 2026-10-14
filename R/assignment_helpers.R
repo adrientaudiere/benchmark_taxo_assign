@@ -5,8 +5,12 @@
 # positive control with exactly the same preparation, without entering the
 # res_comp_tax of chapter 01 (OD 29).
 #
-# Requires comparpq (taxtab_replace_pattern_by_NA), MiscMetabar (simplify_taxo)
-# and tidypq (tax_table_to_df, mutate_taxa_pq).
+# The Q3 consensus columns (add_consensus_columns()) moved here from chapter
+# 01 on 2026-10-14, so that a test can pin who votes.
+#
+# Requires comparpq (taxtab_replace_pattern_by_NA, resolve_taxo_conflict),
+# MiscMetabar (simplify_taxo) and tidypq (tax_table_to_df, mutate_taxa_pq,
+# select_taxa_pq).
 
 # Same cleaning for every object: "<Genus>_sp" species, the incertae sedis and
 # unclassified labels and the empty strings become NA. A truth built from
@@ -127,4 +131,70 @@ build_ranks_df <- function(physeq, assignments, ranks, allow_empty = FALSE) {
     stop("Columns expected from values_map / consensus suffixes are missing.")
   }
   ranks_df
+}
+
+# The Q3 consensus columns of one input (analysis/01_load_and_clean.qmd): one
+# column per rank of `ranks` and per strategy of `configs` (each a list of
+# `method`, `strict`, `nb` and `suffix`), named "<rank>_<input>_<suffix>".
+# Every strategy votes over the same voters, the columns of `voter_names` at
+# each rank, and over nothing else. comparpq::resolve_taxo_conflict() takes as
+# a voter every column whose name matches the rank, so each strategy runs on
+# an object holding the voters only: the bare Kingdom ... Genus columns that
+# d_asv brings from store_dada2 voted too until 2026-09-30 (a 37th voter,
+# C22-P21), and until 2026-10-14 the k-th strategy also counted the columns of
+# the k - 1 strategies run before it. `preference_pattern` names the voter
+# the "preference" strategies follow, without its "<input>_" prefix.
+# `allow_missing` (mini stores) leaves out the voters missing from the
+# tax_table instead of stopping.
+add_consensus_columns <- function(
+  physeq,
+  voter_names,
+  input,
+  configs,
+  preference_pattern,
+  ranks,
+  allow_missing = FALSE
+) {
+  voter_cols <- as.vector(outer(ranks, voter_names, paste, sep = "_"))
+  missing_voters <- setdiff(voter_cols, colnames(physeq@tax_table))
+  if (length(missing_voters) > 0 && !allow_missing) {
+    print(missing_voters)
+    stop("Default-settings columns expected by the Q3 consensus are missing.")
+  }
+  voter_cols <- intersect(voter_cols, colnames(physeq@tax_table))
+  message(
+    input,
+    ": Q3 consensus over ",
+    length(voter_cols) / length(ranks),
+    " assignment columns per rank, for each of ",
+    length(configs),
+    " strategies"
+  )
+  voters <- select_taxa_pq(physeq, dplyr::all_of(voter_cols))
+
+  for (cfg in configs) {
+    new_names <- paste0(ranks, "_", input, "_", cfg$suffix)
+    args <- list(
+      physeq = voters,
+      pattern_tax_ranks = ranks,
+      method = cfg$method,
+      strict = cfg$strict,
+      nb_agree_threshold = cfg$nb,
+      new_names = new_names,
+      replace_collapsed_rank_by_NA = TRUE
+    )
+    if (cfg$method == "preference") {
+      args$preference_pattern <- paste0(input, "_", preference_pattern)
+    }
+    voted <- tax_table_to_df(
+      do.call(resolve_taxo_conflict, args),
+      convert = FALSE
+    )
+    rows <- match(phyloseq::taxa_names(physeq), voted$taxon)
+    physeq <- do.call(
+      mutate_taxa_pq,
+      c(list(physeq = physeq), as.list(voted[rows, new_names, drop = FALSE]))
+    )
+  }
+  physeq
 }

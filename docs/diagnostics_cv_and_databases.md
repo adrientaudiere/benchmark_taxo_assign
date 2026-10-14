@@ -4,6 +4,10 @@ Measurements made on 2026-09-15 and 2026-09-16 on the production stores, kept
 for the manuscript (Methods and Discussion). Each section states what was
 measured, on which data, and what it implies. The scripts are in
 `analysis/sandbox/` and are runnable from the project root with `Rscript`.
+Since 2026-10-14 the cross-validation code this document cites (its sandbox
+scripts, `R/cv_queries.R`, `R/create_fake_pq_from_refseq.R`, their tests and
+the `cv_*` settings, now in `config_cv.R`) lives in `Archives/cross_val/`
+under the same relative paths.
 
 Related: `ROADMAP.md` (items S1.3, S6.9, S8.6, D1a, Q5),
 `reviews/critique_fable/07_results_validity.md` (defects B21–B24), `CONTEXT.md`

@@ -469,4 +469,32 @@ test_that("derive_fungi_rep appends drawn non-fungal records in both formats", {
     ),
     "already exists"
   )
+
+  # A failed rebuild keeps the previous files.
+  rebuilt <- c(
+    refseq_path("SRC_Fungi_rep", "sintax"),
+    refseq_path("SRC_Fungi_rep", "dada2"),
+    file.path(sources_dir, "SRC_Fungi_rep_reps.csv")
+  )
+  expect_error(derive_fungi_rep(
+    "SRC",
+    output_db = "SRC_Fungi_rep",
+    share = 0.1,
+    min_records = 10L,
+    external_fasta = file.path(work, "absent.fasta"),
+    mini_n = 10L,
+    force = TRUE
+  ))
+  expect_true(all(file.exists(rebuilt)))
+
+  # A `_Fungi` file newer than the output is reported, not rebuilt.
+  Sys.setFileTime(refseq_path("SRC_Fungi", "sintax"), Sys.time() + 60)
+  expect_warning(
+    derive_fungi_rep(
+      "SRC",
+      output_db = "SRC_Fungi_rep",
+      external_fasta = external
+    ),
+    "STALE"
+  )
 })

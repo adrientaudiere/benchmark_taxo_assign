@@ -105,3 +105,50 @@ test_that("assignment_labels() ignores the ITSx columns", {
   )
   expect_equal(assignment_labels(df), "m__db")
 })
+
+test_that("add_consensus_columns() votes over the voters only", {
+  # Two of four voters say Alpha: no absolute majority. The bare Genus column
+  # and a strategy run before abs_majority must not vote.
+  vote_tt <- matrix(
+    c("Alpha", "Alpha", "Beta", "Gamma", "Alpha", "Alpha"),
+    nrow = 1,
+    dimnames = list(
+      "t1",
+      c(paste0("Genus_in_v", 1:4), "Genus_in_other", "Genus")
+    )
+  )
+  vote_pq <- phyloseq(
+    otu_table(
+      matrix(1, 1, 1, dimnames = list("t1", "s1")),
+      taxa_are_rows = TRUE
+    ),
+    tax_table(vote_tt)
+  )
+  configs <- list(
+    list(method = "rel_majority", strict = FALSE, nb = 1L, suffix = "rel"),
+    list(method = "abs_majority", strict = FALSE, nb = 1L, suffix = "abs")
+  )
+  out <- suppressMessages(add_consensus_columns(
+    vote_pq,
+    voter_names = paste0("in_v", 1:4),
+    input = "in",
+    configs = configs,
+    preference_pattern = "v1",
+    ranks = "Genus"
+  ))
+  tt_out <- as(tax_table(out), "matrix")
+  expect_equal(unname(tt_out[, "Genus_in_rel"]), "Alpha")
+  expect_true(is.na(tt_out[, "Genus_in_abs"]))
+  expect_equal(unname(tt_out[, "Genus_in_other"]), "Alpha")
+  expect_error(
+    suppressMessages(add_consensus_columns(
+      vote_pq,
+      voter_names = c("in_v1", "in_absent"),
+      input = "in",
+      configs = configs,
+      preference_pattern = "v1",
+      ranks = "Genus"
+    )),
+    "missing"
+  )
+})

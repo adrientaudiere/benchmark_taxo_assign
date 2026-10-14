@@ -282,5 +282,5 @@ their publication values (L6).
 
 **Levers still available**, if a run has to be made smaller: fewer
 cross-validation folds or a smaller `cv_max_seq`; a narrower cross-validation
-grid (`config.R::cv_db_list`, which objectives_design decision 27 leaves open);
+grid (`cv_db_list`, `Archives/cross_val/config_cv.R`, which objectives_design decision 27 leaves open);
 and dropping the ITSx input on the databases where Q4 turns out to be flat.

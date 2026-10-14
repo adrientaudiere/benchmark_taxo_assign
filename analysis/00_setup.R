@@ -192,18 +192,32 @@ stopifnot(paste0("ITS1_asv_", preference_pattern) %in% name_map$full_name)
 # figure: the four single methods, bootstrap 0.5 (dada2 / sintax),
 # lca_cutoff = 0.51 (lca, the QIIME 2 / Bokulich consensus, OD 33),
 # rel_majority vote with min_id = 95 (blastn, the assign_blastn() default used
-# before the min_id sweep). Same four rules as the `consensus_names` of chapter
-# 01, which votes over exactly these columns (decision 0.4d).
+# before the min_id sweep). The Q3 consensus of chapter 01 votes over exactly
+# these columns (decision 0.4d): both read is_default_setting(), the one place
+# the rule is written.
 # The itsx_ and otu_ rows are dropped with the consensus ones: strip the prefix
 # of `algo` first to keep them (chapter 01, Q4 and Q5 views).
+is_default_setting <- function(
+  method,
+  min_bootstrap,
+  lca_cutoff,
+  vote_algorithm,
+  min_id
+) {
+  (method %in% c("dada2", "sintax") & min_bootstrap == 0.5) |
+    (method == "lca" & lca_cutoff == 0.51) |
+    (method == "blastn" & vote_algorithm == "rel_majority" & min_id == 95)
+}
 filter_default_settings <- function(res) {
   res |>
     dplyr::filter(algo %in% single_methods) |>
-    dplyr::filter(
-      (algo %in% c("dada2", "sintax") & bootstrap_num == 0.5) |
-        (algo == "lca" & lca_cutoff == 0.51) |
-        (algo == "blastn" & vote_algorithm == "rel_majority" & min_id == 95)
-    )
+    dplyr::filter(is_default_setting(
+      algo,
+      bootstrap_num,
+      lca_cutoff,
+      vote_algorithm,
+      min_id
+    ))
 }
 
 # Adds the columns every figure groups by, read from `name_map` joined on the

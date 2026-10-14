@@ -79,7 +79,9 @@ Q3 votes over one column per method × database, at the default settings
 (developer, 2026-09-22): 4 × 9 = 36 columns of equal weight. A method
 contributes as many columns as it has parameter rows, so the 12 blastn rows per
 database would carry 57 % of the vote and count the same BLAST search four
-times. Every other column is set aside before the vote and added back after.
+times. Each strategy votes over these 36 columns and nothing else, not even
+the columns of the strategies run before it (`add_consensus_columns()`,
+`R/assignment_helpers.R`).
 
 ```{r helpers-consensus}
 extra_consensus_configs <- list(
@@ -105,70 +107,13 @@ consensus_labels_for <- function(input) {
   paste0(input, "_", vapply(consensus_configs, \(cfg) cfg$suffix, character(1)))
 }
 
-# The default settings of filter_default_settings() (00_setup.R), as the
-# `full_name` of one input of one dataset: one column per method and database.
+# The default settings (is_default_setting(), 00_setup.R) as the `full_name`
+# of one input of one dataset: one column per method and database.
 default_names_for <- function(vm, input) {
   vm |>
     filter(.data$input == .env$input) |>
-    filter(
-      (method %in% c("dada2", "sintax") & min_bootstrap == 0.5) |
-        (method == "lca" & lca_cutoff == 0.51) |
-        (method == "blastn" & vote_algorithm == "rel_majority" & min_id == 95)
-    ) |>
+    filter(is_default_setting(method, min_bootstrap, lca_cutoff, vote_algorithm, min_id)) |>
     pull(full_name)
-}
-
-add_consensus_columns <- function(physeq, vm, input, ranks = tax_order) {
-  consensus_cols <- as.vector(outer(ranks, default_names_for(vm, input), paste, sep = "_"))
-  assignment_cols <- grep(
-    paste0("^(", paste(ranks, collapse = "|"), ")_"),
-    colnames(physeq@tax_table),
-    value = TRUE
-  )
-  missing_consensus <- setdiff(consensus_cols, assignment_cols)
-  if (length(missing_consensus) > 0 && !analysis_mini) {
-    print(missing_consensus)
-    stop("Default-settings columns expected by the Q3 consensus are missing.")
-  }
-  consensus_cols <- intersect(consensus_cols, assignment_cols)
-  # Every column but the voters is set aside, not only the other assignment
-  # columns: the rank patterns are unanchored, so the bare Kingdom ... Genus
-  # columns that d_asv brings from store_dada2 (the DADA2 pipeline's own
-  # taxonomy) voted too, a 37th voter (found 2026-09-30, C22-P21).
-  aside_cols <- setdiff(colnames(physeq@tax_table), consensus_cols)
-  aside_taxtab <- tax_table_to_df(physeq, convert = FALSE)[, c("taxon", aside_cols)]
-  message(
-    input, ": Q3 consensus over ", length(consensus_cols) / length(ranks),
-    " assignment columns per rank; ", length(aside_cols), " columns set aside"
-  )
-  if (length(aside_cols) > 0) {
-    physeq <- select_taxa_pq(physeq, !dplyr::all_of(aside_cols))
-  }
-
-  for (cfg in consensus_configs) {
-    args <- list(
-      physeq              = physeq,
-      pattern_tax_ranks   = ranks,
-      method              = cfg$method,
-      strict              = cfg$strict,
-      nb_agree_threshold  = cfg$nb,
-      new_names           = paste0(ranks, "_", input, "_", cfg$suffix),
-      replace_collapsed_rank_by_NA = TRUE
-    )
-    if (cfg$method == "preference") {
-      args$preference_pattern <- paste0(input, "_", preference_pattern)
-    }
-    physeq <- do.call(resolve_taxo_conflict, args)
-  }
-
-  if (length(aside_cols) > 0) {
-    aside_rows <- match(taxa_names(physeq), aside_taxtab$taxon)
-    physeq <- do.call(
-      mutate_taxa_pq,
-      c(list(physeq = physeq), as.list(aside_taxtab[aside_rows, aside_cols, drop = FALSE]))
-    )
-  }
-  physeq
 }
 ```
 
@@ -228,7 +173,11 @@ prepare_region <- function(ds, region, truth_asv, cfg) {
       " are foreign to the mock (OD 36)"
     )
   }
-  out$d_asv_r <- add_consensus_columns(d_asv_r, vm, asv_input)
+  out$d_asv_r <- add_consensus_columns(
+    d_asv_r, default_names_for(vm, asv_input), asv_input,
+    configs = consensus_configs, preference_pattern = preference_pattern,
+    ranks = tax_order, allow_missing = analysis_mini
+  )
   out
 }
 

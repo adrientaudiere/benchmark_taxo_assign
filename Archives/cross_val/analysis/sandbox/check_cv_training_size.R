@@ -3,6 +3,7 @@ suppressMessages({
   library(phyloseq)
 })
 source("config.R")
+source("config_cv.R")
 source("R/load_pqverse.R")
 suppressMessages(load_pqverse(c("MiscMetabar", "comparpq", "tidypq", "dbpq")))
 source("R/cross_val.R")

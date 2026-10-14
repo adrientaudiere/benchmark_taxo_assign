@@ -722,11 +722,22 @@ derive_fungi_rep <- function(
   )
   reps_csv <- file.path(sources_dir, paste0(output_db, "_reps.csv"))
   all_files <- c(outputs, minis, reps_csv)
+  # The csv is written last, so a build interrupted halfway is redone. A
+  # finished one older than its inputs is reported as stale, not rebuilt
+  # (skip_if_exists()); the sintax file, written first, is the oldest output.
+  inputs <- c(
+    vapply(formats, \(fmt) refseq_path(source, fmt), character(1)),
+    vapply(
+      formats,
+      \(fmt) refseq_path(paste0(source, "_Fungi"), fmt),
+      character(1)
+    ),
+    external_fasta
+  )
   if (!force && all(file.exists(all_files))) {
-    message("- fungi_rep: ", output_db, " already exists; skipping")
+    skip_if_exists(outputs[["sintax"]], "fungi_rep", inputs = inputs)
     return(invisible(normalizePath(outputs)))
   }
-  unlink(all_files)
 
   index <- lapply(
     stats::setNames(formats, formats),
@@ -804,6 +815,10 @@ derive_fungi_rep <- function(
   )
 
   n_mini_reps <- ceiling(share * mini_n)
+  # Deleted only now, after the vsearch pass that can fail: a failed rebuild
+  # (force = TRUE) keeps the previous files. Needed before file.copy(), which
+  # does not overwrite.
+  unlink(all_files)
   for (fmt in formats) {
     reps <- Biostrings::readBStringSet(index[[fmt]][drawn, ])
     stopifnot(identical(names(reps), index[[fmt]]$desc[drawn]))
